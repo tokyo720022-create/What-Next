@@ -1,0 +1,16 @@
+<section id="calendar" hidden>
+    <button class="back" data-go="discover">← Discover</button>
+    <h2 class="ph">Calendar</h2>
+    <div class="czdays">
+      <button class="rmicon" id="czPrev" aria-label="Previous day">←</button>
+      <label class="czdate"><small>Date</small><input type="date" id="czDate"></label>
+      <button class="rmicon" id="czNext" aria-label="Next day">→</button>
+    </div>
+    <div class="dbar">
+      <button class="chip" id="czToday" hidden>Today</button>
+      <button class="chip" id="czList2" aria-pressed="false">Show only in your Watching and Planning list</button>
+      <button class="chip" id="czSeason" aria-pressed="false">Show only from current season</button>
+      <button class="chip" id="czAdult" aria-pressed="false">Show adult content</button>
+    </div>
+    <div id="czList"></div>
+  </section>

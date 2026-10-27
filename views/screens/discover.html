@@ -1,32 +1,33 @@
 <section id="discover" hidden>
-    <div class="row" id="dmode">
-      <button class="chip" data-v="browse" aria-pressed="true">Browse</button>
-      <button class="chip" data-v="foryou" aria-pressed="false">For you</button>
-      <button class="chip" data-v="redis" aria-pressed="false">Rediscover</button>
+    <div id="dHub">
+      <div class="dsearch">
+        <input id="dq" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search anime">
+        <button class="dfbtn" id="dFilterBtn" aria-label="Filters"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><i id="dFilterN" hidden></i></button>
+      </div>
+      <div class="row dkinds" id="dKinds">
+        <button class="chip" data-k="anime" aria-pressed="true">Anime</button>
+        <button class="chip" data-k="manga" aria-pressed="false">Manga</button>
+        <button class="chip" data-k="characters" aria-pressed="false">Characters</button>
+        <button class="chip" data-k="staff" aria-pressed="false">Staff</button>
+        <button class="chip" data-k="studios" aria-pressed="false">Studios</button>
+        <button class="chip" data-k="users" aria-pressed="false">Users</button>
+      </div>
+      <div class="dtiles" id="dTiles">
+        <button class="dtile" data-to="seasonal"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Seasonal</span></button>
+        <button class="dtile" data-to="calendar"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><span>Calendar</span></button>
+        <button class="dtile" data-mode="foryou"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg><span>For you</span></button>
+        <button class="dtile" data-mode="redis"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/></svg><span>Rediscover</span></button>
+      </div>
+      <div class="dhead"><h3 id="dTitle">Explore Anime</h3></div>
+      <div id="dlist" aria-live="polite"></div>
+      <div id="dSentinel"></div>
+      <button class="go alt" id="dmore" hidden>Load more</button>
     </div>
-    <label for="dq">Search</label>
-    <input id="dq" autocomplete="off" placeholder="Title (optional)">
-    <div class="q">Type</div>
-    <div class="row" id="dtype">
-      <button class="chip" data-v="ANIME" aria-pressed="true">Anime</button>
-      <button class="chip" data-v="MANGA" aria-pressed="false">Manga</button>
+    <div id="dMode" hidden>
+      <button class="back" id="dmBack">← Discover</button>
+      <h2 class="ph" id="dmTitle">For you</h2>
+      <div class="row" id="dmType"><button class="chip" data-k="anime" aria-pressed="true">Anime</button><button class="chip" data-k="manga" aria-pressed="false">Manga</button></div>
+      <div id="dmlist" aria-live="polite"></div>
+      <button class="go alt" id="dmMore" hidden>Load more</button>
     </div>
-    <div class="q">Content</div>
-    <div class="row" id="dadult">
-      <button class="chip" data-v="ALL" aria-pressed="false">Everything</button>
-      <button class="chip" data-v="ONLY" aria-pressed="true">18+ only</button>
-      <button class="chip" data-v="HIDE" aria-pressed="false">Hide 18+</button>
-    </div>
-    <label for="dgenre">Genre</label>
-    <select id="dgenre"></select>
-    <label for="dsort">Sort by</label>
-    <select id="dsort">
-      <option value="TRENDING_DESC">Trending now</option>
-      <option value="POPULARITY_DESC">Most popular</option>
-      <option value="SCORE_DESC">Top rated</option>
-      <option value="START_DATE_DESC">Newest</option>
-    </select>
-    <button class="go" id="dgo">Find titles</button>
-    <div id="dlist" aria-live="polite"></div>
-    <button class="go alt" id="dmore" hidden>Load more</button>
   </section>

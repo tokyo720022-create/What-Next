@@ -46,6 +46,21 @@ FAKEUSERS = {301: {"id": 301, "name": "Moreaumi", "bannerImage": "https://img.te
     303: {"id": 303, "name": "Vaskim", "bannerImage": None, "isFollowing": False, "isFollower": True}, 304: {"id": 304, "name": "cloudberrypies", "bannerImage": None, "isFollowing": True, "isFollower": False}}
 FOLLOWERS = [301, 302, 303]; FOLLOWING = [304, 301, 302]
 FOLLOWS = []
+DREQ = []; SZREQ = []; CZREQ = []
+def _cat():
+    out = []
+    for i in range(45):
+        out.append({"id": 7000 + i, "type": "ANIME", "format": "TV", "status": "FINISHED", "isAdult": i % 15 == 14, "title": {"romaji": ("Naruto Clone %d" % i) if i % 5 == 0 else ("Catalog Anime %d" % i), "english": None},
+                    "coverImage": {"large": "https://img.test/c%d.jpg" % (i % 9)}, "averageScore": 90 - i, "popularity": 100000 - i * 100, "favourites": 5000 - i * 10, "seasonYear": 2000 + i % 25, "episodes": 12, "chapters": None,
+                    "genres": ["Action", "Comedy"] if i % 2 == 0 else ["Drama"], "mediaListEntry": {"status": "COMPLETED"} if i == 2 else {"status": "PLANNING"} if i == 3 else None, "studios": {"nodes": [{"name": "Studio %d" % (i % 4)}]}})
+    return out
+CATALOG = _cat()
+SZ_ITEMS = [
+    {"id": 8001, "type": "ANIME", "format": "TV", "status": "RELEASING", "title": {"romaji": "Alpha Season", "english": None}, "coverImage": {"large": "https://img.test/c1.jpg"}, "averageScore": 85, "popularity": 104549, "favourites": 2597, "trending": 90, "startDate": {"year": 2026, "month": 10, "day": 2}, "mediaListEntry": {"status": "PLANNING", "score": 0}, "studios": {"nodes": [{"name": "OLM"}]}},
+    {"id": 8002, "type": "ANIME", "format": "TV", "status": "RELEASING", "title": {"romaji": "Bravo Season", "english": None}, "coverImage": {"large": "https://img.test/c2.jpg"}, "averageScore": 87, "popularity": 98232, "favourites": 3149, "trending": 50, "startDate": {"year": 2026, "month": 10, "day": 5}, "mediaListEntry": {"status": "CURRENT", "score": 80}, "studios": {"nodes": [{"name": "Studio Pierrot"}]}},
+    {"id": 8003, "type": "ANIME", "format": "TV", "status": "RELEASING", "title": {"romaji": "Charlie Season", "english": None}, "coverImage": {"large": "https://img.test/c3.jpg"}, "averageScore": 81, "popularity": 49666, "favourites": 840, "trending": 10, "startDate": {"year": 2026, "month": 10, "day": 1}, "mediaListEntry": None, "studios": {"nodes": [{"name": "Electric Circus"}]}},
+    {"id": 8004, "type": "ANIME", "format": "MOVIE", "status": "NOT_YET_RELEASED", "title": {"romaji": "Delta Movie", "english": None}, "coverImage": {"large": "https://img.test/c4.jpg"}, "averageScore": 70, "popularity": 30000, "favourites": 300, "trending": 5, "startDate": {"year": 2026, "month": 11, "day": 20}, "mediaListEntry": None, "studios": {"nodes": []}},
+    {"id": 8005, "type": "ANIME", "format": "ONA", "status": "RELEASING", "title": {"romaji": "Echo Web", "english": None}, "coverImage": {"large": "https://img.test/c5.jpg"}, "averageScore": 66, "popularity": 12000, "favourites": 100, "trending": 2, "startDate": {"year": 2026, "month": 10, "day": 9}, "mediaListEntry": None, "studios": {"nodes": [{"name": "Web Studio"}]}}]
 NET = {"off": False, "fail": 0, "delay": 0}
 
 def svg(n):
@@ -60,6 +75,8 @@ def handle(route, request):
             if NET["fail"] > 0: NET["fail"] -= 1; return route.abort("failed")
             if NET["delay"]: time.sleep(NET["delay"] / 1000)
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
+        if "a:MediaListCollection" in q and "status_in:[PAUSED,DROPPED]" in q:
+            return ok({"a": {"lists": [{"entries": [{"score": 80, "media": {**CATALOG[10], "mediaListEntry": {"status": "PAUSED"}}}, {"score": 60, "media": {**CATALOG[11], "mediaListEntry": {"status": "DROPPED"}}}]}]}, "m": {"lists": []}})
         if "MediaListCollection" in q:
             t = v.get("t", "ANIME"); es = DATA[t]
             if v.get("u") and v["u"] != "Tester": es = [{**e, "score": min(100, e["score"] + (6 if i % 4 == 0 and e["score"] else 0))} for i, e in enumerate(es)]
@@ -123,6 +140,54 @@ def handle(route, request):
                         "averageScore": 70 + i % 20, "seasonYear": 2000 + i % 20, "startDate": {"year": 2000 + i % 20}, "mediaListEntry": {"status": st} if st else None,
                         "relations": {"edges": [{"relationType": t, "node": {"id": n}} for t, n in RMGRAPH.get(i, [])]}}
             return ok({"Page": {"media": [rmm(i) for i in v["ids"] if i in RMGRAPH]}})
+        if "activities(userId:$id,type_in" in q:
+            import datetime
+            noon = int(datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0).timestamp()); day = 86400
+            acts = [{"id": 1, "status": "watched episode", "progress": "3 - 5", "createdAt": noon}, {"id": 2, "status": "watched episode", "progress": "7", "createdAt": noon - 60},
+                    {"id": 3, "status": "read chapter", "progress": "10 - 11", "createdAt": noon - day}, {"id": 4, "status": "completed", "progress": None, "createdAt": noon - day - 30},
+                    {"id": 5, "status": "watched episode", "progress": "1 - 3", "createdAt": noon - 2 * day}, {"id": 6, "status": "watched episode", "progress": "4", "createdAt": noon - 3 * day},
+                    {"id": 7, "status": "plans to watch", "progress": None, "createdAt": noon - 3 * day}]
+            return ok({"Page": {"pageInfo": {"hasNextPage": False}, "activities": acts}})
+        if "media(type:$type,search:$q" in q:
+            DREQ.append(dict(v)); items = [dict(m) for m in CATALOG]
+            if v.get("type") == "MANGA": items = [{**m, "type": "MANGA", "format": "MANGA", "episodes": None, "chapters": 100, "title": {"romaji": "Manga " + m["title"]["romaji"], "english": None}} for m in items]
+            if v.get("q"): items = [m for m in items if v["q"].lower() in m["title"]["romaji"].lower()]
+            if v.get("genres"): items = [m for m in items if any(g in m["genres"] for g in v["genres"])]
+            if v.get("tags"): items = [m for m in items if m["id"] % 2 == 0]
+            if v.get("year"): items = [m for m in items if m["seasonYear"] == v["year"]]
+            if v.get("adult") is False: items = [m for m in items if not m["isAdult"]]
+            if v.get("adult") is True: items = [m for m in items if m["isAdult"]]
+            if v.get("onList") is False: items = [m for m in items if not m["mediaListEntry"]]
+            if v.get("onList") is True: items = [m for m in items if m["mediaListEntry"]]
+            p = v.get("p") or 1; chunk = items[(p - 1) * 30: p * 30]
+            return ok({"Page": {"pageInfo": {"hasNextPage": len(items) > p * 30}, "media": chunk}})
+        if "characters(search:$q" in q:
+            DREQ.append(dict(v)); cs = [{"id": 11, "name": {"full": "Satoru Gojou", "native": "五条悟"}, "image": {"large": "https://img.test/c1.jpg"}, "favourites": 39385}, {"id": 12, "name": {"full": "Levi", "native": None}, "image": {"large": "https://img.test/c2.jpg"}, "favourites": 38833}, {"id": 13, "name": {"full": "Luffy D. Monkey", "native": None}, "image": {"large": "https://img.test/c3.jpg"}, "favourites": 35997}]
+            if v.get("q"): cs = [c for c in cs if v["q"].lower() in c["name"]["full"].lower()]
+            return ok({"Page": {"pageInfo": {"hasNextPage": False}, "characters": cs}})
+        if "staff(search:$q" in q:
+            DREQ.append(dict(v)); return ok({"Page": {"pageInfo": {"hasNextPage": False}, "staff": [{"id": 21, "name": {"full": "Hayao Miyazaki", "native": None}, "image": {"large": "https://img.test/c4.jpg"}, "favourites": 20000, "primaryOccupations": ["Director", "Animator"]}]}})
+        if "studios(search:$q" in q:
+            DREQ.append(dict(v)); return ok({"Page": {"pageInfo": {"hasNextPage": False}, "studios": [{"id": 31, "name": "MAPPA", "favourites": 9000, "isAnimationStudio": True, "media": {"nodes": [{"coverImage": {"medium": "https://img.test/c5.jpg"}}]}}]}})
+        if "users(search:$q" in q:
+            DREQ.append(dict(v)); us = [{**u, "avatar": {"large": "https://img.test/c%d.jpg" % (u["id"] % 9)}} for u in FAKEUSERS.values() if (v.get("q") or "").lower() in u["name"].lower()]
+            return ok({"Page": {"pageInfo": {"hasNextPage": False}, "users": us}})
+        if "MediaTagCollection" in q:
+            return ok({"MediaTagCollection": [{"name": "Isekai", "category": "Setting-Universe", "isAdult": False}, {"name": "Harem", "category": "Theme-Romance", "isAdult": False}, {"name": "Nudity", "category": "Sexual Content", "isAdult": True}, {"name": "Time Loop", "category": "Theme-Sci-Fi", "isAdult": False}]})
+        if "media(season:$s,seasonYear:$y" in q:
+            SZREQ.append(dict(v)); p = v.get("p") or 1
+            items = SZ_ITEMS[:3] if p == 1 else SZ_ITEMS[3:]
+            if v.get("y") == 2020: items = [] if p == 1 else []
+            return ok({"Page": {"pageInfo": {"hasNextPage": p == 1 and v.get("y") != 2020}, "media": items}})
+        if "airingSchedules(airingAt_greater" in q:
+            CZREQ.append(dict(v)); day0 = v["from"] + 1
+            def lk(site, color, typ="STREAMING"): return {"site": site, "url": "https://example.test/" + site, "type": typ, "color": color, "icon": None, "isDisabled": False}
+            m = lambda i, **k: {"id": i, "type": "ANIME", "format": "TV", "isAdult": False, "season": "FALL", "seasonYear": 2026, "title": {"romaji": "Airing %d" % i, "english": None}, "coverImage": {"large": "https://img.test/c%d.jpg" % (i % 9)}, "bannerImage": "https://img.test/c8.jpg", "mediaListEntry": None, "externalLinks": [], **k}
+            items = [{"id": 1, "airingAt": day0 + 18 * 3600, "episode": 4, "media": m(9001, mediaListEntry={"status": "CURRENT"}, externalLinks=[lk("Crunchyroll", "#f47521"), lk("YouTube", "#ff0000"), lk("Official Site", "#999999", "INFO")])},
+                     {"id": 2, "airingAt": day0 + 19 * 3600 + 1800, "episode": 12, "media": m(9002, mediaListEntry={"status": "PLANNING"})},
+                     {"id": 3, "airingAt": day0 + 20 * 3600, "episode": 2, "media": m(9003, season="WINTER", seasonYear=2020)},
+                     {"id": 4, "airingAt": day0 + 21 * 3600, "episode": 1, "media": m(9004, isAdult=True)}]
+            return ok({"Page": {"pageInfo": {"hasNextPage": False}, "airingSchedules": items}})
         if "mediaListOptions" in q: return ok({"Viewer": {"mediaListOptions": {"scoreFormat": NET.get("scorefmt", "POINT_10_DECIMAL"), "animeList": {"customLists": []}, "mangaList": {"customLists": []}}, "options": {"titleLanguage": "ENGLISH"}}})
         if "Viewer{id name}" in q:
             if NET.get("viewererr"): return route.fulfill(status=500, content_type="application/json", body=json.dumps({"errors": [{"message": "Internal Server Error", "status": 500}], "data": None}))

@@ -133,7 +133,7 @@ async function runJob(id){
     }
   }catch(err){
     const job = pend[id]; delete pend[id];
-    if(job){ applyLocal(id, job.type, job.before); renderAfter(id, job.type); toast("Couldn't save: " + err.message, 4500); }
+    if(job){ applyLocal(id, job.type, job.before); renderAfter(id, job.type); if(typeof bumpDay === "function") for(const [k, n] of job.bumps || []) bumpDay(-n, k); toast("Couldn't save: " + err.message, 4500); }
     result = { ok: false, error: err };
   }
   savePending(); inflight.delete(id);
@@ -161,10 +161,12 @@ function trackSave(id, type, patch, opts){
   if(!Object.keys(patch).length) return Promise.resolve({ ok: true, none: true });
   const before = {}; Object.keys(patch).forEach(k => { before[k] = k === "score" ? ((lists[type].entries || []).find(x => x.id === id) || {}).score || 0 : cur[k]; });
   if(!f) Object.keys(before).forEach(k => { if(before[k] === undefined) delete before[k]; });
-  if(patch.progress != null && cur.progress != null && patch.progress > cur.progress && typeof bumpDay === "function") bumpDay(patch.progress - cur.progress);
+  const bump = patch.progress != null && cur.progress != null ? patch.progress - cur.progress : 0, bumpKey = typeof dayKey === "function" ? dayKey() : "";
+  if(bump && typeof bumpDay === "function") bumpDay(bump, bumpKey);   // undoing a tap takes it back off today
   applyLocal(id, type, patch);
   const job = pend[id] || { type, patch: {}, before: {}, ver: 0, isNew: !f };
   Object.assign(job.patch, patch); Object.keys(before).forEach(k => { if(!(k in job.before)) job.before[k] = before[k]; });
+  if(bump > 0){ job.bumps = (job.bumps || []).concat([[bumpKey, bump]]); }
   job.ver++; pend[id] = job; savePending();
   renderAfter(id, type);
   return pump(id).then(r => { if(r.queued && !opts.quiet) toast("Saved on this device. It will sync when you're online."); return r; });

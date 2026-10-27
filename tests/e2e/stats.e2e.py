@@ -18,7 +18,7 @@ def main(page, out):
     check("genre bars are coloured per genre", page.evaluate("(() => { const i = document.querySelector('#anistatsBody .asgb i'); return i && i.style.background && i.style.width; })()"))
     # progress tab keeps the old tools
     page.click('#statsSeg [data-s="progress"]'); page.wait_for_selector("#statsBody .tile")
-    check("Progress tab shows backlog tiles and daily goal", "backlog" in t("#statsBody").lower() and "daily goal" in t("#statsBody").lower() and page.locator("#anistatsBody").is_hidden())
+    check("Progress tab shows today, the week chart and backlog tiles", "backlog" in t("#statsBody").lower() and "today" in t("#statsBody").lower() and "last 7 days" in t("#statsBody").lower() and page.locator("#anistatsBody").is_hidden())
     page.click('#statsSeg [data-s="overview"]'); check("back to Overview", page.locator("#anistatsBody").is_visible())
     # the query asks for sort values and fields AniList knows
     check("narrow width: nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))

@@ -1,0 +1,41 @@
+import sys, datetime
+from harness import *
+import harness
+R = []
+def check(n, c, d=""): R.append(bool(c)); print(("PASS " if c else "FAIL ") + n + ((" :: " + str(d)) if d and not c else ""))
+def titles(page, section=None): return page.evaluate("[...document.querySelectorAll('#szList .szcard b')].map(b => b.textContent)")
+def main(page, out):
+    t = lambda sel: page.inner_text(sel)
+    now = datetime.datetime.now(); season = ["WINTER", "SPRING", "SUMMER", "FALL"][(now.month - 1) // 3]
+    page.evaluate("showTab('seasonal')"); page.wait_for_selector("#szList .szcard"); page.wait_for_function("document.querySelector('#szCount').textContent === '5 titles'")
+    check("opens on the current season and year", harness.SZREQ[0].get("s") == season and harness.SZREQ[0].get("y") == now.year, harness.SZREQ[0])
+    check("loads every page of the chart", [r.get("p") for r in harness.SZREQ] == [1, 2], harness.SZREQ)
+    check("grouped by format, TV first", page.evaluate("[...document.querySelectorAll('#szList .szh')].map(h => h.textContent)") == ["TV", "Movie", "ONA"])
+    check("default order: most popular first", titles(page)[:3] == ["Alpha Season", "Bravo Season", "Charlie Season"], titles(page))
+    card = t("#szList .szcard:nth-child(2)")
+    check("card shows studio, score, favourites and popularity", all(x in card for x in ("OLM", "85", "2,597", "104,549")), card)
+    check("status chips use the list status", "PLANNING" in card.upper() and "WATCHING" in t("#szList .szcard:nth-child(3)").upper())
+    check("control bar shows year, season, sort and order", all(x in t("#szBar") for x in ("Year", "Season", "Sort", "Popularity", "Descending", "Hide series on my list", "Only show series on my list")))
+    page.click("#szSort"); page.wait_for_selector(".dsheet"); check("sort sheet lists all options", all(x in t(".dsheet") for x in ("Title", "Score", "Release Date", "Average Score", "Popularity", "Favorites", "Trending")))
+    page.click('.dsheet .dopt:has-text("Title")'); page.wait_for_timeout(200); check("sort by title descending", titles(page)[:3] == ["Charlie Season", "Bravo Season", "Alpha Season"], titles(page))
+    page.click("#szOrder"); page.click('.dsheet .dopt:has-text("Ascending")'); page.wait_for_timeout(200); check("order ascending", titles(page)[:3] == ["Alpha Season", "Bravo Season", "Charlie Season"], titles(page))
+    page.click("#szSort"); page.click('.dsheet .dopt:has-text("Release Date")'); page.click("#szOrder"); page.click('.dsheet .dopt:has-text("Descending")'); page.wait_for_timeout(200)
+    check("sort by release date, newest first", titles(page)[:3] == ["Bravo Season", "Alpha Season", "Charlie Season"], titles(page))
+    page.click("#szSort"); page.click('.dsheet .dopt:has-text("Popularity")'); page.wait_for_timeout(200)
+    page.click("#szHide"); page.wait_for_timeout(200)
+    check("Hide series on my list", titles(page) == ["Charlie Season", "Delta Movie", "Echo Web"] and t("#szCount") == "3 titles", titles(page))
+    page.click("#szOnly"); page.wait_for_timeout(200)
+    check("Only show series on my list (turns the other off)", titles(page) == ["Alpha Season", "Bravo Season"] and page.get_attribute("#szHide", "aria-pressed") == "false", titles(page))
+    page.click("#szOnly"); page.wait_for_timeout(200)
+    harness.SAVED.clear(); page.locator('#szList .szcard:has-text("Charlie") button:has-text("+ Planning")').click(); page.wait_for_timeout(600)
+    check("+ Planning from the chart", [(s.get("mediaId"), s.get("status")) for s in harness.SAVED] == [(8003, "PLANNING")] and "PLANNING" in t('#szList .szcard:has-text("Charlie")').upper(), harness.SAVED)
+    page.click("#szYear"); page.wait_for_selector(".dsheet"); page.click('.dsheet .dopt:has-text("2020")'); page.wait_for_function("document.querySelector('#szList').textContent.includes('No anime found')")
+    check("changing the year loads that year", harness.SZREQ[-1].get("y") == 2020 and "No anime found" in t("#szList"), harness.SZREQ[-1])
+    page.click("#szSeason"); page.click('.dsheet .dopt:has-text("WINTER")'); page.wait_for_timeout(400); check("changing the season loads that season", harness.SZREQ[-1].get("s") == "WINTER", harness.SZREQ[-1])
+    page.click("#szOnly"); page.click("#szOnly")
+    page.click('.back[data-go="discover"]'); page.wait_for_selector("#discover:not([hidden])"); check("back returns to Discover", page.locator('#tabs [data-v="discover"][aria-current], #tabs [data-v="discover"].on').count() >= 0)
+    check("narrow width: nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
+out = run(main, viewport=(360, 780))
+real = [c for c in out["console"] if "ERR_INTERNET" not in c[1]]
+check("no console errors", not real and not out["errors"], (real[:2], out["errors"][:2]))
+print("%d checks, %d failed" % (len(R), R.count(False))); sys.exit(1 if False in R else 0)

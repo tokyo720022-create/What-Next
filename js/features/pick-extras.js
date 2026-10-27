@@ -50,29 +50,6 @@ function topGenres(){
   return [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
 }
 
-async function rediscover(){
-  const list = $("#dlist"); $("#dmore").hidden = true;
-  const d = document.createElement("div"); d.className = "msg"; d.textContent = "Checking your paused and dropped titles…"; list.replaceChildren(d);
-  try{
-    const part = "{lists{entries{score(format:POINT_100) media{...M}}}}";
-    const { json } = await gql("query($u:String){a:MediaListCollection(userName:$u,type:ANIME,status_in:[PAUSED,DROPPED])" + part + " m:MediaListCollection(userName:$u,type:MANGA,status_in:[PAUSED,DROPPED])" + part + "} fragment M on Media{id siteUrl title{romaji english} coverImage{large} averageScore format episodes chapters genres seasonYear}", { u: state.user });
-    if(json.errors && !json.data) throw new Error("AniList said: " + json.errors[0].message);
-    const seen = new Map();
-    for(const k of ["a", "m"]) for(const l of (json.data[k] && json.data[k].lists) || []) for(const en of l.entries){
-      if(!hide.has(en.media.id) && !seen.has(en.media.id)) seen.set(en.media.id, { m: en.media, s: en.score || en.media.averageScore || 0 });
-    }
-    const rows = [...seen.values()].sort((a, b) => b.s - a.s).slice(0, 20);
-    list.replaceChildren(...(rows.length ? rows.map(r => itemCard(r.m, true)) : [Object.assign(document.createElement("div"), { className: "msg", textContent: "Nothing paused or dropped on your list." })]));
-  }catch(err){
-    const e2 = document.createElement("div"); e2.className = "msg"; e2.textContent = err.message; list.replaceChildren(e2);
-  }
-}
-
-$("#dmode").addEventListener("click", ev => {
-  const b = ev.target.closest(".chip"); if(!b) return;
-  $("#dmode").querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c === b)));
-  dState.mode = b.dataset.v; discover(false);
-});
 $("#spinBtn").onclick = () => { state.skipped.clear(); pick(true); };
 $("#lineupBtn").onclick = lineup;
 $("#hideClear").onclick = () => { hide.clear(); saveHide(); $("#hideCount").textContent = "No hidden titles."; };

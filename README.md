@@ -11,7 +11,12 @@ It's a single `index.html` file with no build step and no dependencies. Host it 
 - **Pick for me:** choose Watch, Read, or Either, then how much time you have (15 min, 30 min, 1 hour, 2 hours). It suggests something from your Watching, Reading, Repeating, and Planning lists that fits, and tells you which episodes or chapters to do.
 - **Genre filter:** the genre chips are built from what's actually in your list.
 - **18+ filter:** show everything, only 18+ titles, or hide 18+ titles.
-- **Discover tab:** search AniList for new anime or manga by type, genre, sort (Trending, Popular, Top rated, Newest), and title. Titles already on your list are marked.
+- **Discover tab:** one search box that searches by itself as you type (no Find button). Pick what to search with the chips: Anime, Manga, Characters, Staff, Studios, or Users. With the box empty, the same list is **Explore**: a ranked list for that type (popularity for titles, favourites for people). The filter button has every option: sort, genres, tags, year, season, format, status, country, source, on or off your list, and 18+ (hidden by default). Four tiles sit under the search box:
+  - **Seasonal:** the seasonal chart for any year and season, grouped by format, with sort and order, and Hide or Only series on your list.
+  - **Calendar:** what airs on any day, with air time, countdown, your list status, and streaming sites. Filter to your Watching and Planning list, the current season, or show adult content.
+  - **For you:** trending titles in your favourite genres that are not on your list.
+  - **Rediscover:** your paused and dropped titles, best rated first.
+  Titles on your list show their real status, and + Planning only appears for titles that are not on your list.
 - **Mark as done:** save your progress to AniList straight from a pick. It marks a title Completed when you finish it, and moves a Planning title to Current.
 - **Blur covers:** hides cover art when you're in public.
 - **Anime and Manga lists:** your full AniList lists with status tabs, search, a filter sheet (sort, format, status, country, year, length, score, genres include/exclude) and list customisation (grid or list, columns, hide score or progress). Tap a card for quick view with +1 / -1 progress.
@@ -24,7 +29,7 @@ It's a single `index.html` file with no build step and no dependencies. Host it 
 - **Settings:** Discord and secrets, appearance (System, Light, Dark, AMOLED, custom colours), list options, privacy, and account. **Log out** is in Settings → Account Settings (tap twice to confirm).
 - **Discord sync:** anime and manga updates from your AniList list are posted to Discord forum threads, run from inside the app.
 - **Schedule:** a countdown to the next episode of every airing anime on your list.
-- **Stats:** two tabs. **Overview** shows your AniList statistics with anime and manga side by side (totals, genres, status, demographics, formats, tags, score spread). **Progress** keeps backlog hours, titles finished this month, and the daily goal with a streak.
+- **Stats:** two tabs. **Overview** shows your AniList statistics with anime and manga side by side (totals, genres, status, demographics, formats, tags, score spread). **Progress** shows today's goal ring and streak, a last 7 days chart, a Continue list with +1 buttons, and your backlog. The daily count includes episodes and chapters you update on AniList or other apps, read from your AniList activity (if you turned off list activity on AniList, only this app's updates count).
 - **List Settings:** the same options as AniList's list settings page, saved to your account with Save Changes: scoring system and advanced scoring, default list order, split Completed by format, which list activity to stop creating, custom anime and manga lists (add or remove), and the section order (Start Reorder uses the up and down buttons). Removing a custom list also removes it from every title that uses it.
 - **Relation map:** on a title's page, Relations > Relation map draws the whole franchise as a graph (source above, prequels above, sequels and side stories below). Toggle Core, Related, and Character links, zoom with the buttons or two fingers, tap a label or use Branches to fold a branch, switch to List view, and add titles to Planning straight from the map. Big franchises stop at about 90 titles (140 with Character links).
 - **Offline:** installs to your home screen and shows your last saved list when you have no connection.

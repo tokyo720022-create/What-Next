@@ -4,12 +4,43 @@ const el = (t, c, x) => { const n = document.createElement(t); if(c) n.className
 const dayKey = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 function days(){ try{ return JSON.parse(localStorage.getItem("wn_days") || "{}"); }catch(_){ return {}; } }
 function goal(){ return Number(localStorage.getItem("wn_goal")) || 1; }
-function bumpDay(n){ const d = days(), k = dayKey(); d[k] = (d[k] || 0) + n; try{ localStorage.setItem("wn_days", JSON.stringify(d)); }catch(_){} }
+// Counts come from two places: what you mark in this app, and your AniList activity (so updates made on AniList or other apps count too).
+function actDays(){ try{ const o = JSON.parse(localStorage.getItem("wn_actdays") || "null"); return o && o.days ? o : { at: 0, days: {}, since: {} }; }catch(_){ return { at: 0, days: {}, since: {} }; } }
+function dayCount(k, d, a){ d = d || days(); a = a || actDays(); return Math.max(d[k] || 0, ((a.days || {})[k] || 0) + ((a.since || {})[k] || 0)); }
+function bumpDay(n, key){
+  const k = key || dayKey(), d = days(), a = actDays(); a.since = a.since || {};
+  d[k] = Math.max(0, (d[k] || 0) + n); a.since[k] = Math.max(0, (a.since[k] || 0) + n);
+  try{ localStorage.setItem("wn_days", JSON.stringify(d)); localStorage.setItem("wn_actdays", JSON.stringify(a)); }catch(_){}
+}
 function streak(){
-  const d = days(), g = goal(), c = new Date(); let n = 0;
-  if((d[dayKey(c)] || 0) < g) c.setDate(c.getDate() - 1);
-  while((d[dayKey(c)] || 0) >= g){ n++; c.setDate(c.getDate() - 1); }
+  const d = days(), a = actDays(), g = goal(), c = new Date(); let n = 0;
+  if(dayCount(dayKey(c), d, a) < g) c.setDate(c.getDate() - 1);
+  while(dayCount(dayKey(c), d, a) >= g){ n++; c.setDate(c.getDate() - 1); }
   return n;
+}
+function bestStreak(){
+  const d = days(), a = actDays(), g = goal(), keys = [...new Set([...Object.keys(d), ...Object.keys(a.days || {})])].filter(k => dayCount(k, d, a) >= g).sort();
+  let best = 0, run = 0, prev = null;
+  for(const k of keys){ const t = new Date(k + "T12:00:00"); run = prev && Math.round((t - prev) / 86400000) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = t; }
+  return best;
+}
+const ACT_Q = "query($id:Int!,$p:Int,$from:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} activities(userId:$id,type_in:[ANIME_LIST,MANGA_LIST],createdAt_greater:$from,sort:ID_DESC){... on ListActivity{id status progress createdAt}}}}";
+function actUnits(a){   // episodes or chapters in one activity ("watched episode", progress "4 - 6" = 3)
+  const s = String(a.status || "").toLowerCase();
+  if(/episode|chapter/.test(s)){ const m = String(a.progress || "").match(/(\d+)\s*-\s*(\d+)/); return m ? Math.abs(+m[2] - +m[1]) + 1 : 1; }
+  return s === "completed" ? 1 : 0;
+}
+async function loadActivityDays(force){
+  const cur = actDays(); if(!force && Date.now() - cur.at < 300000) return cur.days;
+  const id = await myId(), from = Math.floor(Date.now() / 1000) - 45 * 86400, out = {};
+  for(let p = 1; p <= 4; p++){
+    const { json } = await gql(ACT_Q, { id, p, from }), pg = json.data && json.data.Page;
+    if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
+    for(const x of pg.activities || []){ if(!x || !x.createdAt) continue; const k = dayKey(new Date(x.createdAt * 1000)); out[k] = (out[k] || 0) + actUnits(x); }
+    if(!(pg.pageInfo && pg.pageInfo.hasNextPage)) break;
+  }
+  try{ localStorage.setItem("wn_actdays", JSON.stringify({ at: Date.now(), days: out, since: {} })); }catch(_){}
+  return out;
 }
 function fmtIn(secs){
   if(secs <= 0) return "now";
@@ -54,37 +85,64 @@ async function renderStats(){
     const left = total - e.progress;
     if(left > 0){ mins += left * (anime ? (x.duration || 24) : MIN_PER_CHAPTER); titles++; }
   }
+  const goalBox = el("div", "card pgtoday"), weekBox = el("div", "card"), contBox = el("div"), note = el("p", "sub pgnote");
+  const drawGoal = () => {
+    const done = dayCount(dayKey()), goalN = goal(), st = streak(), best = bestStreak();
+    goalBox.replaceChildren();
+    const q = el("div", "q", "Today"); q.style.marginTop = "0"; goalBox.append(q);
+    const gr = el("div", "goalrow"), ring = el("div", "ring");
+    ring.style.setProperty("--p", Math.min(100, Math.round(done / goalN * 100))); ring.append(el("span", null, done + "/" + goalN));
+    const txt = el("div"); txt.append(el("b", null, done >= goalN ? "Goal reached" : (goalN - done) + " more to reach your goal"), el("p", "sub", st + " day streak · best " + Math.max(best, st)));
+    gr.append(ring, txt); goalBox.append(gr);
+    const chips = el("div", "row"); chips.style.marginTop = "14px";
+    for(const opt of [1, 2, 3, 5, 10]){
+      const b = el("button", "chip", opt + "/day"); b.setAttribute("aria-pressed", String(goalN === opt));
+      b.onclick = () => { try{ localStorage.setItem("wn_goal", opt); }catch(_){} drawGoal(); drawWeek(); };
+      chips.append(b);
+    }
+    goalBox.append(chips);
+  };
+  const drawWeek = () => {
+    weekBox.replaceChildren(); const q = el("div", "q", "Last 7 days"); q.style.marginTop = "0"; weekBox.append(q);
+    const goalN = goal(), cols = [], now = new Date();
+    for(let i = 6; i >= 0; i--){ const d = new Date(now); d.setDate(d.getDate() - i); cols.push({ d, n: dayCount(dayKey(d)), today: i === 0 }); }
+    const top = Math.max(goalN, ...cols.map(c => c.n), 1), chart = el("div", "pgweek");
+    for(const c of cols){
+      const col = el("div", "pgday" + (c.today ? " today" : "") + (c.n >= goalN ? " met" : "")), bar = el("i");
+      bar.style.height = Math.max(c.n ? 8 : 3, Math.round(c.n / top * 100)) + "%";
+      const bw = el("div", "pgbar"); bw.append(bar);
+      col.append(el("em", null, String(c.n)), bw, el("span", null, c.d.toLocaleDateString([], { weekday: "narrow" })));
+      chart.append(col);
+    }
+    weekBox.append(chart, el("p", "sub", "Bars in colour reached your goal of " + goalN + "."));
+  };
+  const drawCont = () => {
+    contBox.replaceChildren();
+    const rows = state.items.filter(e => e.status === "CURRENT" || e.status === "REPEATING").sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 8);
+    if(!rows.length) return;
+    contBox.append(el("div", "q", "Continue"));
+    const card = el("div", "card pgcont"); card.style.marginTop = "0";
+    for(const e of rows){
+      const x = e.media, anime = x.type === "ANIME", total = x.episodes || x.chapters || 0, avail = anime && x.nextAiringEpisode ? x.nextAiringEpisode.episode - 1 : (total || Infinity);
+      const row = el("div", "pgrow"), img = el("img"); img.src = (x.coverImage && x.coverImage.large) || ""; img.alt = ""; img.loading = "lazy";
+      const info = el("div", "pginfo"), t = el("b", null, tt(x)); t.onclick = () => openMedia(x.id);
+      const bar = el("div", "pgp"), fill = el("i"); fill.style.width = total ? Math.min(100, Math.round(e.progress / total * 100)) + "%" : "0%"; bar.append(fill);
+      info.append(t, el("span", null, (anime ? "Episode " : "Chapter ") + e.progress + (total ? " of " + total : "")), bar);
+      const b = el("button", "mini", e.progress >= avail ? "Up to date" : "+1"); b.disabled = e.progress >= avail;
+      b.onclick = async () => { b.disabled = true; await track(x.id, anime ? "anime" : "manga", { progress: e.progress + 1 }); drawGoal(); drawWeek(); drawCont(); };
+      row.append(img, info, b); card.append(row);
+    }
+    contBox.append(card);
+  };
   const tiles = el("div", "tiles");
   const mk = (big, small) => { const t = el("div", "tile"), b = el("b", null, big); t.append(b, el("span", null, small)); tiles.append(t); return b; };
   mk(Math.round(mins / 60).toLocaleString() + " h", "backlog"); mk(String(titles), "titles queued");
   const monthB = mk("…", "finished this month");
-  box.append(tiles);
+  drawGoal(); drawWeek(); drawCont();
+  box.append(goalBox, weekBox, contBox, el("div", "q", "Backlog"), tiles, note);
 
-  const done = days()[dayKey()] || 0, goalN = goal();
-  const gc = el("div", "card"), gq = el("div", "q", "Daily goal"); gq.style.marginTop = "0"; gc.append(gq);
-  const gr = el("div", "goalrow"), ring = el("div", "ring");
-  ring.style.setProperty("--p", Math.min(100, Math.round(done / goalN * 100))); ring.append(el("span", null, done + "/" + goalN));
-  const txt = el("div"); txt.append(el("b", null, streak() + " day streak"), el("p", "sub", "Episodes or chapters you mark as done count here."));
-  gr.append(ring, txt); gc.append(gr);
-  const chips = el("div", "row"); chips.style.marginTop = "14px";
-  for(const opt of [1, 2, 3, 5]){
-    const b = el("button", "chip", opt + "/day"); b.setAttribute("aria-pressed", String(goalN === opt));
-    b.onclick = () => { try{ localStorage.setItem("wn_goal", opt); }catch(_){} renderStats(); };
-    chips.append(b);
-  }
-  gc.append(chips); box.append(gc);
-
-  const c = new Map();
-  for(const e of state.items) for(const gn of e.media.genres || []) c.set(gn, (c.get(gn) || 0) + 1);
-  const topG = [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5), total = state.items.length || 1;
-  const gen = el("div", "card"), tq = el("div", "q", "Top genres"); tq.style.marginTop = "0"; gen.append(tq);
-  for(const [name, n] of topG){
-    const row = el("div", "bar"), tr = el("div", "tr"), fill = el("i"), pct = Math.round(n / total * 100);
-    fill.style.width = pct + "%"; tr.append(fill);
-    row.append(el("span", null, name), tr, el("em", null, pct + "%")); gen.append(row);
-  }
-  box.append(gen);
-
+  loadActivityDays(false).then(() => { note.textContent = "Counts include updates you make on AniList."; drawGoal(); drawWeek(); })
+    .catch(() => { note.textContent = "Couldn't read your AniList activity, so these counts are from this app only."; });
   try{
     const part = "{lists{entries{mediaId completedAt{year month}}}}";
     const { json } = await gql("query($u:String){a:MediaListCollection(userName:$u,type:ANIME,status:COMPLETED)" + part + " m:MediaListCollection(userName:$u,type:MANGA,status:COMPLETED)" + part + "}", { u: state.user });

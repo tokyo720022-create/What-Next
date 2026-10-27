@@ -88,13 +88,17 @@ if(isNative){
   if(A && A.addListener){
     A.addListener("appUrlOpen", ev => handleAuthUrl(ev.url));
     A.addListener("backButton", () => {
-      if(!$("#editor").hidden) editorBack();
+      const sheet = document.querySelector(".dsheet,.usheet");
+      if(sheet) sheet.remove();
+      else if(!$("#editor").hidden) editorBack();
       else if(!$("#qv").hidden) $("#qv").hidden = true;
       else if(!$("#fsheet").hidden) $("#fsheet").hidden = true;
       else if(!$("#csheet").hidden) $("#csheet").hidden = true;
       else if(!$("#user").hidden) userPop();
       else if(!$("#media").hidden) closeMedia();
       else if(!$("#relmap").hidden) closeRelMap();
+      else if(!$("#seasonal").hidden || !$("#calendar").hidden) showTab("discover");
+      else if(!$("#discover").hidden && dx.mode !== "hub") dmShow("hub");
       else if(SUBS.some(id => !$(id).hidden)) showTab("settings");
       else if(!$("#settings").hidden || !$("#stats").hidden || !$("#chat").hidden) showTab("profile");
       else if($("#pickWrap").hidden) showTab("pick");

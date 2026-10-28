@@ -1,7 +1,9 @@
 <section id="setApp" hidden>
   <button class="back" data-go="settings">← Settings</button>
   <h2 class="ph">App Settings</h2>
-  <div class="q">Appearance</div>
+  <p class="sub">These only change this app. They don't touch your AniList account or the website.</p>
+
+  <div class="q">Theme</div>
   <div class="card" style="margin-top:0">
     <div class="row" id="themeMode">
       <button class="chip" data-v="system" aria-pressed="true">System</button>
@@ -9,16 +11,45 @@
       <button class="chip" data-v="dark" aria-pressed="false">Dark</button>
       <button class="chip" data-v="amoled" aria-pressed="false">AMOLED</button>
     </div>
+    <div class="q" style="margin-top:20px">Colour theme</div>
+    <div class="presets" id="themePresets"></div>
     <div class="colors">
       <label class="chk">Primary <input type="color" id="colorA" value="#ff4d86"></label>
       <label class="chk">Secondary <input type="color" id="colorB" value="#ff7a59"></label>
     </div>
     <button class="go alt" id="colorReset">Reset colours</button>
   </div>
+
+  <div class="q">Appearance</div>
+  <div class="card" style="margin-top:0">
+    <label class="lsrow"><span>Round profile pictures</span><input class="lssw" type="checkbox" id="appAvatar"><i class="lsck"></i></label>
+    <div class="lsrow" style="cursor:default"><span>Text size</span><div class="row" id="appSize" style="flex-wrap:nowrap;gap:8px"><button class="chip" data-v="s" aria-pressed="false">Small</button><button class="chip" data-v="m" aria-pressed="true">Normal</button><button class="chip" data-v="l" aria-pressed="false">Large</button></div></div>
+    <label class="lsrow"><span>Show the logo screen when the app opens</span><input class="lssw" type="checkbox" id="appSplash"><i class="lsck"></i></label>
+  </div>
+
+  <div class="q">Lists</div>
+  <div class="card" style="margin-top:0">
+    <label class="lsrow"><span>“All” anime list position</span><select class="lssel" id="appAllAnime"><option value="top">Top of the list</option><option value="bottom">Bottom of the list</option></select></label>
+    <label class="lsrow"><span>“All” manga list position</span><select class="lssel" id="appAllManga"><option value="top">Top of the list</option><option value="bottom">Bottom of the list</option></select></label>
+    <label class="lsrow"><span>Use relative dates for the next airing episode</span><input class="lssw" type="checkbox" id="appRelative"><i class="lsck"></i></label>
+  </div>
+
+  <div class="q">Titles</div>
+  <div class="card" style="margin-top:0">
+    <p class="sub" style="margin:0 0 4px">Pick how titles from each country are shown. “Follow AniList” uses your AniList title language.</p>
+    <label class="lsrow"><span>Japanese titles</span><select class="lssel" id="appNameJP"></select></label>
+    <label class="lsrow"><span>Korean titles</span><select class="lssel" id="appNameKR"></select></label>
+    <label class="lsrow"><span>Chinese titles</span><select class="lssel" id="appNameCN"></select></label>
+    <label class="lsrow"><span>Taiwanese titles</span><select class="lssel" id="appNameTW"></select></label>
+  </div>
+
   <div class="q">Privacy</div>
   <div class="card" style="margin-top:0">
     <button class="chip" id="blurBtn" aria-pressed="false" style="flex:none">Blur covers</button>
     <p class="sub" id="hideCount" style="margin-top:14px"></p>
     <button class="go alt" id="hideClear" style="margin-top:6px">Show hidden titles again</button>
   </div>
+
+  <button class="go alt" id="appReset" style="margin-top:22px">Reset app settings to default</button>
+  <p class="sub" id="appMsg" style="text-align:center;min-height:1.2em"></p>
 </section>

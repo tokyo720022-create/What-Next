@@ -33,7 +33,7 @@ for(const [k] of DK) dx.f[k] = dxDefault(k);
 try{ const s = JSON.parse(localStorage.getItem("wn_dfilters") || "null"); if(s) for(const k of Object.keys(dx.f)) if(s[k]) dx.f[k] = Object.assign(dxDefault(k), s[k]); }catch(_){}
 const dxSave = () => { try{ localStorage.setItem("wn_dfilters", JSON.stringify(dx.f)); }catch(_){} };
 
-const DX_MEDIA = "id type format status isAdult title{romaji english} coverImage{large} averageScore popularity favourites seasonYear episodes chapters genres mediaListEntry{status} studios(isMain:true){nodes{name}}";
+const DX_MEDIA = "id type format status isAdult title{romaji english native} countryOfOrigin coverImage{large} averageScore popularity favourites seasonYear episodes chapters genres mediaListEntry{status} studios(isMain:true){nodes{name}}";
 const DX_Q = {
   media: "query($p:Int,$type:MediaType,$q:String,$sort:[MediaSort],$genres:[String],$tags:[String],$year:Int,$season:MediaSeason,$format:MediaFormat,$status:MediaStatus,$country:CountryCode,$source:MediaSource,$adult:Boolean,$onList:Boolean,$statusNot:MediaStatus){Page(page:$p,perPage:30){pageInfo{hasNextPage} media(type:$type,search:$q,sort:$sort,genre_in:$genres,tag_in:$tags,seasonYear:$year,season:$season,format:$format,status:$status,countryOfOrigin:$country,source:$source,isAdult:$adult,onList:$onList,status_not:$statusNot){" + DX_MEDIA + "}}}",
   characters: "query($p:Int,$q:String,$sort:[CharacterSort],$bd:Boolean){Page(page:$p,perPage:30){pageInfo{hasNextPage} characters(search:$q,sort:$sort,isBirthday:$bd){id name{full native} image{large} favourites}}}",

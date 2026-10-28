@@ -26,7 +26,7 @@ query($u:String){
   manga:MediaListCollection(userName:$u,type:MANGA,status_in:[CURRENT,REPEATING,PLANNING]){lists{entries{status progress media{...M}}}}
 }
 fragment M on Media{
-  id type siteUrl title{romaji english} coverImage{extraLarge large}
+  id type siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large}
   episodes chapters duration averageScore genres isAdult nextAiringEpisode{episode airingAt}
 }`;
 
@@ -123,7 +123,7 @@ function lineup(){
   rows.forEach(({e, p}) => {
     const d = document.createElement("div"); d.className = "msg"; d.style.marginTop = "8px";
     const a = document.createElement("a"); a.href = e.media.siteUrl; a.target = "_blank"; a.rel = "noopener"; a.style.fontWeight = "700";
-    a.textContent = e.media.title.english || e.media.title.romaji;
+    a.textContent = tt(e.media);
     d.append(a, document.createElement("br"), p.action + " · " + p.minutes + " min"); box.append(d);
   });
 }

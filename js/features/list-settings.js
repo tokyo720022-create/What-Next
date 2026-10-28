@@ -149,7 +149,7 @@ async function lsSave(){
     const { json } = await gql(LS_SAVE_Q, { sf: lset.score, ro: lset.row, al: opt(lset.anime), ml: opt(lset.manga), da });
     if(json.errors) throw new Error(json.errors[0].message);
     try{ localStorage.setItem("wn_scorefmt", lset.score); }catch(_){}
-    $("#aniScore").value = lset.score; LOPT = null; mcache.clear();
+    LOPT = null; mcache.clear();
     if(typeof invalidateLists === "function") invalidateLists();
     if(lists[curType] && lists[curType].entries) renderList();
     lsBusy = false; await lsLoad(true, true); toast("List settings saved");

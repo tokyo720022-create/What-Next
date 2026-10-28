@@ -66,12 +66,12 @@ function renderSchedule(){
     const card = el("div", "item");
     const img = new Image(); img.alt = ""; img.loading = "lazy"; img.src = x.coverImage.large;
     const info = el("div"); info.style.flex = "1"; info.style.minWidth = "0";
-    const h = el("h3"), a = el("a", null, x.title.english || x.title.romaji); a.href = x.siteUrl; a.target = "_blank"; a.rel = "noopener"; h.append(a);
+    const h = el("h3"), a = el("a", null, tt(x)); a.href = x.siteUrl; a.target = "_blank"; a.rel = "noopener"; h.append(a);
     info.append(h, el("p", null, "Episode " + n.episode + " · " + at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })));
     const waiting = n.episode - 1 - e.progress;
     if(e.status !== "PLANNING" && waiting > 0) info.append(el("p", null, waiting + " waiting for you"));
     card.onclick = ev => { if(!ev.target.closest("a")) openMedia(x.id); };
-    card.append(img, info, el("div", "cd", fmtIn(n.airingAt - Date.now() / 1000)));
+    card.append(img, info, el("div", "cd", appCfg().relative ? fmtIn(n.airingAt - Date.now() / 1000) : new Date(n.airingAt * 1000).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })));
     box.append(card);
   }
 }

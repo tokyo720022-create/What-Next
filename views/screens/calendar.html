@@ -1,16 +1,19 @@
 <section id="calendar" hidden>
-    <button class="back" data-go="discover">← Discover</button>
-    <h2 class="ph">Calendar</h2>
-    <div class="czdays">
-      <button class="rmicon" id="czPrev" aria-label="Previous day">←</button>
-      <label class="czdate"><small>Date</small><input type="date" id="czDate"></label>
-      <button class="rmicon" id="czNext" aria-label="Next day">→</button>
+    <div class="czhead">
+      <button class="rmicon" data-go="discover" aria-label="Back to Discover"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="cztitle" id="czTitle" aria-label="Choose a month"><span><b id="czMonth">October</b><small id="czYear">2026</small></span><i>▾</i></button>
+      <button class="rmicon cztoday" id="czTodayBtn" aria-label="Go to today"><span id="czTodayNum">27</span></button>
+      <button class="rmicon" id="czView" aria-label="Switch between month and week view"></button>
+      <button class="rmicon" id="czFilter" aria-label="Filters"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg><i id="czFilterN" hidden></i></button>
     </div>
-    <div class="dbar">
-      <button class="chip" id="czToday" hidden>Today</button>
-      <button class="chip" id="czList2" aria-pressed="false">Show only in your Watching and Planning list</button>
-      <button class="chip" id="czSeason" aria-pressed="false">Show only from current season</button>
-      <button class="chip" id="czAdult" aria-pressed="false">Show adult content</button>
+    <div class="czchips">
+      <div class="czchipset">
+        <button class="chip" data-c="all" aria-pressed="true">All</button>
+        <button class="chip" data-c="premiere" aria-pressed="false">Premiere</button>
+        <button class="chip" data-c="finale" aria-pressed="false">Finale</button>
+      </div>
+      <button class="rmicon" id="czPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="rmicon" id="czNext" aria-label="Next"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    <div id="czList"></div>
+    <div id="czBody"></div>
   </section>

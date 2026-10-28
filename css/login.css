@@ -1,25 +1,38 @@
 /* css/login.css: the login screen */
-.login{position:fixed;inset:0;z-index:40;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 56px) 26px calc(env(safe-area-inset-bottom,0px) + 34px);background:#0b1430}
-.sky{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 100%,rgba(236,140,164,.85) 0%,rgba(236,140,164,0) 60%),linear-gradient(180deg,#0a1838 0%,#14306a 36%,#2a5a95 60%,#5f88ae 80%,#b9a0b6 100%)}
-.cloud{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.6),rgba(255,255,255,0));filter:blur(14px);animation:drift 40s ease-in-out infinite}
-.cloud-1{width:340px;height:200px;top:20%;left:-10%}
-.cloud-2{width:430px;height:240px;top:42%;right:-20%;animation-duration:55s;animation-direction:reverse}
-.cloud-3{width:300px;height:180px;top:60%;left:8%;animation-duration:70s}
-@keyframes drift{0%,100%{transform:translateX(0)}50%{transform:translateX(46px)}}
-.petal{position:absolute;top:-24px;width:10px;height:14px;border-radius:70% 0 70% 0;background:rgba(255,198,216,.92);animation:fall linear infinite}
-@keyframes fall{to{transform:translate3d(70px,112vh,0) rotate(540deg)}}
-.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 30%,rgba(0,0,0,.6) 100%)}
-.ltop,.lbottom{position:relative;z-index:1}
-.ltop h2{margin:16px 0 2px;font-size:2.1rem;letter-spacing:-.02em}
-.ltop p{margin:0;opacity:.85}
-.lbottom h3{margin:0 0 8px;font-size:1.5rem}
-.lbottom p{margin:0 0 22px;line-height:1.5;opacity:.92}
-.lbottom a{color:#fff;text-decoration:underline}
-.lerr{color:#ffd1dc;min-height:1.2em;margin:-10px 0 14px!important}
-.lbtns{display:flex;gap:16px}
-.lbtn{flex:1;padding:16px;border-radius:16px;font:inherit;font-weight:800;font-size:1.05rem;cursor:pointer;color:#fff}
-.lbtn.ghost{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.85);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-.lbtn.solid{background:var(--grad);border:0;box-shadow:0 8px 24px rgba(255,77,134,.4)}
-.lbtn:active{transform:scale(.97)}
-.lbottom .lfoot{text-align:center;font-size:.78rem;opacity:.7;margin:18px 0 0}
-@media (prefers-reduced-motion:reduce){.cloud,.petal{animation:none}}
+.login{position:fixed;inset:0;z-index:40;overflow:auto;color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 28px) 24px calc(env(safe-area-inset-bottom,0px) + 18px);background:#080b1c}
+.sky{position:fixed;inset:0;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,#0a1030 0%,#1a1442 55%,#2b1636 100%)}
+.lart{position:absolute;left:-25%;top:-10%;width:150%;height:auto;filter:blur(46px) saturate(1.5);opacity:.5;transform:scale(1.1)}
+.blob{position:absolute;border-radius:50%;filter:blur(40px);opacity:.55;animation:drift 22s ease-in-out infinite alternate}
+.blob-1{width:320px;height:320px;top:-6%;left:-18%;background:radial-gradient(closest-side,#ff4d86,transparent)}
+.blob-2{width:360px;height:360px;top:38%;right:-26%;background:radial-gradient(closest-side,#6a5cff,transparent);animation-duration:28s;animation-direction:alternate-reverse}
+.blob-3{width:300px;height:300px;bottom:-8%;left:6%;background:radial-gradient(closest-side,#ff7a59,transparent);animation-duration:34s}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(26px,-30px) scale(1.15)}}
+.petal{position:absolute;top:-24px;width:10px;height:14px;border-radius:70% 0 70% 0;background:rgba(255,205,224,.7);animation:fall linear infinite}
+@keyframes fall{0%{transform:translate3d(0,-30px,0) rotate(0)}100%{transform:translate3d(60px,110vh,0) rotate(540deg)}}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,8,22,.35),rgba(6,8,22,0) 35%,rgba(6,8,22,.55) 100%)}
+.ltop,.lfeat,.lbottom{position:relative;z-index:1}
+.ltop{text-align:center;margin-top:6px}
+.lglow{position:relative;display:inline-block}
+.lglow::before{content:"";position:absolute;inset:-18px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,77,134,.55),transparent);filter:blur(10px);animation:pulse 4s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.55;transform:scale(.92)}to{opacity:1;transform:scale(1.08)}}
+.lglow .logo{position:relative;width:92px;height:92px;filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
+.ltop h2{margin:12px 0 2px;font-size:2.1rem;letter-spacing:-.03em;background:linear-gradient(90deg,#fff,#ffd6e6 60%,#ffb199);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ltop p{margin:0;opacity:.88;font-size:.98rem}
+.lfeat{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lfeat li{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.lfeat svg{width:26px;height:26px;flex:none;fill:none;stroke:#ffb3cd;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lfeat b{display:block;font-size:.98rem}
+.lfeat small{display:block;opacity:.75;font-size:.82rem;margin-top:1px}
+.lbottom{display:flex;flex-direction:column;gap:10px}
+.lerr{color:#ffd1dc;min-height:1.2em;margin:0;text-align:center}
+.lbtn{width:100%;padding:14px;border-radius:16px;font:inherit;font-weight:800;font-size:1.05rem;color:#fff;cursor:pointer}
+.lbtn.ghost{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.lbtn.solid{background:var(--grad);border:0;box-shadow:0 10px 28px rgba(255,77,134,.45)}
+.lbtn:active{transform:scale(.98)}
+.lsafe{display:flex;gap:10px;align-items:flex-start;margin:2px 0 0;font-size:.8rem;line-height:1.45;opacity:.85}
+.lsafe svg{width:18px;height:18px;flex:none;margin-top:1px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lsafe a{color:#fff;text-decoration:underline}
+.lbottom .lfoot{text-align:center;font-size:.76rem;opacity:.6;margin:4px 0 0}
+@media (max-height:790px){.lfeat small{display:none}.lfeat li{padding:9px 14px}}
+@media (max-height:640px){.lglow .logo{width:72px;height:72px}.ltop h2{font-size:1.8rem}.lsafe{font-size:.74rem}}
+@media (prefers-reduced-motion:reduce){.blob,.petal,.lglow::before{animation:none}}

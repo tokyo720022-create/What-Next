@@ -12,7 +12,7 @@ async function addPlanning(id, btn, type){
 }
 
 async function afterFinish(e){
-  const title = e.media.title.english || e.media.title.romaji;
+  const title = tt(e.media);
   const box = $("#result"); box.replaceChildren();
   const note = document.createElement("div"); note.className = "msg"; note.textContent = "Finished " + title + "! How would you rate it?";
   const row = document.createElement("div"); row.className = "row"; row.style.marginTop = "10px";
@@ -29,7 +29,7 @@ async function afterFinish(e){
   const next = document.createElement("button"); next.className = "go alt"; next.textContent = "Next pick"; next.onclick = () => pick();
   box.append(note, row, next);
   try{
-    const { json } = await gql("query($id:Int){Media(id:$id){relations{edges{relationType node{id siteUrl title{romaji english}}}}}}", { id: e.media.id });
+    const { json } = await gql("query($id:Int){Media(id:$id){relations{edges{relationType node{id siteUrl title{romaji english native} countryOfOrigin}}}}}", { id: e.media.id });
     const seq = ((json.data && json.data.Media && json.data.Media.relations.edges) || []).filter(x => x.relationType === "SEQUEL");
     const onList = new Set(state.items.map(i => i.media.id));
     if(seq.length){

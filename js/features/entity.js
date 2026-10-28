@@ -2,9 +2,9 @@
 const ecache = new Map();
 const KIND = { c: "character", s: "staff", t: "studio" };
 const TOKEN = { character: "c", staff: "s", studio: "t" };   // never use the first letter: "staff" and "studio" both start with s
-const MEDIA_BITS = "id type format title{romaji english} coverImage{large}";
+const MEDIA_BITS = "id type format title{romaji english native} countryOfOrigin coverImage{large}";
 const CHAR_Q = "query($id:Int){Character(id:$id){id siteUrl name{full native} image{large} description(asHtml:false) gender age bloodType dateOfBirth{year month day} favourites isFavourite media(sort:[POPULARITY_DESC],perPage:30){pageInfo{total} edges{characterRole node{" + MEDIA_BITS + "} voiceActors{id name{full} image{medium} languageV2}}}}}";
-const STAFF_Q = "query($id:Int){Staff(id:$id){id siteUrl name{full native} image{large} description(asHtml:false) primaryOccupations languageV2 homeTown gender age yearsActive dateOfBirth{year month day} favourites isFavourite staffMedia(sort:[POPULARITY_DESC],perPage:30){pageInfo{total} edges{staffRole node{" + MEDIA_BITS + "}}} characters(sort:[FAVOURITES_DESC],perPage:30){edges{role node{id name{full} image{medium}} media{id title{romaji english}}}}}}";
+const STAFF_Q = "query($id:Int){Staff(id:$id){id siteUrl name{full native} image{large} description(asHtml:false) primaryOccupations languageV2 homeTown gender age yearsActive dateOfBirth{year month day} favourites isFavourite staffMedia(sort:[POPULARITY_DESC],perPage:30){pageInfo{total} edges{staffRole node{" + MEDIA_BITS + "}}} characters(sort:[FAVOURITES_DESC],perPage:30){edges{role node{id name{full} image{medium}} media{id title{romaji english native} countryOfOrigin}}}}}";
 const STUDIO_Q = "query($id:Int,$p:Int){Studio(id:$id){id siteUrl name favourites isFavourite media(sort:[START_DATE_DESC],page:$p,perPage:24){pageInfo{hasNextPage} edges{node{" + MEDIA_BITS + " seasonYear}}}}}";
 
 function openEntity(kind, id){

@@ -8,3 +8,18 @@
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-weight:600}
 .switch:last-of-type{border-bottom:0}
 .switch input{width:auto}
+
+/* App Settings */
+html[data-avatar="square"]{--avr:24%}
+html[data-avatar="square"] .uav{border-radius:22%}
+.presets{display:flex;flex-wrap:wrap;gap:10px}
+.preset{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 8px;border:2px solid transparent;border-radius:999px;background:var(--chip);color:var(--ink);font:inherit;font-weight:700;font-size:.9rem;cursor:pointer}
+.preset i{width:26px;height:26px;border-radius:50%;display:block}
+.preset[aria-pressed="true"]{border-color:var(--sakura)}
+.acct{display:flex;align-items:center;gap:16px;margin-top:16px}
+.acct img{width:64px;height:64px;border-radius:var(--avr,50%);object-fit:cover;background:var(--chip);flex:none}
+.acct b{font-size:1.25rem}
+.acsw{width:18px;height:18px;border-radius:50%;flex:none;display:block}
+.rowlink.danger b,.rowlink.danger small{color:#ef5b6c}
+.rowlink.danger svg{stroke:#ef5b6c}
+#aniForm textarea{width:100%;margin:8px 0 6px}

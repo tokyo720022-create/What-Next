@@ -40,7 +40,7 @@ input[type=checkbox]{width:auto;accent-color:var(--sakura)}
 .pcard{background:var(--card);border-radius:28px;box-shadow:var(--shadow);overflow:hidden;text-align:center;padding-bottom:20px;--pc:#3db4f2}
 .pbanner{aspect-ratio:3.2/1;background:var(--grad) center/cover no-repeat;position:relative}
 .pbanner::after{content:"";position:absolute;inset:auto 0 0 0;height:26%;background:linear-gradient(to bottom,transparent,var(--card))}
-.pavatar{width:96px;height:96px;border-radius:50%;object-fit:cover;border:4px solid var(--pc);background:var(--card);margin:-8px auto 0;display:block;position:relative;z-index:1}
+.pavatar{width:96px;height:96px;border-radius:var(--avr,50%);object-fit:cover;border:4px solid var(--pc);background:var(--card);margin:-8px auto 0;display:block;position:relative;z-index:1}
 .pname{margin:10px 16px 12px;overflow-wrap:anywhere}
 .pbtn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:999px;background:var(--chip);color:var(--pc);font-weight:700;font-size:.95rem;text-decoration:none}
 .pcounts{display:grid;grid-template-columns:repeat(4,1fr);margin-top:14px;background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:18px 4px}

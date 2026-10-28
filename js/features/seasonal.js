@@ -2,7 +2,7 @@
 // ---------- Seasonal chart ----------
 const SEASONS = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const curSeason = (d = new Date()) => SEASONS[Math.floor(d.getMonth() / 3)];
-const SZ_Q = "query($p:Int,$s:MediaSeason,$y:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} media(season:$s,seasonYear:$y,type:ANIME,isAdult:false,sort:[POPULARITY_DESC]){id type format status title{romaji english} coverImage{large} averageScore popularity favourites trending startDate{year month day} mediaListEntry{status score(format:POINT_100)} studios(isMain:true){nodes{name}}}}}";
+const SZ_Q = "query($p:Int,$s:MediaSeason,$y:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} media(season:$s,seasonYear:$y,type:ANIME,isAdult:false,sort:[POPULARITY_DESC]){id type format status title{romaji english native} countryOfOrigin coverImage{large} averageScore popularity favourites trending startDate{year month day} mediaListEntry{status score(format:POINT_100)} studios(isMain:true){nodes{name}}}}}";
 const SZ_FORMATS = [["TV", "TV"], ["TV_SHORT", "TV Short"], ["MOVIE", "Movie"], ["OVA", "OVA"], ["ONA", "ONA"], ["SPECIAL", "Special"], ["MUSIC", "Music"]];
 const SZ_SORTS = [["TITLE", "Title"], ["MYSCORE", "Score"], ["DATE", "Release Date"], ["AVG", "Average Score"], ["POP", "Popularity"], ["FAV", "Favorites"], ["TREND", "Trending"]];
 const sz = { year: new Date().getFullYear(), season: curSeason(), sort: "POP", order: "DESC", hideList: false, onlyList: false, items: [], loading: false, token: 0, cache: new Map() };

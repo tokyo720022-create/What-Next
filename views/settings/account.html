@@ -1,10 +1,27 @@
 <section id="setAccount" hidden>
   <button class="back" data-go="settings">← Settings</button>
   <h2 class="ph">Account Settings</h2>
-  <div class="card" style="margin-top:16px">
-    <p class="sub">You're signed in with your AniList account. Logging out clears the login from this device.</p>
-    <p class="sub" id="pendNote" style="margin-top:12px"></p>
-    <button class="go alt" id="logout">Log out</button>
-    <button class="go alt" id="appsLink">Manage app access on AniList</button>
+  <div class="card acct">
+    <img id="acAvatar" alt="" hidden>
+    <div><b id="acName"></b><p class="sub" style="margin:2px 0 0">Signed in with AniList</p></div>
   </div>
+  <p class="sub" style="margin-top:14px">Account settings are managed on anilist.co. These buttons open the AniList website. Check that the address is anilist.co before you do anything.</p>
+  <div class="rowlinks" style="margin-top:6px">
+    <button class="rowlink" data-url="https://anilist.co/settings"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span><b>Update Profile</b><small>Avatar, banner and profile page</small></span></span><i>›</i></button>
+    <button class="rowlink" data-url="https://anilist.co/settings/account"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg><span><b>Update Account</b><small>Email, password and username</small></span></span><i>›</i></button>
+    <button class="rowlink" data-url="https://anilist.co/settings/account"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span><b>Lists and stats tools</b><small>Force update stats, unhide entries, reset scores, delete lists</small></span></span><i>›</i></button>
+    <button class="rowlink" data-url="https://anilist.co/settings/import"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg><span><b>Import Lists</b><small>From MyAnimeList and others</small></span></span><i>›</i></button>
+    <button class="rowlink" id="appsLink" data-url="https://anilist.co/settings/apps"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span><b>Manage app access</b><small>Apps that can use your AniList account</small></span></span><i>›</i></button>
+    <button class="rowlink danger" id="acDelete"><span class="rl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span><b>Delete Account</b><small id="acDeleteHint">Opens AniList. This can't be undone.</small></span></span><i>›</i></button>
+  </div>
+
+  <div class="q">On this device</div>
+  <div class="card" style="margin-top:0">
+    <p class="sub" id="pendNote" style="margin:0 0 6px"></p>
+    <button class="go alt" id="acSyncNow">Sync waiting changes now</button>
+    <button class="go alt" id="clearCache">Clear saved lists and pictures</button>
+    <button class="go alt" id="copyInfo">Copy app info</button>
+    <p class="sub" id="acMsg" style="min-height:1.2em"></p>
+  </div>
+  <div class="lsbar"><button class="go alt" id="logout">Log out</button></div>
 </section>

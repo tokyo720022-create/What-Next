@@ -1,6 +1,6 @@
 /* js/features/relmap.js: Relation map. Draws a title's franchise as a graph (core, related and character links). */
 // ---------- Relation map ----------
-const RM_Q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id type format status isAdult title{romaji english} coverImage{medium} averageScore seasonYear startDate{year} mediaListEntry{status} relations{edges{relationType(version:2) node{id}}}}}}";
+const RM_Q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id type format status isAdult title{romaji english native} countryOfOrigin coverImage{medium} averageScore seasonYear startDate{year} mediaListEntry{status} relations{edges{relationType(version:2) node{id}}}}}}";
 const RM_TYPES = {
   SOURCE: { g: "core", up: true, label: "Source", color: "#f0a95b" }, PARENT: { g: "core", up: true, label: "Parent", color: "#f0a95b" },
   PREQUEL: { g: "core", up: true, label: "Prequel", color: "#6fb4f5" }, SEQUEL: { g: "core", up: false, label: "Sequel", color: "#7fd36f" },

@@ -2,20 +2,9 @@
   <button class="back" data-go="settings">← Settings</button>
   <h2 class="ph">AniList Settings</h2>
   <p class="sub" id="aniStatus">Loading your AniList settings…</p>
-  <div class="q">Titles</div>
-  <div class="card" style="margin-top:0">
-    <label for="aniTitle" style="margin-top:0">Title language</label>
-    <select id="aniTitle"></select>
-  </div>
-  <div class="q">Content</div>
-  <div class="card" style="margin-top:0">
-    <label class="switch">Display adult content <input type="checkbox" id="aniAdult"></label>
-    <label class="switch">Airing notifications <input type="checkbox" id="aniAiring"></label>
-  </div>
-  <div class="q">Scoring</div>
-  <div class="card" style="margin-top:0">
-    <label for="aniScore" style="margin-top:0">Score format</label>
-    <select id="aniScore"></select>
-    <p class="sub" style="margin-top:10px">Changes how your scores look on AniList and in other apps.</p>
+  <div id="aniForm" hidden></div>
+  <div class="lsbar" id="aniBar" hidden>
+    <p class="sub" id="aniMsg"></p>
+    <button class="go" id="aniSave" disabled>Save Changes</button>
   </div>
 </section>

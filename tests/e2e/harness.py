@@ -38,6 +38,8 @@ LISTOPT = {"scoreFormat": "POINT_100", "rowOrder": "updatedAt",
     "mangaList": {"sectionOrder": ["Reading", "Hentai", "Completed", "Rereading"], "splitCompletedSectionByFormat": False, "customLists": ["Hentai", "Fav"], "advancedScoring": ["Story", "Characters", "Visuals"], "advancedScoringEnabled": True},
     "act": {"CURRENT": False, "PLANNING": False, "COMPLETED": False, "DROPPED": False, "PAUSED": False, "REPEATING": True}}
 UPDATES = []
+ANIOPT = {"about": "Hello there", "options": {"titleLanguage": "ROMAJI", "displayAdultContent": True, "airingNotifications": True, "profileColor": "blue", "staffNameLanguage": "ROMAJI_WESTERN", "activityMergeTime": 360, "restrictMessagesToFollowing": False}}
+ANIUPD = []
 RMGRAPH = {1001: [("SOURCE", 5000), ("SEQUEL", 5002), ("SIDE_STORY", 5003), ("SIDE_STORY", 5004), ("SPIN_OFF", 5005), ("ALTERNATIVE", 5006), ("PREQUEL", 5010), ("CHARACTER", 5020)],
     5000: [("ADAPTATION", 1001)], 5002: [("PREQUEL", 1001), ("SEQUEL", 5007)], 5003: [("PARENT", 1001)], 5004: [("PARENT", 1001)], 5005: [("PARENT", 1001)], 5006: [("ALTERNATIVE", 1001)],
     5007: [("PREQUEL", 5002)], 5010: [("SEQUEL", 1001), ("SIDE_STORY", 5011)], 5011: [("PARENT", 5010)], 5020: [("CHARACTER", 1001), ("CHARACTER", 5021)], 5021: [("CHARACTER", 5020)]}
@@ -180,14 +182,26 @@ def handle(route, request):
             if v.get("y") == 2020: items = [] if p == 1 else []
             return ok({"Page": {"pageInfo": {"hasNextPage": p == 1 and v.get("y") != 2020}, "media": items}})
         if "airingSchedules(airingAt_greater" in q:
-            CZREQ.append(dict(v)); day0 = v["from"] + 1
-            def lk(site, color, typ="STREAMING"): return {"site": site, "url": "https://example.test/" + site, "type": typ, "color": color, "icon": None, "isDisabled": False}
-            m = lambda i, **k: {"id": i, "type": "ANIME", "format": "TV", "isAdult": False, "season": "FALL", "seasonYear": 2026, "title": {"romaji": "Airing %d" % i, "english": None}, "coverImage": {"large": "https://img.test/c%d.jpg" % (i % 9)}, "bannerImage": "https://img.test/c8.jpg", "mediaListEntry": None, "externalLinks": [], **k}
-            items = [{"id": 1, "airingAt": day0 + 18 * 3600, "episode": 4, "media": m(9001, mediaListEntry={"status": "CURRENT"}, externalLinks=[lk("Crunchyroll", "#f47521"), lk("YouTube", "#ff0000"), lk("Official Site", "#999999", "INFO")])},
-                     {"id": 2, "airingAt": day0 + 19 * 3600 + 1800, "episode": 12, "media": m(9002, mediaListEntry={"status": "PLANNING"})},
-                     {"id": 3, "airingAt": day0 + 20 * 3600, "episode": 2, "media": m(9003, season="WINTER", seasonYear=2020)},
-                     {"id": 4, "airingAt": day0 + 21 * 3600, "episode": 1, "media": m(9004, isAdult=True)}]
-            return ok({"Page": {"pageInfo": {"hasNextPage": False}, "airingSchedules": items}})
+            CZREQ.append(dict(v)); p = v.get("p") or 1; day0 = v["from"] + 1; ndays = max(1, round((v["to"] - day0) / 86400)); items = []
+            for di in range(ndays):
+                n = 2 + di % 5; ep = di % 12 + 1
+                for k in range(n):
+                    media = {"id": 9000 + di * 10 + k, "type": "ANIME", "format": "TV", "episodes": ep if k == 1 else 12, "isAdult": k == 3, "season": "WINTER" if k == 2 else "FALL", "seasonYear": 2020 if k == 2 else 2026,
+                             "title": {"romaji": "Airing %d-%d" % (di, k), "english": None, "native": None}, "countryOfOrigin": "JP", "coverImage": {"medium": "https://img.test/c%d.jpg" % ((di + k) % 9), "large": "https://img.test/c%d.jpg" % ((di + k) % 9)}, "bannerImage": "https://img.test/c8.jpg" if k == 0 else None,
+                             "mediaListEntry": {"status": "CURRENT", "progress": ep - 1} if k == 0 else {"status": "PLANNING", "progress": 0} if k == 1 else None}
+                    items.append({"id": di * 10 + k, "airingAt": day0 + di * 86400 + (17 + k) * 3600, "episode": ep, "media": media})
+            chunk = items[(p - 1) * 50: p * 50]
+            return ok({"Page": {"pageInfo": {"hasNextPage": len(items) > p * 50}, "airingSchedules": chunk}})
+        if "staffNameLanguage" in q and "mutation" not in q:
+            return ok({"Viewer": {"about": ANIOPT["about"], "options": dict(ANIOPT["options"])}})
+        if "UpdateUser(" in q and "staffNameLanguage:$sn" in q:
+            ANIUPD.append(dict(v))
+            if NET.get("updateerr"): return route.fulfill(status=200, content_type="application/json", body=json.dumps({"errors": [{"message": "Boom"}], "data": None}))
+            m = {"tl": "titleLanguage", "ad": "displayAdultContent", "an": "airingNotifications", "pc": "profileColor", "sn": "staffNameLanguage", "mt": "activityMergeTime", "rm": "restrictMessagesToFollowing"}
+            for k, name in m.items():
+                if k in v: ANIOPT["options"][name] = v[k]
+            if "about" in v: ANIOPT["about"] = v["about"]
+            return ok({"UpdateUser": {"id": 1}})
         if "mediaListOptions" in q: return ok({"Viewer": {"mediaListOptions": {"scoreFormat": NET.get("scorefmt", "POINT_10_DECIMAL"), "animeList": {"customLists": []}, "mangaList": {"customLists": []}}, "options": {"titleLanguage": "ENGLISH"}}})
         if "Viewer{id name}" in q:
             if NET.get("viewererr"): return route.fulfill(status=500, content_type="application/json", body=json.dumps({"errors": [{"message": "Internal Server Error", "status": 500}], "data": None}))

@@ -7,7 +7,7 @@ const KINDS = {
 };
 const DEFAULT_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning";
 const DEFAULT_VIP = "One Piece, Detective Conan, Kono Suba, Dragon Ball Z";
-const syncQ = k => "query($u:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} mediaList(userName:$u,type:" + KINDS[k].type + ",sort:[UPDATED_TIME_DESC]){updatedAt mediaId progress score(format:POINT_100) status customLists media{title{romaji english} type format " + (k === "anime" ? "episodes duration nextAiringEpisode{airingAt episode}" : "chapters") + " genres tags{name} coverImage{extraLarge color}}}}}";
+const syncQ = k => "query($u:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} mediaList(userName:$u,type:" + KINDS[k].type + ",sort:[UPDATED_TIME_DESC]){updatedAt mediaId progress score(format:POINT_100) status customLists media{title{romaji english native} countryOfOrigin type format " + (k === "anime" ? "episodes duration nextAiringEpisode{airingAt episode}" : "chapters") + " genres tags{name} coverImage{extraLarge color}}}}}";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let syncing = false;
 

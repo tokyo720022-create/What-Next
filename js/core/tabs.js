@@ -14,11 +14,11 @@ function showTab(t){
   if(t === "stats") showStats();
   if(t === "chat") renderRecent();
   if(t === "profile") renderProfile();
-  if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); }
+  if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); }
   if(t === "set-sync"){ fillCfg(); renderSyncStatus(); }
   if(t === "set-anilist") loadAniSettings();
   if(t === "set-lists") lsLoad(false);
-  if(t === "set-account") renderPending();
+  if(t === "set-account") fillAccount();
   if(t === "anime" || t === "manga") openList(t);
   window.scrollTo(0, 0);
 }

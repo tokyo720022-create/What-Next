@@ -1,6 +1,6 @@
 /* js/features/lists.js: Anime and Manga lists, filter and customise sheets */
 // ---------- AniList collection reader (handles AniList's 500-entry chunks) ----------
-const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english} coverImage{extraLarge large} episodes chapters duration averageScore genres nextAiringEpisode{episode airingAt}}";
+const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large} episodes chapters duration averageScore genres nextAiringEpisode{episode airingAt}}";
 async function collection(user, type, filter, fields){
   const out = []; let chunk = 1, more = true;
   while(more){
@@ -18,7 +18,7 @@ async function collection(user, type, filter, fields){
 // ---------- Anime and manga lists ----------
 const STATUS_LABEL = t => ({ CURRENT: t === "anime" ? "Watching" : "Reading", PLANNING: "Planning", COMPLETED: "Completed", PAUSED: "Paused", DROPPED: "Dropped", REPEATING: t === "anime" ? "Rewatching" : "Rereading" });
 const STATUS_ORDER = ["CURRENT", "REPEATING", "PLANNING", "PAUSED", "COMPLETED", "DROPPED"];
-const LIST_F = "mediaId status progress repeat startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt media{id siteUrl title{romaji english} coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
+const LIST_F = "mediaId status progress repeat startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
 const FORMATS = { anime: ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"], manga: ["MANGA", "NOVEL", "ONE_SHOT"] };
 const LS = (k, d) => { try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k) || "{}")); }catch(_){ return Object.assign({}, d); } };
 const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} };
@@ -30,7 +30,7 @@ const LIST_BATCH = 48;
 const mkList = () => ({ entries: null, status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
 const lists = { anime: mkList(), manga: mkList() };
 let curType = "anime";
-const tt = m => { const t = m.title, p = localStorage.getItem("wn_tlang") || "ENGLISH"; return (p === "ROMAJI" ? t.romaji : p === "NATIVE" ? (t.native || t.romaji) : t.english) || t.english || t.romaji || "Untitled"; };
+const tt = m => { const t = m.title || {}, per = appCfg().naming[m.countryOfOrigin], p = per || localStorage.getItem("wn_tlang") || "ENGLISH"; return (p === "ROMAJI" ? t.romaji : p === "NATIVE" ? (t.native || t.romaji) : t.english) || t.english || t.romaji || "Untitled"; };
 const yearOf = m => (m.startDate && m.startDate.year) || 0;
 const SORTS = {
   UPDATED: (a, b) => b.updatedAt - a.updatedAt, TITLE: (a, b) => tt(a.m).localeCompare(tt(b.m)), SCORE: (a, b) => b.score - a.score,
@@ -139,7 +139,8 @@ function renderList(opts){
   const rows = L.entries.filter(e => passes(e, f, type) && (!q || (tt(e.m) + " " + (e.m.title.romaji || "")).toLowerCase().includes(q)));
   const all = statusCounts(L.entries), counts = statusCounts(rows);
   const chips = $("#listStatus"); chips.replaceChildren();
-  for(const s of ["ALL", ...STATUS_ORDER.filter(x => all[x] || x === L.status)]){
+  const order = ["ALL", ...STATUS_ORDER.filter(x => all[x] || x === L.status)]; if(appCfg().allpos[type] === "bottom") order.push(order.shift());
+  for(const s of order){
     const n = s === "ALL" ? rows.length : (counts[s] || 0);
     const b = el("button", "chip" + (n ? "" : " dim"), (s === "ALL" ? "All" : lab[s]) + " " + n);
     b.setAttribute("aria-pressed", String(L.status === s));

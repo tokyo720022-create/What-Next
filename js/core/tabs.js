@@ -1,13 +1,14 @@
 /* js/core/tabs.js: bottom tabs, screen switching, blur covers */
 // ---------- Tabs and cover blur ----------
-const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
-const TAB_OF = { seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
+const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", taste: "#taste", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
+const TAB_OF = { taste: "pick", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
 function showTab(t){
   const shown = SCREENS[t];
   new Set(Object.values(SCREENS)).forEach(id => { $(id).hidden = id !== shown; });
   document.querySelectorAll("#tabs .tab").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === (TAB_OF[t] || t))));
   if(t === "discover") discoverOpen();
   if(t === "seasonal") seasonalOpen();
+  if(t === "taste") tasteOpen();
   if(t === "calendar") calendarOpen();
   if(t === "pick") loadTrending();
   if(t === "schedule") renderSchedule();

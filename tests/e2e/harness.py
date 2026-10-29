@@ -68,6 +68,24 @@ NET = {"off": False, "fail": 0, "delay": 0}
 def svg(n):
     return ('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="hsl(%d,60%%,45%%)"/></svg>' % (n * 37 % 360)).encode()
 
+
+TASTEREQ = []
+def _tags(names): return [{"name": n, "rank": 80, "isMediaSpoiler": False} for n in names]
+def taste_entry(e):
+    i = e["media"]["id"] - 1000
+    tags = ["Isekai", "Reincarnation"] if i % 3 == 0 else ["Slice of Life", "Iyashikei"] if i % 3 == 1 else ["Tragedy", "Strategy"] if i % 9 == 2 else ["School"]
+    return {**e, "media": {**e["media"], "tags": _tags(tags), "popularity": 2000 + (i * 700) % 40000, "genres": ["Fantasy", "Comedy"] if i % 3 == 0 else ["Slice of Life", "Romance"] if i % 3 == 1 else ["Drama"]}}
+def taste_ref(k):
+    names = []
+    if k % 25 == 0: names.append("Isekai")            # 4%
+    if k % 17 == 0: names.append("Reincarnation")     # about 6%
+    if k % 5 == 0: names.append("Tragedy")            # 20%
+    if k % 10 == 0: names.append("Strategy")          # 10%
+    if k % 4 == 0: names.append("School")             # 25%
+    if k % 5 == 1: names.append("Iyashikei")          # 20%
+    if k % 4 == 1: names.append("Slice of Life")      # 25%
+    return {"id": 9000 + k, "genres": ["Action", "Comedy"] if k % 2 else ["Drama", "Romance"], "tags": _tags(names)}
+
 def handle(route, request):
     url = request.url
     if "graphql.anilist.co" in url:
@@ -77,6 +95,13 @@ def handle(route, request):
             if NET["fail"] > 0: NET["fail"] -= 1; return route.abort("failed")
             if NET["delay"]: time.sleep(NET["delay"] / 1000)
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
+        if "MediaListCollection" in q and "tags{name" in q:   # the taste report's list query
+            t = v.get("t", "ANIME"); TASTEREQ.append(("list", t))
+            es = [e for e in DATA[t] if e["status"] in ("COMPLETED", "CURRENT", "REPEATING", "PAUSED", "DROPPED")]
+            return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": [taste_entry(e) for e in es]}]}})
+        if "TasteRef" in q:   # the "average fan" sample: popular titles with a fixed tag mix
+            t = v.get("t", "ANIME"); TASTEREQ.append(("ref", t, v.get("p")))
+            return ok({"Page": {"media": [taste_ref(i + (v.get("p", 1) - 1) * 50) for i in range(50)]}})
         if "a:MediaListCollection" in q and "status_in:[PAUSED,DROPPED]" in q:
             return ok({"a": {"lists": [{"entries": [{"score": 80, "media": {**CATALOG[10], "mediaListEntry": {"status": "PAUSED"}}}, {"score": 60, "media": {**CATALOG[11], "mediaListEntry": {"status": "DROPPED"}}}]}]}, "m": {"lists": []}})
         if "MediaListCollection" in q:

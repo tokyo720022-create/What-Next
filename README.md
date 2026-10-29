@@ -19,6 +19,7 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
   - **For you:** trending titles in your favourite genres that are not on your list.
   - **Rediscover:** your paused and dropped titles, best rated first.
   Titles on your list show their real status, and + Planning only appears for titles that are not on your list.
+- **Taste report:** a card on the Pick screen opens your taste report, for anime or manga. It compares your list with the most popular titles on AniList (the "average fan") and shows: an **archetype** from your strongest theme (for example *The Portal Hopper* for Isekai), a **theme index** of what you like far more or far less than the average fan, a four-letter **personality type** from four sliders (Niche or Mainstream, Retro or Fresh, Diverse or Specialized, Contrarian or Aligned) with hidden gems, newer or older picks, a genre mix and your biggest rating gaps with other fans, five **vibe** sliders (Grim or Wholesome, Heart or Brain, Dreamers or Schemers, Scrappy or Destined, Competitive or Loyal), and a Share button. The Contrarian slider needs at least 8 rated titles, and the report needs at least 8 started or finished titles. Adult titles count in the maths but never show as covers. The sample of popular titles is kept on your device for a week.
 - **Mark as done:** save your progress to AniList straight from a pick. It marks a title Completed when you finish it, and moves a Planning title to Current.
 - **Blur covers:** hides cover art when you're in public.
 - **Anime and Manga lists:** your full AniList lists with status tabs, search, a filter sheet (sort, format, status, country, year, length, score, genres include/exclude) and list customisation (grid or list, columns, hide score or progress). Tap a card for quick view with +1 / -1 progress.
@@ -115,17 +116,17 @@ assets/                 logo, app icons and the splash-screen image
 resources/              Android icon and splash sources (used only by the APK build)
 android-signing/        debug keystore used to sign the APK
 css/                    base, components, screens, login, trending, media, anistats,
-                        listset, relmap, users, progress, discover, utilities
+                        listset, relmap, users, progress, discover, taste, utilities
 views/
   shell/                header, tab bar
-  screens/              login, pick, discover, seasonal, calendar, chat, schedule,
+  screens/              login, pick, discover, seasonal, taste, calendar, chat, schedule,
                         stats, lists, profile
   settings/             menu, app, anilist, lists, sync, account, about
   sheets/               filter, customise, overlays (media page and editor), relmap, user
 js/
   core/                 compat, diagnostics, core and Pick engine, tabs, auth,
                         tracker, theme, start
-  features/             discover, seasonal, calendar, lists, media page, entity pages
+  features/             discover, seasonal, taste (screen) and taste-math (the maths), calendar, lists, media page, entity pages
                         (character/staff/studio), editor, relation map, users, profile,
                         stats, list settings, app settings, settings, sync (Discord),
                         chat, trending, and so on
@@ -151,6 +152,7 @@ Every change to a list entry goes through `js/core/tracker.js`: the +1 buttons o
 ```
 node tests/check-structure.js        files, lists, ids, CSS, versions
 node tests/unit/rules.test.js        tracking rules and score formats
+node tests/unit/taste.test.js        taste report maths
 python tests/e2e/run_all.py          real-browser tests against a fake AniList (needs: pip install playwright && playwright install chromium)
 ```
 

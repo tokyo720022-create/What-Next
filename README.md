@@ -4,7 +4,9 @@
 
 A phone-friendly web app that picks what to watch or read next from your [AniList](https://anilist.co), based on how much time you have.
 
-It's a single `index.html` file with no build step and no dependencies. Host it on GitHub Pages and add it to your home screen.
+The web version is plain HTML, CSS and JavaScript with no build step and no dependencies: a thin `index.html` loads the rest of the files. Host it on GitHub Pages and add it to your home screen, or build the Android app (APK) with the included GitHub workflow.
+
+There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover**, **Schedule**, and **Profile** (Stats, Chat, and Settings live inside Profile).
 
 ## Features
 
@@ -43,7 +45,7 @@ It's a single `index.html` file with no build step and no dependencies. Host it 
 ## How picks work
 
 - Anime episodes use the show's real episode length (24 minutes if AniList doesn't list one).
-- Manga chapters are estimated at 6 minutes each. Change `MIN_PER_CHAPTER` in `index.html` if that doesn't suit you.
+- Manga chapters are estimated at 6 minutes each. Change `MIN_PER_CHAPTER` in `js/core/core.js` if that doesn't suit you.
 - Airing shows only offer episodes that have already aired.
 - Titles you're already in the middle of are favoured over Planning ones, and higher-rated titles are favoured a little. There's some randomness, so **Show me another** gives you different picks.
 
@@ -51,7 +53,7 @@ It's a single `index.html` file with no build step and no dependencies. Host it 
 
 ### 1. Host it
 
-1. Upload `index.html`, `sw.js`, `manifest.webmanifest`, and the `assets/` folder to the root of a GitHub repo (the last three enable offline and home-screen install).
+1. Upload `index.html`, `boot.js`, `config.js`, `sw.js`, `manifest.webmanifest`, and the `assets/`, `css/`, `js/`, and `views/` folders to the root of a GitHub repo (`sw.js`, the manifest, and `assets/` enable offline and home-screen install). From a phone, see *Getting the files into your repo from a phone* below.
 2. Go to **Settings → Pages**, set the source to **Deploy from a branch**, choose `main` and `/ (root)`, and save.
 3. Wait about a minute, then open your site at `https://<your-username>.github.io/<repo-name>/`.
 
@@ -63,8 +65,10 @@ Login works like other AniList apps: the Client ID is built in, so users just ta
 
 Put the two Client IDs in `config.js` (`clientWeb` and `clientApp`). Client IDs are public, not secrets.
 
+The Android app falls back to a built-in default client ID, so its login works even without `config.js`. The website version needs `clientWeb` set; without it the login screen tells the user to use the Android app or add a website client.
+
 ### 3. Log in
-Tap **Log in with AniList** and approve. In the Android app the browser returns you to the app automatically. Advanced options also let you paste a login token.
+Tap **Log in with AniList** and approve. On the website you come back to the page signed in; in the Android app the browser returns you to the app automatically.
 
 ## Logo and splash screen
 
@@ -100,25 +104,33 @@ Plain HTML, CSS, and JavaScript, using the [AniList GraphQL API](https://docs.an
 The app is split into folders, so one problem area can be fixed without touching the rest.
 
 ```
-index.html          thin shell
-boot.js             loads the screens and scripts in order
-config.js           AniList client IDs
-sw.js               offline support
-manifest.webmanifest
-assets/             logo, app icons and the splash-screen image
-resources/          Android icon and splash sources (used only by the APK build)
-css/                base, components, screens, login, trending, media, utilities
+index.html              thin shell: splash, #screens, #overlays
+boot.js                 loads the views and scripts in order; holds REV
+config.js               AniList client IDs
+sw.js                   offline support (service worker)
+manifest.webmanifest    home-screen install
+capacitor.config.json   Android app settings (Capacitor)
+package.json            Capacitor plugins and the app version
+assets/                 logo, app icons and the splash-screen image
+resources/              Android icon and splash sources (used only by the APK build)
+android-signing/        debug keystore used to sign the APK
+css/                    base, components, screens, login, trending, media, anistats,
+                        listset, relmap, users, progress, discover, utilities
 views/
-  shell/            header, tab bar
-  screens/          login, pick, discover, chat, schedule, stats, lists, profile
-  settings/         menu and one file per settings page
-  sheets/           filter sheet, customise sheet, media page and editor containers
+  shell/                header, tab bar
+  screens/              login, pick, discover, seasonal, calendar, chat, schedule,
+                        stats, lists, profile
+  settings/             menu, app, anilist, lists, sync, account, about
+  sheets/               filter, customise, overlays (media page and editor), relmap, user
 js/
-  core/             compat, core and Pick engine, tabs, auth, tracker, theme, start
-  features/         discover, lists, media page, character/staff/studio pages, editor, sync, chat, settings, and so on
-```
-
-tests/              unit, structure, and screen tests (see below)
+  core/                 compat, diagnostics, core and Pick engine, tabs, auth,
+                        tracker, theme, start
+  features/             discover, seasonal, calendar, lists, media page, entity pages
+                        (character/staff/studio), editor, relation map, users, profile,
+                        stats, list settings, app settings, settings, sync (Discord),
+                        chat, trending, and so on
+tests/                  structure check, unit tests, and real-browser screen tests
+.github/workflows/      tests.yml, unpack-site.yml, build-apk.yml
 ```
 
 If you add a new screen or script file, add it to the lists inside `boot.js` and `sw.js`.

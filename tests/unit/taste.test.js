@@ -48,4 +48,14 @@ const rep = g("tzBuild")(Array.from({ length: 12 }, (_, i) => entry(i, { score: 
 eq("report has an archetype, a type code and a type name", [rep.ready, rep.arch.name, /^[NM][RF][DS][CA]$/.test(rep.code), typeof rep.typeName], [true, "The Portal Hopper", true, "string"]);
 eq("every one of the 16 type codes has a name", Object.keys(g("TZ_TYPES")).length, 16);
 eq("share text names the archetype and themes", g("tzShareText")(rep).includes("The Portal Hopper") && g("tzShareText")(rep).includes("Isekai"), true);
+// profile tendencies
+const stat = { count: 100, meanScore: 80, statuses: [{ status: "COMPLETED", count: 60 }, { status: "CURRENT", count: 10 }, { status: "DROPPED", count: 10 }, { status: "PLANNING", count: 20 }],
+  genres: [{ genre: "A", count: 50, meanScore: 85 }, { genre: "B", count: 40, meanScore: 84 }, { genre: "C", count: 30, meanScore: 83 }, { genre: "D", count: 20, meanScore: 70 }, { genre: "E", count: 1, meanScore: 10 }],
+  tags: [{ tag: { name: "T1" }, count: 9 }, { tag: { name: "T2" }, count: 2 }], releaseYears: [{ releaseYear: 2001, count: 5 }, { releaseYear: 2020, count: 5 }, { releaseYear: 1999, count: 1 }], startYears: [{ startYear: 2012, count: 3 }, { startYear: 2008, count: 1 }, { startYear: 0, count: 9 }] };
+const tend = g("tzTendencies")(stat, "anime").map(l => l.join(""));
+eq("tendency lines", tend, ["Seems to love A/B/C", "Seems to hate D", "Tends to like T1", "Love 2020/2001/1999 series", "First recorded watching Anime in 2008", "Ends up completing 75.00% of Anime started"]);
+eq("manga wording", g("tzTendencies")(stat, "manga").map(l => l.join("")).slice(4), ["First recorded reading Manga in 2008", "Ends up completing 75.00% of Manga started"]);
+eq("a genre you tried only once is never 'hated'", tend.some(l => l.includes(" E")), false);
+eq("no hated genre when none is clearly below your average", g("tzTendencies")(Object.assign({}, stat, { genres: stat.genres.map(x => Object.assign({}, x, { meanScore: 80 })) }), "anime").some(l => l[0] === "Seems to hate "), false);
+eq("an empty list gives no lines", [g("tzTendencies")(null, "anime"), g("tzTendencies")({ count: 0 }, "anime")], [[], []]);
 console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

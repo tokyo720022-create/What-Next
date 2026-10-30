@@ -193,3 +193,26 @@ function tzShareText(rep){
   const kind = rep.type === "manga" ? "manga" : "anime", th = rep.themes.up.map(t => t.name).join(", ");
   return "My " + kind + " taste: " + rep.arch.name + " (" + rep.typeName + ", " + rep.code + ")" + (th ? "\nTop themes: " + th : "") + "\nMade with What Next?";
 }
+
+// ---------- Profile tendencies, worked out from your AniList statistics ----------
+// Each line is [text before, highlighted part, text after]. A line is left out when the stats do not support it.
+function tzTendencies(stat, kind){
+  if(!stat || !stat.count) return [];
+  const manga = kind === "manga", verb = manga ? "reading" : "watching", noun = manga ? "Manga" : "Anime", out = [];
+  const genres = (stat.genres || []).filter(g => g.count > 0), total = genres.reduce((a, g) => a + g.count, 0);
+  const top = genres.slice().sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre)).slice(0, 3);
+  if(top.length) out.push(["Seems to love ", top.map(g => g.genre).join("/"), ""]);
+  const floor = Math.max(3, Math.round(total * 0.015));   // only genres you have tried a fair bit of can be hated
+  const worst = genres.filter(g => g.count >= floor && g.meanScore > 0).sort((a, b) => a.meanScore - b.meanScore || b.count - a.count)[0];
+  if(worst && !top.some(g => g.genre === worst.genre) && (!(stat.meanScore > 0) || worst.meanScore <= stat.meanScore - 3)) out.push(["Seems to hate ", worst.genre, ""]);
+  const tags = (stat.tags || []).filter(t => t.count >= 3 && t.tag).sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name)).slice(0, 3);
+  if(tags.length) out.push(["Tends to like ", tags.map(t => t.tag.name).join("/"), ""]);
+  const years = (stat.releaseYears || []).filter(y => y.count > 0 && y.releaseYear).sort((a, b) => b.count - a.count || b.releaseYear - a.releaseYear).slice(0, 3);
+  if(years.length) out.push(["Love ", years.map(y => y.releaseYear).join("/"), " series"]);
+  const starts = (stat.startYears || []).filter(y => y.count > 0 && y.startYear > 1900).map(y => y.startYear);
+  if(starts.length) out.push(["First recorded " + verb + " " + noun + " in ", String(Math.min(...starts)), ""]);
+  const st = {}; for(const s of stat.statuses || []) st[s.status] = s.count;
+  const started = (st.COMPLETED || 0) + (st.CURRENT || 0) + (st.PAUSED || 0) + (st.DROPPED || 0) + (st.REPEATING || 0);
+  if(started > 0) out.push(["Ends up completing ", (Math.round((st.COMPLETED || 0) / started * 10000) / 100).toFixed(2) + "%", " of " + noun + " started"]);
+  return out;
+}

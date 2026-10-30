@@ -48,6 +48,7 @@ $("#profErr").onclick = () => { profLoaded = false; renderProfile(); };
 
 async function renderProfile(){
   $("#profName").textContent = state.user || savedName();
+  if(typeof profExtras === "function") profExtras();
   if(profLoaded) return;
   let cached = null;
   try{ cached = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }catch(_){}

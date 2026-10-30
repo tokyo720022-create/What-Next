@@ -27,7 +27,7 @@ query($u:String){
 }
 fragment M on Media{
   id type siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large}
-  episodes chapters duration averageScore genres isAdult nextAiringEpisode{episode airingAt}
+  episodes chapters duration averageScore genres isAdult status startDate{year month day} nextAiringEpisode{episode airingAt}
 }`;
 
 function msg(text){
@@ -64,9 +64,17 @@ async function loadList(user){
   }
 }
 
-// Work out whether an entry fits the time you have, and what to do.
+// A title is "out" once AniList no longer calls it not-yet-released and its start date has passed.
+function isOut(m){
+  if(m.status === "NOT_YET_RELEASED") return false;
+  const d = m.startDate;
+  if(d && d.year && new Date(d.year, (d.month || 1) - 1, d.day || 1) > new Date()) return false;
+  return true;
+}
+// Work out whether an entry fits the time you have, and what to do. Titles that are not out yet, or episodes that have not aired yet, never count.
 function plan(e){
   const m = e.media, isAnime = m.type === "ANIME";
+  if(!isOut(m)) return null;
   const unit = isAnime ? (m.duration || 24) : MIN_PER_CHAPTER;
   let available = isAnime
     ? (m.nextAiringEpisode ? m.nextAiringEpisode.episode - 1 : (m.episodes || Infinity))
@@ -137,19 +145,21 @@ function show({e,p}){
   const info = el("div", "hinfo");
   const meta = [(m.format || "").replace(/_/g, " "), m.averageScore ? "★ " + m.averageScore + "%" : "", (m.genres || []).slice(0, 2).join(", ")].filter(Boolean).join(" · ");
   const a = el("button", "hlink", "Details ›"); a.onclick = () => openMedia(m.id);
-  info.append(el("span", "tag", (p.isAnime ? "Anime" : "Manga") + (e.status === "PLANNING" ? " · Planning" : "")), el("h2", null, title), el("p", "hmeta", meta), a);
+  info.append(el("span", "tag", (p.isAnime ? "Anime" : "Manga") + (e.status === "PLANNING" ? " · Planning" : e.status === "NEW" ? " · New for you" : "")), el("h2", null, title), el("p", "hmeta", meta), a);
   inn.append(img, info);
   const act = el("div", "act");
   act.append(el("div", "actmain", p.action), el("div", "actsub", "About " + p.minutes + " min"));
-  if(p.total){
+  if(p.total && e.status !== "NEW"){
     const tr = el("div", "track"), f = el("i"); f.style.width = Math.min(100, Math.round(p.progress / p.total * 100)) + "%"; tr.append(f);
     act.append(tr, el("div", "actsub", "You're at " + p.progress + " of " + p.total));
-  }else if(e.status !== "PLANNING"){ act.append(el("div", "actsub", "You're at " + p.progress)); }
+  }else if(e.status !== "PLANNING" && e.status !== "NEW"){ act.append(el("div", "actsub", "You're at " + p.progress)); }
   hero.append(bg, inn, act);
   const bar = el("div", "btns");
-  if(auth.token){ const mark = el("button", "go", "Mark as done"); mark.onclick = () => markDone(e, p, mark); bar.append(mark); }
-  const again = el("button", "chip", "Another"); again.onclick = () => { state.skipped.add(m.id); pick(wildMode); };
-  const hideB = el("button", "chip", "Hide"); hideB.onclick = () => { hide.add(m.id); saveHide(); pick(wildMode); };
+  const fresh = e.status === "NEW", next = () => fresh ? tastePick() : pick(wildMode);   // "NEW" = suggested from your taste, not on your lists
+  if(auth.token && fresh){ const add = el("button", "go", "Add to Planning"); add.onclick = () => addPlanning(m.id, add, p.isAnime ? "anime" : "manga"); bar.append(add); }
+  else if(auth.token){ const mark = el("button", "go", "Mark as done"); mark.onclick = () => markDone(e, p, mark); bar.append(mark); }
+  const again = el("button", "chip", "Another"); again.onclick = () => { state.skipped.add(m.id); next(); };
+  const hideB = el("button", "chip", "Hide"); hideB.onclick = () => { hide.add(m.id); saveHide(); next(); };
   bar.append(again, hideB);
   $("#result").replaceChildren(hero, bar);
 }

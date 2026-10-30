@@ -1,33 +1,58 @@
 <section id="profile" hidden>
-    <div class="pcard">
-      <div class="pbanner" id="profBanner"></div>
-      <img class="pavatar" id="profAvatar" alt="" hidden>
-      <h2 class="ph pname" id="profName"></h2>
-      <a class="pbtn" id="profLink" href="https://anilist.co" target="_blank" rel="noopener">View on AniList ↗</a>
+    <div class="pcard pfhero">
+      <div class="pfbanner" id="profBanner"></div>
+      <div class="pfid">
+        <img class="pavatar pfavatar" id="profAvatar" alt="" hidden>
+        <div class="pfwho">
+          <h2 class="ph pname pfname" id="profName"></h2>
+          <a class="pflink" id="profLink" href="https://anilist.co" target="_blank" rel="noopener">View on AniList ↗</a>
+        </div>
+      </div>
     </div>
     <p class="sub warn" id="profErr" hidden></p>
-    <div class="pcounts">
+    <div class="pfcounts">
       <button id="pcAnimeBtn"><b id="pcAnime">–</b><span>Anime</span></button>
       <button id="pcMangaBtn"><b id="pcManga">–</b><span>Manga</span></button>
       <button id="pcFollowingBtn"><b id="pcFollowing">–</b><span>Following</span></button>
       <button id="pcFollowersBtn"><b id="pcFollowers">–</b><span>Followers</span></button>
     </div>
-    <div class="rowlinks" style="margin-top:14px">
-      <button class="rowlink" data-go="stats"><span>Stats</span><i>›</i></button>
-      <button class="rowlink" data-go="chat"><span>Chat</span><i>›</i></button>
-      <button class="rowlink" data-go="settings"><span>Settings</span><i>›</i></button>
+    <div class="pftiles">
+      <button class="pftile" data-go="stats" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Stats</span></button>
+      <button class="pftile" data-go="chat" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
+      <button class="pftile" data-go="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Settings</span></button>
+    </div>
+    <div class="q">Tendencies</div>
+    <div class="card pfcard">
+      <div class="row pfkinds" id="tendKinds">
+        <button class="chip" data-v="anime" aria-pressed="true">Anime</button>
+        <button class="chip" data-v="manga" aria-pressed="false">Manga</button>
+      </div>
+      <div class="pftend" id="tendList"></div>
+      <p class="pfnote">Tendencies are worked out automatically from your AniList stats, so they may not be exact.</p>
+    </div>
+    <div class="q">Favourites</div>
+    <div class="card pfcard">
+      <div class="srow pffavkinds" id="favKinds">
+        <button class="chip" data-v="anime" aria-pressed="true">Anime</button>
+        <button class="chip" data-v="manga" aria-pressed="false">Manga</button>
+        <button class="chip" data-v="characters" aria-pressed="false">Characters</button>
+        <button class="chip" data-v="staff" aria-pressed="false">Staff</button>
+        <button class="chip" data-v="studios" aria-pressed="false">Studios</button>
+      </div>
+      <div id="favGrid"></div>
+      <button class="go alt" id="favMore" type="button" hidden>Show more</button>
     </div>
     <div class="q">Anime on AniList</div>
-    <div class="card prows" style="margin-top:0">
-      <div class="prow"><span>Episodes watched</span><b id="paEps">–</b></div>
-      <div class="prow"><span>Days watched</span><b id="paDays">–</b></div>
-      <div class="prow"><span>Anime mean score</span><b id="paMean">–</b></div>
+    <div class="pfstats">
+      <div class="pfstat"><b id="paEps">–</b><span>Episodes watched</span></div>
+      <div class="pfstat"><b id="paDays">–</b><span>Days watched</span></div>
+      <div class="pfstat"><b id="paMean">–</b><span>Mean score</span></div>
     </div>
     <div class="q">Manga on AniList</div>
-    <div class="card prows" style="margin-top:0">
-      <div class="prow"><span>Chapters read</span><b id="pmChaps">–</b></div>
-      <div class="prow"><span>Volumes read</span><b id="pmVols">–</b></div>
-      <div class="prow"><span>Manga mean score</span><b id="pmMean">–</b></div>
+    <div class="pfstats">
+      <div class="pfstat"><b id="pmChaps">–</b><span>Chapters read</span></div>
+      <div class="pfstat"><b id="pmVols">–</b><span>Volumes read</span></div>
+      <div class="pfstat"><b id="pmMean">–</b><span>Mean score</span></div>
     </div>
     <div id="profBioBox" hidden>
       <div class="q">Bio</div>

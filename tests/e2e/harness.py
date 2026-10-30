@@ -70,6 +70,9 @@ def svg(n):
 
 
 TASTEREQ = []
+PICKREQ = []
+PROFREQ = []
+COLLREQ = []
 def _tags(names): return [{"name": n, "rank": 80, "isMediaSpoiler": False} for n in names]
 def taste_entry(e):
     i = e["media"]["id"] - 1000
@@ -92,6 +95,7 @@ def handle(route, request):
         if NET["off"]: return route.abort("internetdisconnected")
         body = json.loads(request.post_data or "{}"); q = body.get("query", ""); v = body.get("variables", {}) or {}
         if "MediaListCollection" in q:
+            COLLREQ.append(v.get("t"))
             if NET["fail"] > 0: NET["fail"] -= 1; return route.abort("failed")
             if NET["delay"]: time.sleep(NET["delay"] / 1000)
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
@@ -99,6 +103,35 @@ def handle(route, request):
             t = v.get("t", "ANIME"); TASTEREQ.append(("list", t))
             es = [e for e in DATA[t] if e["status"] in ("COMPLETED", "CURRENT", "REPEATING", "PAUSED", "DROPPED")]
             return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": [taste_entry(e) for e in es]}]}})
+        if "releaseYears{" in q and "startYears{" in q:   # Profile > Tendencies
+            PROFREQ.append("tend")
+            def tstat(anime):
+                gens = [{"genre": "Comedy", "count": 400, "meanScore": 85}, {"genre": "Fantasy", "count": 350, "meanScore": 84}, {"genre": "Action", "count": 300, "meanScore": 83}, {"genre": "Romance", "count": 200, "meanScore": 80},
+                        {"genre": "Thriller", "count": 30, "meanScore": 60}, {"genre": "Mystery", "count": 2, "meanScore": 40}]
+                return {"count": 467, "meanScore": 80.5, "statuses": [{"status": "COMPLETED", "count": 300}, {"status": "CURRENT", "count": 20}, {"status": "PAUSED", "count": 13}, {"status": "DROPPED", "count": 6}, {"status": "PLANNING", "count": 128}],
+                        "genres": gens, "tags": [{"tag": {"name": "Male Protagonist", "category": "Cast"}, "count": 300, "meanScore": 80}, {"tag": {"name": "Heterosexual", "category": "Cast"}, "count": 200, "meanScore": 80}, {"tag": {"name": "Female Protagonist", "category": "Cast"}, "count": 150, "meanScore": 80}, {"tag": {"name": "Rare", "category": "x"}, "count": 1, "meanScore": 80}],
+                        "releaseYears": [{"releaseYear": 2023, "count": 60, "meanScore": 80}, {"releaseYear": 2026, "count": 70, "meanScore": 80}, {"releaseYear": 2024, "count": 50, "meanScore": 80}, {"releaseYear": 2010, "count": 5, "meanScore": 80}],
+                        "startYears": [{"startYear": 2010, "count": 12}, {"startYear": 2015, "count": 30}, {"startYear": 2023, "count": 100}]}
+            return ok({"Viewer": {"statistics": {"anime": tstat(True), "manga": {**tstat(False), "count": 336, "statuses": [{"status": "COMPLETED", "count": 100}, {"status": "CURRENT", "count": 100}]}}}})
+        if "Viewer{favourites{" in q:   # Profile > Favourites
+            kind = re.search(r"favourites\{(\w+)\(", q).group(1); PROFREQ.append("fav:%s:%s" % (kind, v.get("p")))
+            def fav(i):
+                if kind in ("anime", "manga"): return {"id": 6000 + i, "title": {"romaji": "Fav %s %d" % (kind, i), "english": "Fav %s %d" % (kind, i), "native": None}, "countryOfOrigin": "JP", "coverImage": {"large": "https://img.test/c%d.jpg" % (i % 9)}}
+                if kind == "studios": return {"id": 6100 + i, "name": "Fav Studio %d" % i}
+                return {"id": 6200 + i, "name": {"full": "Fav %s %d" % (kind, i), "native": None}, "image": {"large": "https://img.test/c%d.jpg" % (i % 9)}}
+            total = {"anime": 30, "manga": 2, "characters": 3, "staff": 0, "studios": 4}[kind]; p = v.get("p") or 1
+            ids = list(range((p - 1) * 24, min(total, p * 24)))
+            return ok({"Viewer": {"favourites": {kind: {"pageInfo": {"hasNextPage": p * 24 < total}, "nodes": [fav(i) for i in ids]}}}})
+        if "PickTaste" in q:   # the "Something new for my taste" pick: candidates that are not on the list
+            PICKREQ.append({**v, "_q": q}); t = v.get("t", "ANIME"); anime = t == "ANIME"
+            def cand(i, **o):
+                m = {"id": 7000 + i, "type": t, "siteUrl": "https://anilist.co/x/%d" % (7000 + i), "title": {"romaji": "New Title %d" % i, "english": "New Title %d" % i, "native": None}, "countryOfOrigin": "JP",
+                     "coverImage": {"extraLarge": "https://img.test/c%d.jpg" % (i % 9), "large": "https://img.test/c%d.jpg" % (i % 9)}, "format": "TV" if anime else "MANGA", "status": "FINISHED",
+                     "episodes": 12 if anime else None, "chapters": None if anime else 80, "duration": 24, "averageScore": 80, "popularity": 50000, "genres": ["Fantasy", "Comedy"], "isAdult": False,
+                     "startDate": {"year": 2020, "month": 1, "day": 1}, "nextAiringEpisode": None, "tags": _tags(["Isekai"])}
+                m.update(o); return m
+            return ok({"Page": {"media": [cand(1), cand(2, status="NOT_YET_RELEASED", averageScore=99), cand(3, status="RELEASING", nextAiringEpisode={"episode": 1, "airingAt": 4102444800}, averageScore=95),
+                                          cand(4, averageScore=70, genres=["Fantasy"]), cand(5, status="FINISHED", startDate={"year": 2099, "month": 1, "day": 1}, averageScore=97)]}})
         if "TasteRef" in q:   # the "average fan" sample: popular titles with a fixed tag mix
             t = v.get("t", "ANIME"); TASTEREQ.append(("ref", t, v.get("p")))
             return ok({"Page": {"media": [taste_ref(i + (v.get("p", 1) - 1) * 50) for i in range(50)]}})
@@ -109,6 +142,15 @@ def handle(route, request):
             if v.get("u") and v["u"] != "Tester": es = [{**e, "score": min(100, e["score"] + (6 if i % 4 == 0 and e["score"] else 0))} for i, e in enumerate(es)]
             if "status_in" in q: es = [e for e in es if e["status"] in ("CURRENT", "REPEATING", "PLANNING")]
             full = [{**e, "media": {**e["media"]}} for e in es]
+            if "customLists(asArray" in q:   # AniList sends [{name, enabled}] when asked with asArray: Iseki on every 5th title, Favourite on every 7th
+                def arr(e):
+                    base = e.get("customLists") or {}; base = base if isinstance(base, dict) else {}
+                    names = dict(base); i = e["mediaId"] - 1000
+                    if i % 5 == 0: names.setdefault("Iseki", True)
+                    if i % 7 == 0: names.setdefault("Favourite", True)
+                    names.setdefault("Milf", False)
+                    return [{"name": n, "enabled": bool(b)} for n, b in names.items()]
+                full = [{**e, "customLists": arr(e)} for e in full]
             return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": full}]}})
         if "(userId:$id,sort:USERNAME)" in q:
             ids = FOLLOWERS if "followers(userId" in q else FOLLOWING

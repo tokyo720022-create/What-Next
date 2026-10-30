@@ -1,6 +1,6 @@
 /* js/features/lists.js: Anime and Manga lists, filter and customise sheets */
 // ---------- AniList collection reader (handles AniList's 500-entry chunks) ----------
-const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large} episodes chapters duration averageScore genres nextAiringEpisode{episode airingAt}}";
+const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large} episodes chapters duration averageScore genres status startDate{year month day} nextAiringEpisode{episode airingAt}}";
 async function collection(user, type, filter, fields){
   const out = []; let chunk = 1, more = true;
   while(more){
@@ -18,7 +18,7 @@ async function collection(user, type, filter, fields){
 // ---------- Anime and manga lists ----------
 const STATUS_LABEL = t => ({ CURRENT: t === "anime" ? "Watching" : "Reading", PLANNING: "Planning", COMPLETED: "Completed", PAUSED: "Paused", DROPPED: "Dropped", REPEATING: t === "anime" ? "Rewatching" : "Rereading" });
 const STATUS_ORDER = ["CURRENT", "REPEATING", "PLANNING", "PAUSED", "COMPLETED", "DROPPED"];
-const LIST_F = "mediaId status progress repeat startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
+const LIST_F = "mediaId status progress repeat customLists(asArray:true) startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
 const FORMATS = { anime: ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"], manga: ["MANGA", "NOVEL", "ONE_SHOT"] };
 const LS = (k, d) => { try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k) || "{}")); }catch(_){ return Object.assign({}, d); } };
 const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} };
@@ -27,7 +27,7 @@ const ly = LS("wn_ly", { layout: "grid", cols: 3, hideUnscored: false, hideProgr
 const fstore = LS("wn_lf", { persist: false, anime: null, manga: null });
 const lf = { anime: (fstore.persist && fstore.anime) || defFilter(), manga: (fstore.persist && fstore.manga) || defFilter() };
 const LIST_BATCH = 48;
-const mkList = () => ({ entries: null, status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
+const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
 const lists = { anime: mkList(), manga: mkList() };
 let curType = "anime";
 const tt = m => { const t = m.title || {}, per = appCfg().naming[m.countryOfOrigin], p = per || localStorage.getItem("wn_tlang") || "ENGLISH"; return (p === "ROMAJI" ? t.romaji : p === "NATIVE" ? (t.native || t.romaji) : t.english) || t.english || t.romaji || "Untitled"; };
@@ -57,9 +57,16 @@ function guardListLayout(){
     n.onclick = () => cleanReload();
   }, 500);
 }
+// Names of the custom lists an entry is in. AniList sends [{name, enabled}] when asked with asArray.
+function customNames(e){
+  const c = e && e.customLists;
+  if(Array.isArray(c)) return c.filter(x => x && x.enabled).map(x => x.name);
+  if(c && typeof c === "object") return Object.keys(c).filter(k => c[k]);
+  return [];
+}
 async function fetchEntries(type){
   const raw = await collection(state.user, type.toUpperCase(), "", LIST_F), seen = new Map();
-  for(const e of raw){ if(e && e.media && !seen.has(e.mediaId)) seen.set(e.mediaId, { id: e.mediaId, status: e.status, progress: e.progress || 0, repeat: e.repeat || 0, startedAt: e.startedAt, completedAt: e.completedAt, score: e.score || 0, updatedAt: e.updatedAt || 0, m: e.media }); }
+  for(const e of raw){ if(e && e.media && !seen.has(e.mediaId)) seen.set(e.mediaId, { id: e.mediaId, status: e.status, progress: e.progress || 0, repeat: e.repeat || 0, startedAt: e.startedAt, completedAt: e.completedAt, score: e.score || 0, updatedAt: e.updatedAt || 0, custom: customNames(e), m: e.media }); }
   return [...seen.values()];
 }
 function showListLoading(type){
@@ -119,15 +126,16 @@ function passes(e, f, type){
   if(f.ge.some(x => g.includes(x))) return false;
   return true;
 }
+const customCounts = entries => { const c = new Map(); entries.forEach(e => (e.custom || []).forEach(n => c.set(n, (c.get(n) || 0) + 1))); return [...c.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
 const statusCounts = entries => { const c = {}; entries.forEach(e => { c[e.status] = (c[e.status] || 0) + 1; }); return c; };
 function emptyState(type, L){
   const box = el("div", "msg state");
   if(!L.entries.length){ box.append(el("b", null, "Your " + type + " list is empty"), el("p", "sub", "Add titles from Discover or from a media page.")); return box; }
-  const filtered = L.q.trim() || JSON.stringify(lf[type]) !== JSON.stringify(defFilter());
+  const filtered = L.q.trim() || L.custom || JSON.stringify(lf[type]) !== JSON.stringify(defFilter());
   box.append(el("b", null, "Nothing to show here"), el("p", "sub", filtered ? "No titles match your search or filters." : "No " + type + " entries have this status."));
   if(filtered){
     const b = el("button", "go alt", "Clear search and filters");
-    b.onclick = () => { L.q = ""; $("#listSearch").value = ""; lf[type] = defFilter(); fstore[type] = lf[type]; LSset("wn_lf", fstore); L.shown = LIST_BATCH; renderList(); };
+    b.onclick = () => { L.q = ""; L.custom = ""; $("#listSearch").value = ""; lf[type] = defFilter(); fstore[type] = lf[type]; LSset("wn_lf", fstore); L.shown = LIST_BATCH; renderList(); };
     box.append(b);
   }
   return box;
@@ -136,7 +144,7 @@ function renderList(opts){
   const type = curType, L = lists[type], f = lf[type], lab = STATUS_LABEL(type);
   if(!L.entries) return;
   const y = window.scrollY, q = L.q.trim().toLowerCase();
-  const rows = L.entries.filter(e => passes(e, f, type) && (!q || (tt(e.m) + " " + (e.m.title.romaji || "")).toLowerCase().includes(q)));
+  const rows = L.entries.filter(e => passes(e, f, type) && (!L.custom || (e.custom || []).includes(L.custom)) && (!q || (tt(e.m) + " " + (e.m.title.romaji || "")).toLowerCase().includes(q)));
   const all = statusCounts(L.entries), counts = statusCounts(rows);
   const chips = $("#listStatus"); chips.replaceChildren();
   const order = ["ALL", ...STATUS_ORDER.filter(x => all[x] || x === L.status)]; if(appCfg().allpos[type] === "bottom") order.push(order.shift());
@@ -147,11 +155,13 @@ function renderList(opts){
     b.onclick = () => { L.status = s; L.shown = LIST_BATCH; renderList(); };
     chips.append(b);
   }
+  const cb = $("#lListsBtn"), hasCustom = customCounts(L.entries).length > 0;
+  cb.hidden = !(hasCustom || L.custom); cb.textContent = L.custom ? "List: " + L.custom : "Custom lists"; cb.setAttribute("aria-pressed", String(!!L.custom));
   const view = (L.status === "ALL" ? rows : rows.filter(e => e.status === L.status)).slice();
   view.sort(L.status === "ALL" && f.sort === "UPDATED" ? (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || b.updatedAt - a.updatedAt : (SORTS[f.sort] || SORTS.UPDATED));
-  $("#listCount").textContent = (L.status === "ALL" ? "All" : lab[L.status]) + " (" + view.length + ")";
+  $("#listCount").textContent = (L.status === "ALL" ? "All" : lab[L.status]) + (L.custom ? " · " + L.custom : "") + " (" + view.length + ")";
   const body = $("#listBody"), shown = Math.min(view.length, L.shown);
-  const sig = [type, L.status, q, JSON.stringify(f), ly.layout, ly.cols, ly.hideUnscored, ly.hideProgress, L.rev, view.length].join("|");
+  const sig = [type, L.status, L.custom, q, JSON.stringify(f), ly.layout, ly.cols, ly.hideUnscored, ly.hideProgress, L.rev, view.length].join("|");
   if(sig === L.sig && L.drawn > 0 && L.drawn < shown){          // "Show more": add only the next batch
     view.slice(L.drawn, shown).forEach(e => body.append(lcard(e, type))); L.drawn = shown;
   }else if(!(sig === L.sig && L.drawn === shown && shown > 0)){  // anything else that changed: rebuild
@@ -194,6 +204,11 @@ function bumpEntry(e, type, btn){
 }
 $("#qv").addEventListener("click", ev => { if(ev.target.id === "qv") $("#qv").hidden = true; });
 $("#listMore").onclick = () => { lists[curType].shown += LIST_BATCH; renderList(); };
+// Open one of your custom lists (Anime or Manga screen): a sheet with every list switched on for any title, and how many titles each has.
+$("#lListsBtn").onclick = () => {
+  const L = lists[curType]; if(!L.entries) return;
+  pickSheet("Custom lists", [["", "All lists"]].concat(customCounts(L.entries).map(([n, c]) => [n, n + " (" + c + ")"])), L.custom, v => { L.custom = v; L.shown = LIST_BATCH; renderList(); });
+};
 $("#lSearchBtn").onclick = () => {
   const i = $("#listSearch"); i.hidden = !i.hidden;
   if(i.hidden){ i.value = ""; lists[curType].q = ""; renderList(); } else i.focus();

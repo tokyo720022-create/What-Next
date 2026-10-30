@@ -114,19 +114,24 @@ async function tzShare(rep){
   try{ await navigator.clipboard.writeText(text); toast("Copied your taste report"); }catch(_){ toast("Couldn't share from here"); }
 }
 
+// The report for one kind: kept for the session, otherwise worked out from your list. Also used by the "For my taste" pick.
+async function tzGet(type){
+  if(tz.cache[type]) return tz.cache[type];
+  if(!state.user) throw new Error("Failed to fetch");
+  const entries = await collection(state.user, type.toUpperCase(), "status_in:[COMPLETED,CURRENT,REPEATING,PAUSED,DROPPED]", TZ_F);
+  const rep = tzBuild(entries, await tzRef(type), type, new Date().getFullYear());
+  tz.cache[type] = rep;
+  if(rep.ready){ const s = tzSum(); s[type] = { name: rep.arch.name, code: rep.code, type: rep.typeName }; LSset("wn_taste_sum", s); tzEntry(); }
+  return rep;
+}
 async function tzLoad(){
   const type = tz.type, token = ++tz.token, body = $("#tzBody");
   document.querySelectorAll("#tzKinds .chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === type)));
   if(tz.cache[type]){ tzRender(tz.cache[type]); return; }
   body.replaceChildren(el("div", "msg", "Reading your " + type + " list…"));
   try{
-    if(!state.user) throw new Error("Failed to fetch");
-    const entries = await collection(state.user, type.toUpperCase(), "status_in:[COMPLETED,CURRENT,REPEATING,PAUSED,DROPPED]", TZ_F);
-    if(token !== tz.token) return;
-    const rep = tzBuild(entries, await tzRef(type), type, new Date().getFullYear());
-    if(token !== tz.token) return;
-    tz.cache[type] = rep; tzRender(rep);
-    if(rep.ready){ const s = tzSum(); s[type] = { name: rep.arch.name, code: rep.code, type: rep.typeName }; LSset("wn_taste_sum", s); tzEntry(); }
+    const rep = await tzGet(type);
+    if(token === tz.token) tzRender(rep);
   }catch(err){
     if(token !== tz.token) return;
     body.replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, tzLoad));

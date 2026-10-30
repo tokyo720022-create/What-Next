@@ -1,0 +1,37 @@
+/* css/profile.css: your own Profile screen (hero, counts, tiles, tendencies, favourites, stats) */
+.pfhero{padding:0 0 20px;text-align:left;background:var(--card);position:relative}
+.pfbanner{position:relative;aspect-ratio:2.5/1;background:linear-gradient(135deg,var(--pc),#7a4dff 60%,var(--sakura)) center/cover no-repeat}
+.pfbanner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,10,30,.0) 25%,rgba(8,10,30,.15) 55%,var(--card) 100%)}
+.pfid{position:relative;z-index:1;display:flex;align-items:flex-end;gap:14px;padding:0 18px;margin-top:-46px}
+.pfhero .pfavatar{width:92px;height:92px;margin:0;flex:none;border:3px solid var(--pc);box-shadow:0 0 0 4px var(--card),0 10px 28px rgba(0,0,0,.25)}
+.pfwho{min-width:0;padding-bottom:2px}
+.pfhero .pfname{margin:0 0 8px;text-align:left;font-size:1.5rem;line-height:1.1;letter-spacing:-.02em;overflow-wrap:anywhere}
+.pflink{display:inline-block;padding:7px 14px;border-radius:999px;background:var(--chip);color:var(--pc);font-weight:700;font-size:.82rem;text-decoration:none}
+.pfcounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.pfcounts button{padding:14px 4px 12px;border:0;border-radius:20px;background:var(--card);box-shadow:var(--shadow);color:var(--ink);font:inherit;text-align:center;cursor:pointer}
+.pfcounts button:active{transform:scale(.97)}
+.pfcounts b{display:block;font-size:1.25rem;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pfcounts span{font-size:.72rem;color:var(--muted)}
+.pftiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pftile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px;border:0;border-radius:20px;background:var(--card);box-shadow:var(--shadow);color:var(--ink);font:700 .85rem Inter,system-ui,sans-serif;cursor:pointer}
+.pftile:active{transform:scale(.97)}
+.pftile svg{width:24px;height:24px;fill:none;stroke:var(--sakura);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pfcard{margin-top:0;padding:16px}
+.pfkinds{margin-bottom:6px}
+.pfkinds .chip{padding:10px 14px}
+.pftitem{overflow-wrap:anywhere;padding:12px 0;border-bottom:1px solid var(--line);color:var(--muted);line-height:1.35}
+.pftitem:last-of-type{border-bottom:0}
+.pfhl{color:var(--sakura);font-weight:700}
+.pfnote,.pfmuted{margin:12px 0 0;color:var(--muted);font-size:.84rem}
+.pffavkinds{padding-top:0}
+.favgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.favt{padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
+.favt img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:14px;background:var(--chip)}
+.favn{display:-webkit-box;margin-top:6px;font-size:.82rem;font-weight:700;line-height:1.2;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.favstudios{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.favstudio{padding:10px 14px;border:0;border-radius:14px;background:var(--chip);color:var(--ink);font:inherit;font-weight:700;font-size:.9rem;cursor:pointer}
+.pfstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pfstat{padding:16px 6px;border-radius:20px;background:var(--card);box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden}
+.pfstat::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--grad)}
+.pfstat b{display:block;font-size:1.2rem;letter-spacing:-.02em}
+.pfstat span{font-size:.74rem;color:var(--muted)}

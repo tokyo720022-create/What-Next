@@ -1,0 +1,8 @@
+/* css/refresh.css: the circle that follows your finger when you swipe down to refresh */
+html,body{overscroll-behavior-y:contain}
+.ptrbox{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:70;width:42px;height:42px;margin-left:-21px;display:grid;place-items:center;border-radius:50%;background:var(--card);box-shadow:var(--shadow);pointer-events:none;opacity:var(--po,0);transform:translateY(calc(var(--pull,0px) - 56px));transition:transform .18s ease,opacity .18s ease}
+.ptrdot{font-style:normal;font-weight:800;font-size:1.2rem;line-height:1;color:var(--muted);transition:transform .15s}
+.ptrbox.armed .ptrdot{color:var(--sakura);transform:rotate(180deg)}
+.ptrbox.busy::after{content:"";width:20px;height:20px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--sakura);animation:ptrspin .8s linear infinite}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ptrbox{transition:none}.ptrbox.busy::after{animation-duration:2s}}

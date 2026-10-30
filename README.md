@@ -10,7 +10,8 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 
 ## Features
 
-- **Pick for me:** choose Watch, Read, or Either, then how much time you have (15 min, 30 min, 1 hour, 2 hours). It suggests something from your Watching, Reading, Repeating, and Planning lists that fits, and tells you which episodes or chapters to do.
+- **Pick for me:** choose Watch, Read, or Either, then how much time you have (15 min, 30 min, 1 hour, 2 hours). It suggests something from your Watching, Reading, Repeating, and Planning lists that fits, and tells you which episodes or chapters to do. Titles that are not released yet are never suggested, and for a show that is still airing it only offers episodes that have already aired.
+- **Something new for my taste:** a button under Surprise me and Build a lineup. It picks an anime or manga that suits your taste report (your top genres and strongest themes) and is **not on any of your lists**; AniList filters out everything you already have, and unreleased titles are skipped. It follows the Watch/Read, time, genre and 18+ filters, with Another, Hide, and Add to Planning.
 - **Genre filter:** the genre chips are built from what's actually in your list.
 - **18+ filter:** show everything, only 18+ titles, or hide 18+ titles.
 - **Discover tab:** one search box that searches by itself as you type (no Find button). Pick what to search with the chips: Anime, Manga, Characters, Staff, Studios, or Users. With the box empty, the same list is **Explore**: a ranked list for that type (popularity for titles, favourites for people). The filter button has every option: sort, genres, tags, year, season, format, status, country, source, on or off your list, and 18+ (hidden by default). Four tiles sit under the search box:
@@ -22,13 +23,14 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 - **Taste report:** a card on the Pick screen opens your taste report, for anime or manga. It compares your list with the most popular titles on AniList (the "average fan") and shows: an **archetype** from your strongest theme (for example *The Portal Hopper* for Isekai), a **theme index** of what you like far more or far less than the average fan, a four-letter **personality type** from four sliders (Niche or Mainstream, Retro or Fresh, Diverse or Specialized, Contrarian or Aligned) with hidden gems, newer or older picks, a genre mix and your biggest rating gaps with other fans, five **vibe** sliders (Grim or Wholesome, Heart or Brain, Dreamers or Schemers, Scrappy or Destined, Competitive or Loyal), and a Share button. The Contrarian slider needs at least 8 rated titles, and the report needs at least 8 started or finished titles. Adult titles count in the maths but never show as covers. The sample of popular titles is kept on your device for a week.
 - **Mark as done:** save your progress to AniList straight from a pick. It marks a title Completed when you finish it, and moves a Planning title to Current.
 - **Blur covers:** hides cover art when you're in public.
-- **Anime and Manga lists:** your full AniList lists with status tabs, search, a filter sheet (sort, format, status, country, year, length, score, genres include/exclude) and list customisation (grid or list, columns, hide score or progress). Tap a card for quick view with +1 / -1 progress.
+- **Anime and Manga lists:** your full AniList lists with status tabs, search, a filter sheet (sort, format, status, country, year, length, score, genres include/exclude) and list customisation (grid or list, columns, hide score or progress). Tap a card for quick view with +1 / -1 progress. If you use custom lists on AniList, a **Custom lists** button next to Search, Filter, and Customise opens a sheet with each list and how many titles it holds; pick one to see only its titles (it combines with the status tabs and search).
+- **Swipe down to refresh:** pull down at the top of Pick, Anime, Manga, Discover, Seasonal, Calendar, Schedule, Stats, Taste report, or Profile to reload that screen from AniList.
 - **Trending:** trending anime and manga carousels on the Pick screen.
 - **Media pages:** tap any title for a full page with score, favourites, genres, synopsis, characters, info, tags with spoiler toggle, where to watch, staff, relations, and recommendations. Relations and recommendations open their own pages.
 - **Character, staff, and studio pages:** tap a character, staff member, studio, or producer on a media page to open its own page, with Set as Favorite, voice actors, series or media, roles, and See more. Tapping a title inside those pages opens it, and the back button walks back through every page.
 - **List editor:** status, progress stepper, score slider, start and finish dates, rewatches, priority, custom lists, notes, private, favourite, and remove. Reaching the last episode completes the entry and sets dates automatically.
 - **People:** on your Profile, tap Following or Followers for the list (a Mutual badge marks people who follow you back; the three-dot menu can follow, unfollow, or open AniList). Tap anyone to open their profile: banner, avatar, counts, an affinity score from the scores you both gave to the same titles (needs 5 or more shared scores), their statistics, View Detail Statistics with the same charts as yours, Follow, and Message.
-- **Profile:** your AniList banner and avatar (ring uses your AniList profile colour), a View on AniList button, anime, manga, following and followers counts, your anime and manga statistics, and your bio, with Stats, Chat, and Settings inside. The banner and avatar are read from AniList; the AniList API does not let apps change them.
+- **Profile:** your AniList banner and avatar (ring uses your AniList profile colour), a View on AniList button, anime, manga, following and followers counts, your anime and manga statistics, and your bio, with Stats, Chat, and Settings as tiles. The banner and avatar are read from AniList; the AniList API does not let apps change them. It also has **Tendencies** (Anime or Manga: what you seem to love and hate, tags you like, favourite release years, the year you started, and your completion rate, worked out from your AniList stats) and **Favourites** with filters for Anime, Manga, Characters, Staff, and Studios (tap one to open it; Show more loads the rest).
 - **Settings:** Discord and secrets, and three pages that follow the AniList apps:
   - **App Settings** (this app only): theme mode and colour presets or your own colours; round or square profile pictures; text size; the opening logo screen; where "All" sits in the status chips; relative or exact air times; how titles from Japan, Korea, China and Taiwan are shown (Follow AniList, Romaji, English, Native); privacy (blur covers, hidden titles); and a reset.
   - **AniList Settings** (saved on your account, with a Save Changes bar): bio, profile colour, title language, staff and character naming, activity merge time, 18+ content, airing notifications, and only getting messages from people you follow.
@@ -115,7 +117,7 @@ package.json            Capacitor plugins and the app version
 assets/                 logo, app icons and the splash-screen image
 resources/              Android icon and splash sources (used only by the APK build)
 android-signing/        debug keystore used to sign the APK
-css/                    base, components, screens, login, trending, media, anistats,
+css/                    base, components, screens, login, trending, media, anistats, refresh, profile,
                         listset, relmap, users, progress, discover, taste, utilities
 views/
   shell/                header, tab bar
@@ -126,7 +128,7 @@ views/
 js/
   core/                 compat, diagnostics, core and Pick engine, tabs, auth,
                         tracker, theme, start
-  features/             discover, seasonal, taste (screen) and taste-math (the maths), calendar, lists, media page, entity pages
+  features/             discover, seasonal, taste (screen), taste-math (the maths), pick-taste (new picks), refresh (swipe down), profile-extra (tendencies, favourites), calendar, lists, media page, entity pages
                         (character/staff/studio), editor, relation map, users, profile,
                         stats, list settings, app settings, settings, sync (Discord),
                         chat, trending, and so on

@@ -75,7 +75,7 @@ Tap **Log in with AniList** and approve. On the website you come back to the pag
 
 ## Logo and splash screen
 
-The logo is `assets/logo-512.png` (and smaller copies). It is shown full screen for about a second when the app opens (see `#boot` in `index.html` and `SPLASH_MS` in `boot.js`), in the header, and on the login screen. The Android launcher icon and native splash are generated during the APK build from the pictures in `resources/` (step "Generate app icon and splash screen" in `.github/workflows/build-apk.yml`).
+The logo is `assets/logo-512.png` (and smaller copies). When the app opens it shows an opening screen for at least a second: a deep purple glow, the logo, the name "What Next?", a short tagline, a loading bar that fills as the app's files load, and a footer line (see `#boot` in `index.html`, the `#boot` styles in `css/base.css`, and `SPLASH_MS` in `boot.js`; the screen can be switched off in App Settings). The logo is also shown in the header, and on the login screen. The Android launcher icon and native splash are generated during the APK build from the pictures in `resources/` (step "Generate app icon and splash screen" in `.github/workflows/build-apk.yml`).
 
 ## Builds and releases
 

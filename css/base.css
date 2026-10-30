@@ -17,11 +17,18 @@ main{max-width:480px;margin:0 auto}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .brand{display:flex;align-items:center;gap:10px}
 .logo{width:40px;height:40px;object-fit:contain;display:block;flex:none}
-#boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#000;transition:opacity .35s ease}
-#boot img{width:min(58vw,260px);height:auto;border-radius:22%;animation:bootIn .7s ease-out both}
+#boot{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 24px) 24px calc(env(safe-area-inset-bottom,0px) + 30px);color:#F2EEFF;background:radial-gradient(ellipse 85% 46% at 50% 22%,#2B1B4C 0%,#170F2E 48%,#0A0714 100%);transition:opacity .35s ease}
+.bootmid{margin:auto 0;display:flex;flex-direction:column;align-items:center;text-align:center;transform:translateY(-3vh)}
+#boot img{width:min(46vw,200px);height:auto;border-radius:22%;box-shadow:0 0 0 6px rgba(255,255,255,.06),0 0 64px rgba(160,92,255,.38);animation:bootIn .7s ease-out both}
+.boottitle{margin-top:34px;font-size:2.1rem;font-weight:300;letter-spacing:-.01em;line-height:1.1}
+.boottag{margin:10px 0 0;color:#A79FC2;font-size:1.08rem}
+.bootbar{width:min(52vw,230px);height:5px;margin-top:38px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.bootbar i{display:block;width:6%;height:100%;border-radius:3px;background:#fff;transition:width .25s ease}
+.bootfoot{margin:0;color:#8F88AA;font-size:.95rem;text-align:center}
 #boot.out{opacity:0;pointer-events:none}
 @keyframes bootIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){#boot img{animation:none}#boot{transition:none}}
+
+@media (prefers-reduced-motion:reduce){#boot img{animation:none}#boot,.bootbar i{transition:none}}
 h1{font-size:1.35rem;line-height:1.1;margin:0;letter-spacing:-.02em;font-weight:800}
 .sub{color:var(--muted);margin:2px 0 0;font-size:.9rem}
 label,.q{display:block;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--muted);margin:22px 0 8px}

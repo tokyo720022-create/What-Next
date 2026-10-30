@@ -1,0 +1,14 @@
+/* css/themes.css: the theme cards in App Settings, and the patterns behind Sakura Flowers and Gintama */
+.thgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.thm{display:flex;flex-direction:column;gap:6px;padding:10px;border:2px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
+.thm[aria-pressed="true"]{border-color:var(--ink);background:var(--chip)}
+.thsw{position:relative;display:block;height:46px;border-radius:12px;overflow:hidden;background:var(--t0);box-shadow:inset 0 0 0 1px rgba(128,128,128,.28)}
+.thsw::before,.thsw::after{content:"";position:absolute;top:-2px;bottom:-2px;transform:skewX(-24deg)}
+.thsw::before{left:48%;width:36%;background:var(--t1)}
+.thsw::after{left:80%;width:30%;background:var(--t2)}
+.thn{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-weight:700;line-height:1.2}
+.thsp{padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--muted);font-style:normal;font-size:.7rem;font-weight:700}
+.thnote{color:var(--muted);font-size:.8rem;line-height:1.3}
+html[data-pattern="petals"] body::before,html[data-pattern="waves"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
+html[data-pattern="petals"] body::before{background-image:radial-gradient(ellipse 9px 5px at 18px 22px,rgba(214,90,140,.30),transparent 72%),radial-gradient(ellipse 7px 4px at 96px 70px,rgba(214,90,140,.24),transparent 72%),radial-gradient(ellipse 10px 6px at 150px 20px,rgba(196,42,98,.18),transparent 72%),radial-gradient(ellipse 8px 5px at 60px 128px,rgba(214,90,140,.26),transparent 72%),radial-gradient(ellipse 6px 4px at 170px 150px,rgba(122,75,200,.16),transparent 72%);background-size:200px 180px}
+html[data-pattern="waves"] body::before{background-image:radial-gradient(circle at 50% 100%,transparent 36%,rgba(201,211,255,.075) 37% 40%,transparent 41% 54%,rgba(201,211,255,.075) 55% 58%,transparent 59% 70%,rgba(201,211,255,.075) 71% 74%,transparent 75%),radial-gradient(circle at 50% 100%,transparent 36%,rgba(201,211,255,.075) 37% 40%,transparent 41% 54%,rgba(201,211,255,.075) 55% 58%,transparent 59% 70%,rgba(201,211,255,.075) 71% 74%,transparent 75%);background-size:64px 32px;background-position:0 0,32px 16px}

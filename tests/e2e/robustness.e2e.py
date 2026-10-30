@@ -61,8 +61,8 @@ def t3(page, out):
         r, g, b = [int(x) for x in re.findall(r"\d+", c)[:3]]
         f = lambda v: (v / 255 / 12.92) if v / 255 <= .03928 else (((v / 255 + .055) / 1.055) ** 2.4)
         return .2126 * f(r) + .7152 * f(g) + .0722 * f(b)
-    for mode in ("light", "dark", "amoled"):
-        page.evaluate("localStorage.setItem('wn_theme', JSON.stringify({mode:'%s', a:'', b:''}))" % mode); page.reload(); page.wait_for_selector("#tabs:not([hidden])")
+    for mode in ("sakuraflowers", "onepiece", "naruto", "gintama", "dragonball", "bleach", "rentagirlfriend", "aot"):
+        page.evaluate("localStorage.setItem('wn_theme', JSON.stringify({id:'%s'}))" % mode); page.reload(); page.wait_for_selector("#tabs:not([hidden])")
         page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)")
         c = page.evaluate("(() => { const card = document.querySelector('#listBody .lcard'); const t = card.querySelector('.li') || card; return { bg: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(card).backgroundColor, text: getComputedStyle(card.querySelector('.lt')).color } })()")
         a_, b_ = lum(c["card"]), lum(c["text"]); ratio = (max(a_, b_) + .05) / (min(a_, b_) + .05)

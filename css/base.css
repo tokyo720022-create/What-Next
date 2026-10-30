@@ -1,12 +1,10 @@
 /* css/base.css: colours, page, header, text and form basics */
 :root{
-  --bg:#F4F4FA; --card:#FFFFFF; --ink:#14162B; --muted:#6B6F8F; --line:#E3E4F0; --chip:#ECEDF8;
-  --sakura:#F0306E; --sakura-ink:#FFFFFF; --grad:linear-gradient(135deg,#FF4D86,#FF7A59);
-  --shadow:0 10px 30px rgba(20,22,60,.08); --glass:rgba(255,255,255,.82);
-}
-@media (prefers-color-scheme:dark){
-  :root{ --bg:#0C0E1D; --card:#161936; --ink:#F3F3FC; --muted:#9EA3CB; --line:#2A2F5A; --chip:#20244A;
-    --sakura:#FF6B97; --shadow:0 10px 30px rgba(0,0,0,.35); --glass:rgba(22,25,54,.82); }
+  /* the default theme (One Piece); js/core/theme.js sets the chosen theme over this */
+  --bg:#050B1A; --card:#0E1830; --ink:#F5F1E6; --muted:#9FB0CC; --line:#1F2E50; --chip:#16233F;
+  --sakura:#F5C542; --sakura-ink:#1B1400; --grad:linear-gradient(135deg,#F5C542,#E8503A);
+  --shadow:0 10px 30px rgba(0,0,0,.40); --glass:rgba(14,24,48,.84);
+  color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}

@@ -64,7 +64,7 @@ function renderEntity(kind, d){
   const img = kind === "studio" ? null : d.image && d.image.large, title = kind === "studio" ? d.name : d.name.full;
   // header
   const head = el("div", "mhead"), bg = el("div", "mbg");
-  bg.style.backgroundImage = img ? "url(" + JSON.stringify(img) + ")" : "linear-gradient(135deg,#ff4d86,#ff7a59)";
+  bg.style.backgroundImage = img ? "url(" + JSON.stringify(img) + ")" : "var(--grad)";
   const row = el("div", "mrow"), info = el("div"); info.style.minWidth = "0";
   if(img){ const p = new Image(); p.alt = ""; p.className = "tposter"; p.src = img; row.append(p); }
   info.append(el("h1", null, title)); if(kind !== "studio" && d.name.native) info.append(el("p", null, d.name.native));

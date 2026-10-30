@@ -16,20 +16,6 @@
       <button id="pcFollowingBtn"><b id="pcFollowing">–</b><span>Following</span></button>
       <button id="pcFollowersBtn"><b id="pcFollowers">–</b><span>Followers</span></button>
     </div>
-    <div class="pftiles">
-      <button class="pftile" data-go="stats" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Stats</span></button>
-      <button class="pftile" data-go="chat" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
-      <button class="pftile" data-go="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Settings</span></button>
-    </div>
-    <div class="q">Tendencies</div>
-    <div class="card pfcard">
-      <div class="row pfkinds" id="tendKinds">
-        <button class="chip" data-v="anime" aria-pressed="true">Anime</button>
-        <button class="chip" data-v="manga" aria-pressed="false">Manga</button>
-      </div>
-      <div class="pftend" id="tendList"></div>
-      <p class="pfnote">Tendencies are worked out automatically from your AniList stats, so they may not be exact.</p>
-    </div>
     <div class="q">Favourites</div>
     <div class="card pfcard">
       <div class="srow pffavkinds" id="favKinds">
@@ -57,5 +43,19 @@
     <div id="profBioBox" hidden>
       <div class="q">Bio</div>
       <div class="card" style="margin-top:0"><div class="clamp" id="profBio"></div><button class="pmore" id="profBioMore" hidden>More</button></div>
+    </div>
+    <div class="q">Tendencies</div>
+    <div class="card pfcard">
+      <div class="row pfkinds" id="tendKinds">
+        <button class="chip" data-v="anime" aria-pressed="true">Anime</button>
+        <button class="chip" data-v="manga" aria-pressed="false">Manga</button>
+      </div>
+      <div class="pftend" id="tendList"></div>
+      <p class="pfnote">Tendencies are worked out automatically from your AniList stats, so they may not be exact.</p>
+    </div>
+    <div class="pftiles pfbottom">
+      <button class="pftile" data-go="stats" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Stats</span></button>
+      <button class="pftile" data-go="chat" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
+      <button class="pftile" data-go="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Settings</span></button>
     </div>
   </section>

@@ -52,5 +52,5 @@ button.person{background:none;border:0;font:inherit;padding:0;cursor:pointer}
 .stat4{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;margin-top:18px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .stat4 b{display:block;font-size:1.05rem}
 .stat4 span{font-size:.75rem;color:var(--muted)}
-.favbtn{flex:1.6;margin-left:12px;padding:14px 8px;border-radius:16px;border:0;background:var(--grad);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.favbtn{flex:1.6;margin-left:12px;padding:14px 8px;border-radius:16px;border:0;background:var(--grad);color:var(--sakura-ink);font:inherit;font-weight:800;cursor:pointer}
 .favbtn.on{background:none;border:2px solid var(--sakura);color:var(--ink)}

@@ -8,6 +8,8 @@ def main(page, out):
     page.click('#tabs [data-v="profile"]'); page.wait_for_selector("#tendList .pftitem"); page.wait_for_selector("#favGrid .favt")
     check("hero has banner, avatar, name and link", all(page.locator(s).count() == 1 for s in ("#profile .pfbanner", "#profile .pfavatar", "#profName", "#profLink")))
     check("counts strip and three tiles (Stats, Chat, Settings)", page.locator("#profile .pfcounts button").count() == 4 and [x.strip() for x in page.locator("#profile .pftile").all_inner_texts()] == ["Stats", "Chat", "Settings"])
+    ys = page.evaluate("['#favGrid', '#profBioBox', '#tendList', '#profile .pftiles'].map(s => { const n = document.querySelector(s); return n.hidden ? -1 : n.getBoundingClientRect().top + window.scrollY; })")
+    check("order: counts, favourites, stats, bio, then Tendencies, and Stats/Chat/Settings last", ys[0] < ys[2] < ys[3] and (ys[1] == -1 or ys[1] < ys[2]) and page.evaluate("document.querySelector('#profile .pftiles').getBoundingClientRect().top > document.querySelector('#tendList').getBoundingClientRect().top"), ys)
     lines = page.locator("#tendList .pftitem").all_inner_texts()
     check("anime: loves the top three genres", "Seems to love Comedy/Fantasy/Action" in lines, lines)
     check("anime: hates the genre you rate far below your average", "Seems to hate Thriller" in lines, lines)

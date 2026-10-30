@@ -13,6 +13,7 @@
 .pfcounts b{display:block;font-size:1.25rem;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .pfcounts span{font-size:.72rem;color:var(--muted)}
 .pftiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pfbottom{margin-top:22px}
 .pftile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px;border:0;border-radius:20px;background:var(--card);box-shadow:var(--shadow);color:var(--ink);font:700 .85rem Inter,system-ui,sans-serif;cursor:pointer}
 .pftile:active{transform:scale(.97)}
 .pftile svg{width:24px;height:24px;fill:none;stroke:var(--sakura);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}

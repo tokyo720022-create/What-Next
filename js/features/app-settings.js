@@ -2,12 +2,14 @@
 // ---------- App Settings ----------
 const NAME_OPTS = [["", "Follow AniList"], ["ROMAJI", "Romaji"], ["ENGLISH", "English"], ["NATIVE", "Native"]];
 for(const k of ["JP", "KR", "CN", "TW"]) fillSel("#appName" + k, NAME_OPTS);
-// colour presets
-for(const [name, a, b] of PRESETS){
-  const p = el("button", "preset"); p.dataset.a = a; p.dataset.b = b; p.setAttribute("aria-pressed", "false"); p.setAttribute("aria-label", name + " colours");
-  const sw = el("i"); sw.style.background = "linear-gradient(135deg," + a + "," + b + ")"; p.append(sw, el("span", null, name));
-  p.onclick = () => { LSset("wn_theme", Object.assign(themeCfg(), { a: name === "Sakura" ? "" : a, b: name === "Sakura" ? "" : b })); applyTheme(); fillLook(); };
-  $("#themePresets").append(p);
+// theme cards
+for(const th of THEMES){
+  const b = el("button", "thm"); b.type = "button"; b.dataset.id = th.id; b.setAttribute("aria-pressed", "false");
+  b.style.setProperty("--t0", th.v["--bg"]); b.style.setProperty("--t1", th.g[0]); b.style.setProperty("--t2", th.g[1]);
+  const nm = el("span", "thn"); nm.append(th.name); if(th.special) nm.append(el("em", "thsp", "Special"));
+  b.append(el("span", "thsw"), nm, el("span", "thnote", th.note));
+  b.onclick = () => setTheme(th.id);
+  $("#themeGrid").append(b);
 }
 function fillApp(){
   const c = appCfg();
@@ -27,6 +29,6 @@ $("#appReset").onclick = () => {
   const b = $("#appReset");
   if(b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Tap again to reset"; setTimeout(() => { b.dataset.armed = ""; b.textContent = "Reset app settings to default"; }, 3500); return; }
   b.dataset.armed = ""; b.textContent = "Reset app settings to default";
-  LSset("wn_app", {}); LSset("wn_theme", { mode: "system", a: "", b: "" }); applyApp(); applyTheme(); fillLook(); fillApp(); redrawTitles();
+  LSset("wn_app", {}); LSset("wn_theme", { id: THEME_DEFAULT }); applyApp(); applyTheme(); fillLook(); fillApp(); redrawTitles();
   $("#appMsg").textContent = "App settings were reset.";
 };

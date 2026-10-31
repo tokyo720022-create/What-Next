@@ -85,13 +85,15 @@ The logo is `assets/logo-512.png` (and smaller copies). When the app opens it sh
 
 Every build of `.github/workflows/build-apk.yml` creates its own GitHub release (tag `v<app version>-b<build number>`, for example `v2.1.1-b14`) with the APK attached, so the newest build is always the newest release.
 
-**Why a new APK installs over the old one (and what to do when it says "conflict").** Android only updates an app when the new APK has the same signing key and a higher version code. The build makes sure of both:
+**Why a new APK installs over the old one (and what to do when it says "conflict").** Android only updates an app when the new APK has the same signing key and a higher version code. The build makes sure of both, and keeps the key secret:
 
-- **Same key every time.** `android-signing/patch-android.sh` copies `android-signing/debug.keystore` into the Android project and sets it explicitly as the debug signing config in `build.gradle`, instead of hoping the build machine looks for the key in the right folder. `android-signing/fingerprint.txt` holds that key's SHA-256.
+- **Same key every time, kept in GitHub Secrets, never in the repo.** This repo is public, so a key stored in it (or protected by a well-known password such as `android`) would let anyone sign an APK that Android accepts as an update to this app. The key therefore lives in two repository secrets: `ANDROID_KEYSTORE_BASE64` (the key file as one line of base64) and `ANDROID_KEYSTORE_PASSWORD`. `android-signing/patch-android.sh` decodes the key during the build, checks that it opens and is the key this repo expects, and sets it as the signing config in `build.gradle` reading the password from the environment, so the password is never written to a file. `android-signing/fingerprint.txt` holds the key's SHA-256, which is public and is not a secret. `.gitignore` and a test keep key files from ever being committed again.
 - **Version code that only goes up.** It is the number of minutes since 2023-11-14, taken from the clock, so it keeps rising even if the workflow's run counter is ever reset (a lower version code is treated as a downgrade and refused).
 - **Checked before it is released.** `android-signing/verify-apk.sh` reads the finished APK with `apksigner` and `aapt2` and fails the build if its signing key is not the one in `fingerprint.txt` or its version is not the one meant. The build log prints `Signing certificate SHA-256: ...`, and every release says which key and version code it has, so two builds can be compared at a glance.
 
-If you ever replace `debug.keystore` (and `fingerprint.txt`), or an app on your phone was installed from a build signed with a different key, uninstall it once; after that every build installs over the previous one and keeps your data. Keep a copy of `debug.keystore` somewhere safe: without it, the next APK cannot update the installed one. The `latest-apk` release from earlier builds is not used any more and can be deleted.
+To set the secrets up (once): in the repo open **Settings > Secrets and variables > Actions > New repository secret**, add `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEYSTORE_BASE64`, and make sure `android-signing/fingerprint.txt` matches the key. To make a new key yourself instead, run `bash android-signing/generate-key.sh` on any computer with Java: it prints both secret values and the fingerprint, and saves nothing in the repo. Keep a private backup of the key file outside GitHub: without it the next APK cannot update the installed one.
+
+If you change the key, or an app on your phone was installed from a build signed with a different key, uninstall it once; after that every build installs over the previous one and keeps your data. The `latest-apk` release from earlier builds is not used any more and can be deleted.
 
 When you upload `site.zip`, only the unpack workflow runs at first; it then starts the APK build, so one upload makes one release.
 
@@ -126,7 +128,7 @@ capacitor.config.json   Android app settings (Capacitor)
 package.json            Capacitor plugins and the app version
 assets/                 logo, app icons and the splash-screen image
 resources/              Android icon and splash sources (used only by the APK build)
-android-signing/        the signing key, its fingerprint, and the scripts that sign and check the APK
+android-signing/        the key's public fingerprint and the scripts that sign, check and make the key (the key itself is in GitHub Secrets)
 css/                    base, components, screens, login, trending, media, anistats, refresh, profile, themes,
                         listset, relmap, users, progress, discover, taste, utilities
 views/
@@ -166,7 +168,7 @@ node tests/check-structure.js        files, lists, ids, CSS, versions
 node tests/unit/rules.test.js        tracking rules and score formats
 node tests/unit/taste.test.js        taste report maths
 node tests/unit/triple.test.js       AniList Triple Sync maths
-node tests/unit/apk-signing.test.js  APK signing and version scripts (so updates install over old builds)
+node tests/unit/apk-signing.test.js  APK signing scripts, and that no key file is committed
 python tests/e2e/run_all.py          real-browser tests against a fake AniList (needs: pip install playwright && playwright install chromium)
 ```
 

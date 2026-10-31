@@ -3,8 +3,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore: ["site.zip"]   # a pushed site.zip is unpacked first; the unpack workflow then starts this build
 permissions:
   contents: write
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,17 +21,44 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - name: Check plugins are listed
+        run: |
+          grep -q '"@capacitor/app"' package.json || { echo "package.json is missing @capacitor/app. Upload the new package.json."; exit 1; }
+          grep -q '"@capacitor/browser"' package.json || { echo "package.json is missing @capacitor/browser. Upload the new package.json."; exit 1; }
       - run: npm install
-      - run: mkdir -p www && cp index.html sw.js manifest.webmanifest icon.svg www/
+      - run: mkdir -p www && cp -r index.html boot.js sw.js manifest.webmanifest css js views assets www/ && (cp config.js www/ || true)
       - run: npx cap add android
-      - name: Add login deep link and version
+      - name: Generate app icon and splash screen
+        run: npx --yes @capacitor/assets generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000' || echo "Icon generation failed. The build continues with the default icon."
+      - name: Work out the version of this build
+        id: ver
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          echo "name=$BASE-b${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          # Minutes since 2023-11-14. It only ever goes up, even if the run counter is ever reset, so Android never sees a downgrade.
+          echo "code=$(( ($(date +%s) - 1700000000) / 60 ))" >> "$GITHUB_OUTPUT"
+      - name: Sign with the same key every time and set the version, so a new APK installs over the old one
+        run: bash android-signing/patch-android.sh "${{ steps.ver.outputs.name }}" "${{ steps.ver.outputs.code }}"
+      - name: Add login deep link
         run: |
           sed -i 's#</activity>#<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="whatnext"/></intent-filter></activity>#' android/app/src/main/AndroidManifest.xml
-          sed -i 's/versionName "1.0"/versionName "2.1.1"/; s/versionCode 1/versionCode 211/' android/app/build.gradle
+          grep -q 'android:scheme="whatnext"' android/app/src/main/AndroidManifest.xml || { echo "The login deep link was not added to AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
-      - uses: softprops/action-gh-release@v2
+      - name: Check the APK has the shared signing key and the right version
+        id: fp
+        run: |
+          bash android-signing/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
+          echo "key=$(tr -d ' \n' < android-signing/fingerprint.txt)" >> "$GITHUB_OUTPUT"
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "WhatNext-v${{ steps.ver.outputs.name }}.apk"
+      - name: Publish a new release for this build
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-apk
-          name: What Next? v2.1.1 APK
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: v${{ steps.ver.outputs.name }}
+          name: What Next? v${{ steps.ver.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}."
+          generate_release_notes: true
+          make_latest: true
+          files: WhatNext-v${{ steps.ver.outputs.name }}.apk

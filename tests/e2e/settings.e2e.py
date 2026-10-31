@@ -22,9 +22,8 @@ def main(page, out):
     page.click("#appSize [data-v='m']"); check("Normal size resets it", page.evaluate("document.documentElement.style.fontSize") == "")
     page.click("#setApp label:has-text('logo screen')"); check("the logo screen can be switched off", page.evaluate("JSON.parse(localStorage.getItem('wn_app')).splash") is False)
     # lists
-    page.select_option("#appAllAnime", "bottom"); page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard")
-    chips = page.evaluate("[...document.querySelectorAll('#listStatus .chip, #statusChips .chip, #listChips .chip')].map(c => c.textContent.trim())")
-    if not chips: chips = page.evaluate("[...document.querySelectorAll('#listBody')][0].parentElement.querySelectorAll('.row .chip').length and [...document.querySelectorAll('.row .chip')].map(c => c.textContent.trim())")
+    page.select_option("#appAllAnime", "bottom"); page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)"); page.wait_for_selector("#listStatus .chip")
+    chips = page.evaluate("[...document.querySelectorAll('#listStatus .chip')].map(c => c.textContent.trim())")
     check("'All' can move to the bottom of the status chips", any(c.startswith("All") for c in chips[-1:]) and not chips[0].startswith("All"), chips)
     page.evaluate("showTab('set-app')"); page.select_option("#appAllAnime", "top")
     page.click("#setApp label:has-text('relative dates')"); check("relative dates can be turned off", page.evaluate("JSON.parse(localStorage.getItem('wn_app')).relative") is False)

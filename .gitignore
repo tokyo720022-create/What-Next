@@ -1,0 +1,13 @@
+# Signing keys must never be committed: the repo is public, so anyone could sign APKs as this app.
+# The key lives in GitHub Secrets (see README, "Builds and releases").
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+
+# Made by the build, not kept in the repo
+node_modules/
+android/
+www/
+__pycache__/

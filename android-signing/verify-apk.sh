@@ -14,7 +14,7 @@ if [ -z "$APKSIGNER" ]; then echo "::warning::apksigner was not found, so the si
   WANT="$(tr -d ' \n' < android-signing/fingerprint.txt | tr 'A-F' 'a-f')"
   echo "Signing certificate SHA-256: $GOT"
   [ -n "$GOT" ] || fail "Could not read the signing certificate of the APK."
-  [ "$GOT" = "$WANT" ] || fail "The APK is signed with a different key ($GOT) than android-signing/debug.keystore ($WANT). It would not install over the previous build."
+  [ "$GOT" = "$WANT" ] || fail "The APK is signed with a different key ($GOT) than the one in android-signing/fingerprint.txt ($WANT). It would not install over the previous build."
 fi
 if [ -z "$AAPT2" ]; then echo "::warning::aapt2 was not found, so the version was not checked."; else
   ALL="$("$AAPT2" dump badging "$APK")" || fail "aapt2 could not read the APK."

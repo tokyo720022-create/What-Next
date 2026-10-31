@@ -37,14 +37,20 @@ jobs:
           echo "name=$BASE-b${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           # Minutes since 2023-11-14. It only ever goes up, even if the run counter is ever reset, so Android never sees a downgrade.
           echo "code=$(( ($(date +%s) - 1700000000) / 60 ))" >> "$GITHUB_OUTPUT"
-      - name: Sign with the same key every time and set the version, so a new APK installs over the old one
+      - name: Sign with your secret key and set the version, so a new APK installs over the old one
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: bash android-signing/patch-android.sh "${{ steps.ver.outputs.name }}" "${{ steps.ver.outputs.code }}"
       - name: Add login deep link
         run: |
           sed -i 's#</activity>#<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="whatnext"/></intent-filter></activity>#' android/app/src/main/AndroidManifest.xml
           grep -q 'android:scheme="whatnext"' android/app/src/main/AndroidManifest.xml || { echo "The login deep link was not added to AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Build the APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - name: Check the APK has the shared signing key and the right version
         id: fp
         run: |

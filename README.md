@@ -83,9 +83,15 @@ The logo is `assets/logo-512.png` (and smaller copies). When the app opens it sh
 
 ## Builds and releases
 
-Every build of `.github/workflows/build-apk.yml` creates its own GitHub release (tag `v<app version>-b<build number>`, for example `v2.1.1-b14`) with the APK attached, so the newest build is always the newest release. The Android version code goes up with every build, so the installer offers Update instead of saying the version is already installed.
+Every build of `.github/workflows/build-apk.yml` creates its own GitHub release (tag `v<app version>-b<build number>`, for example `v2.1.1-b14`) with the APK attached, so the newest build is always the newest release.
 
-The APK is signed with the key in `android-signing/debug.keystore` (the standard Android debug key, kept in the repo on purpose). Because the key never changes, a new APK installs over the old one and keeps your data. If you ever replace that file, the next APK has to be installed after uninstalling the old one. The `latest-apk` release from earlier builds is not used any more and can be deleted.
+**Why a new APK installs over the old one (and what to do when it says "conflict").** Android only updates an app when the new APK has the same signing key and a higher version code. The build makes sure of both:
+
+- **Same key every time.** `android-signing/patch-android.sh` copies `android-signing/debug.keystore` into the Android project and sets it explicitly as the debug signing config in `build.gradle`, instead of hoping the build machine looks for the key in the right folder. `android-signing/fingerprint.txt` holds that key's SHA-256.
+- **Version code that only goes up.** It is the number of minutes since 2023-11-14, taken from the clock, so it keeps rising even if the workflow's run counter is ever reset (a lower version code is treated as a downgrade and refused).
+- **Checked before it is released.** `android-signing/verify-apk.sh` reads the finished APK with `apksigner` and `aapt2` and fails the build if its signing key is not the one in `fingerprint.txt` or its version is not the one meant. The build log prints `Signing certificate SHA-256: ...`, and every release says which key and version code it has, so two builds can be compared at a glance.
+
+If you ever replace `debug.keystore` (and `fingerprint.txt`), or an app on your phone was installed from a build signed with a different key, uninstall it once; after that every build installs over the previous one and keeps your data. Keep a copy of `debug.keystore` somewhere safe: without it, the next APK cannot update the installed one. The `latest-apk` release from earlier builds is not used any more and can be deleted.
 
 When you upload `site.zip`, only the unpack workflow runs at first; it then starts the APK build, so one upload makes one release.
 
@@ -120,7 +126,7 @@ capacitor.config.json   Android app settings (Capacitor)
 package.json            Capacitor plugins and the app version
 assets/                 logo, app icons and the splash-screen image
 resources/              Android icon and splash sources (used only by the APK build)
-android-signing/        debug keystore used to sign the APK
+android-signing/        the signing key, its fingerprint, and the scripts that sign and check the APK
 css/                    base, components, screens, login, trending, media, anistats, refresh, profile, themes,
                         listset, relmap, users, progress, discover, taste, utilities
 views/
@@ -160,6 +166,7 @@ node tests/check-structure.js        files, lists, ids, CSS, versions
 node tests/unit/rules.test.js        tracking rules and score formats
 node tests/unit/taste.test.js        taste report maths
 node tests/unit/triple.test.js       AniList Triple Sync maths
+node tests/unit/apk-signing.test.js  APK signing and version scripts (so updates install over old builds)
 python tests/e2e/run_all.py          real-browser tests against a fake AniList (needs: pip install playwright && playwright install chromium)
 ```
 

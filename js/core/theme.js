@@ -39,8 +39,9 @@ function setTheme(id){ LSset("wn_theme", { id }); applyTheme(); fillLook(); }
 function fillLook(){ document.querySelectorAll("#themeGrid .thm").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === themeId()))); }
 applyTheme();
 // ---------- App options (App Settings) ----------
-const APP_DEF = { avatar: "circle", size: "m", splash: true, allpos: { anime: "top", manga: "top" }, relative: true, naming: { JP: "", KR: "", CN: "", TW: "" } };
+const APP_DEF = { avatar: "circle", size: "m", splash: true, advanced: false, allpos: { anime: "top", manga: "top" }, relative: true, naming: { JP: "", KR: "", CN: "", TW: "" } };
 function appCfg(){ const s = LS("wn_app", {}) || {}; return Object.assign({}, APP_DEF, s, { allpos: Object.assign({}, APP_DEF.allpos, s.allpos), naming: Object.assign({}, APP_DEF.naming, s.naming) }); }
 function setApp(patch){ const c = appCfg(); LSset("wn_app", Object.assign(c, patch)); applyApp(); }
-function applyApp(){ const c = appCfg(), h = document.documentElement; h.dataset.avatar = c.avatar; h.style.fontSize = { s: "14.5px", m: "", l: "17.5px" }[c.size] || ""; }
+const advancedOn = () => !!appCfg().advanced;   // App Settings > Advanced features: unlocks AniList Triple Sync
+function applyApp(){ const c = appCfg(), h = document.documentElement, row = document.getElementById("rowSync"); if(row) row.hidden = !c.advanced; h.dataset.avatar = c.avatar; h.style.fontSize = { s: "14.5px", m: "", l: "17.5px" }[c.size] || ""; }
 applyApp();

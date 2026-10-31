@@ -2,6 +2,7 @@ from harness import *
 FINDINGS = []
 def note(level, msg): FINDINGS.append((level, msg)); print(level, msg)
 def main(page, out):
+    page.evaluate("setApp({ advanced: true })")   # AniList Triple Sync only appears with Advanced features on
     shots = [("pick", None), ("anime", None), ("manga", None), ("discover", None), ("schedule", None), ("profile", None), ("profile", "stats"), ("profile", "chat"), ("profile", "settings"), ("profile", "set-app"), ("profile", "set-anilist"), ("profile", "set-lists"), ("profile", "set-sync"), ("profile", "set-account"), ("profile", "set-about")]
     for tab, sub in shots:
         page.click('#tabs [data-v="%s"]' % tab); page.wait_for_timeout(500)

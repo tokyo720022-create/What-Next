@@ -2,7 +2,7 @@ import sys, json, re
 from harness import *
 FINDINGS = []
 def note(level, msg): FINDINGS.append((level, msg)); print(level, msg)
-SKIP = re.compile(r"log out|logout|remove|reset sync memory|clear", re.I)
+SKIP = re.compile(r"log out|logout|remove|reset sync memory|clear|disconnect|open anilist login|open myanimelist login", re.I)
 SCREENS = [("pick", None), ("anime", None), ("manga", None), ("discover", None), ("schedule", None), ("profile", None),
            ("profile", "stats"), ("profile", "chat"), ("profile", "settings"), ("profile", "set-app"), ("profile", "set-anilist"), ("profile", "set-lists"), ("profile", "set-sync"), ("profile", "set-account"), ("profile", "set-about")]
 def goto(page, tab, sub):
@@ -12,6 +12,7 @@ def goto(page, tab, sub):
         else: page.click('[data-go="settings"]'); page.click('[data-go="%s"]' % sub)
         page.wait_for_timeout(500)
 def main(page, out):
+    page.evaluate("setApp({ advanced: true })")   # AniList Triple Sync only appears with Advanced features on
     total_clicks = 0
     for tab, sub in SCREENS:
         goto(page, tab, sub); name = sub or tab

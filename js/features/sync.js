@@ -1,165 +1,244 @@
-/* js/features/sync.js: Discord sync engine (anime and manga) */
-// ---------- Sync engine: AniList list -> Discord (anime and manga) ----------
-const CFG_KEY = "wn_cfg";
-const KINDS = {
-  anime: { label: "ANIME", type: "ANIME", total: "episodes", hook: "hook", testId: "#cfgHook" },
-  manga: { label: "MANGA", type: "MANGA", total: "chapters", hook: "mangaHook", testId: "#cfgMangaHook" }
-};
-const DEFAULT_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning";
-const DEFAULT_VIP = "One Piece, Detective Conan, Kono Suba, Dragon Ball Z";
-const syncQ = k => "query($u:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} mediaList(userName:$u,type:" + KINDS[k].type + ",sort:[UPDATED_TIME_DESC]){updatedAt mediaId progress score(format:POINT_100) status customLists media{title{romaji english native} countryOfOrigin type format " + (k === "anime" ? "episodes duration nextAiringEpisode{airingAt episode}" : "chapters") + " genres tags{name} coverImage{extraLarge color}}}}}";
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-let syncing = false;
+/* js/features/sync.js: AniList Triple Sync (Settings > AniList Triple Sync, switched on in App Settings > Advanced).
+   Source AniList list -> a target AniList account + MyAnimeList. The maths is in triple-math.js. */
+// ---------- AniList Triple Sync ----------
+const TS_KEY = "wn_ts", TS_AL_PIN = "https://anilist.co/api/v2/oauth/pin";
+const TS_KINDS = { anime: { type: "ANIME", label: "Anime", mal: "anime" }, manga: { type: "MANGA", label: "Manga", mal: "manga" } };
+const TS_F = "mediaId status progress progressVolumes repeat private notes score(format:POINT_100) startedAt{year month day} completedAt{year month day} updatedAt media{id idMal title{romaji english}}";
+const TS_AL_SAVE = "mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$progressVolumes:Int,$scoreRaw:Int,$repeat:Int,$private:Boolean,$notes:String,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput){SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,progressVolumes:$progressVolumes,scoreRaw:$scoreRaw,repeat:$repeat,private:$private,notes:$notes,startedAt:$startedAt,completedAt:$completedAt){id}}";
+const TS_AL_FIND = "query($m:Int,$u:Int){MediaList(mediaId:$m,userId:$u){id}}";
+const TS_AL_DELETE = "mutation($id:Int){DeleteMediaListEntry(id:$id){deleted}}";
+const tsSleep = ms => new Promise(r => setTimeout(r, ms));
+const tsGap = ms => tsSleep(window.__tsGap != null ? window.__tsGap : ms);   // the pause between sends keeps AniList (90 a minute) and MyAnimeList happy; tests shorten it
+let tsBusy = false, tsStopFlag = false;
+const tsCfg = () => LS(TS_KEY, {}) || {};
+const tsPatch = (group, o) => { const c = tsCfg(); c[group] = Object.assign({}, c[group], o); LSset(TS_KEY, c); };
+const tsMem = k => LS("wn_ts_state_" + k, {}) || {};
+const tsLog = t => { const p = $("#syncLog"); p.hidden = false; p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; };
+const tsLogClear = () => { $("#syncLog").textContent = ""; };
+const tsTargets = c => [c.sendAl !== false && c.al && c.al.token ? "al" : "", c.sendMal !== false && c.mal && c.mal.access ? "mal" : ""].filter(Boolean);
 
-function cfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); }catch(_){ return {}; } }
-function loadSync(k){ try{ return JSON.parse(localStorage.getItem("wn_sync_" + k) || "{}"); }catch(_){ return {}; } }
-function saveSync(d, k){ try{ localStorage.setItem("wn_sync_" + k, JSON.stringify(d)); }catch(_){} }
-function slog(t){ const p = $("#syncLog"); p.hidden = false; p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; }
-const titleCase = x => String(x).replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
-function hookOk(h){ return !h || /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(h); }
-
-function fillCfg(){
-  const c = cfg();
-  $("#cfgSource").value = c.source || ""; $("#cfgSource").placeholder = state.user || "your AniList username";
-  $("#cfgHook").value = c.hook || ""; $("#cfgMangaHook").value = c.mangaHook || ""; $("#cfgVipHook").value = c.vipHook || ""; $("#cfgLogHook").value = c.logHook || "";
-  $("#cfgVipList").value = c.vipList != null ? c.vipList : DEFAULT_VIP;
-  $("#cfgLists").value = c.lists != null ? c.lists : DEFAULT_LISTS;
-  $("#cfgWrite").checked = !!c.write; $("#cfgAuto").checked = !!c.auto;
+// ----- network -----
+function tsNetErr(){
+  const e = new Error(isNative ? "Couldn't reach the server. Check your connection." : "This service blocks websites. Use the Android app for this step.");
+  e.net = true; return e;
 }
-function renderSyncStatus(){
-  const line = k => { const st = loadSync(k); return k[0].toUpperCase() + k.slice(1) + ": " + (st.last_run ? new Date(st.last_run).toLocaleString() + " · " + Object.keys(st.sync || {}).length + " titles remembered" : "never synced"); };
-  $("#syncStatus").textContent = line("anime") + "\n" + line("manga") + "\nThe first run of each only builds a baseline and sends nothing.";
-}
-$("#cfgSave").onclick = () => {
-  const c = { source: $("#cfgSource").value.trim(), hook: $("#cfgHook").value.trim(), mangaHook: $("#cfgMangaHook").value.trim(), vipHook: $("#cfgVipHook").value.trim(), logHook: $("#cfgLogHook").value.trim(),
-    vipList: $("#cfgVipList").value, lists: $("#cfgLists").value, write: $("#cfgWrite").checked, auto: $("#cfgAuto").checked };
-  if(![c.hook, c.mangaHook, c.vipHook, c.logHook].every(hookOk)){ $("#syncStatus").textContent = "One of the webhooks isn't a Discord webhook link."; return; }
-  try{ localStorage.setItem(CFG_KEY, JSON.stringify(c)); renderSyncStatus(); slog("Settings saved on this device."); }
-  catch(_){ $("#syncStatus").textContent = "Couldn't save settings."; }
-};
-$("#cfgReset").onclick = () => { try{ localStorage.removeItem("wn_sync_anime"); localStorage.removeItem("wn_sync_manga"); }catch(_){} renderSyncStatus(); $("#syncLog").hidden = true; };
-
-async function discord(hook, body, params){
-  const q = new URLSearchParams(params || {}).toString();
-  const res = await fetch(hook + (q ? (hook.includes("?") ? "&" : "?") + q : ""), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if(!res.ok){
-    let d = ""; try{ const j = await res.json(); d = j.message || JSON.stringify(j); }catch(_){}
-    throw new Error("Discord " + res.status + (d ? ": " + d : ""));
+async function tsReq(url, o, tries = 3){
+  for(let i = 0; i < tries; i++){
+    let r; try{ r = await fetch(url, o); }catch(_){ throw tsNetErr(); }
+    if([429, 500, 502, 503, 504].includes(r.status) && i < tries - 1){ const ra = parseFloat(r.headers.get("Retry-After")); await tsSleep(Math.max(1500, (isNaN(ra) ? 2 + i * 2 : ra) * 1000)); continue; }
+    const txt = await r.text(); let body = null; try{ body = txt ? JSON.parse(txt) : null; }catch(_){ body = txt; }
+    return { status: r.status, ok: r.ok, body };
   }
-  return res.status === 204 ? {} : res.json().catch(() => ({}));
 }
-// Forum-channel webhooks only accept messages that start a thread, so the test sends a thread name first.
-async function testHook(k){
-  const h = $(KINDS[k].testId).value.trim();
-  $("#syncLog").textContent = "";
-  if(!h || !hookOk(h)) return slog("Enter a valid " + k + " webhook link first.");
-  try{
-    try{ await discord(h, { content: "✅ What Next? can reach this webhook.", thread_name: "Connection test" }); }
-    catch(e1){ if(!/Discord 400/.test(e1.message)) throw e1; await discord(h, { content: "✅ What Next? can reach this webhook." }); }
-    slog("Test message sent for " + k + ". Check Discord.");
-  }catch(e2){ slog("Test failed: " + e2.message); }
+const tsFatal = msg => { const e = new Error(msg); e.fatal = true; return e; };
+async function tsAl(query, vars, token){
+  const r = await tsReq("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Bearer " + token }, body: JSON.stringify({ query, variables: vars }) });
+  const b = r.body && typeof r.body === "object" ? r.body : {}, err = b.errors && b.errors[0];
+  if(r.status === 401 || (err && /invalid token/i.test(err.message || ""))) throw tsFatal("The target AniList login has expired. Connect it again.");
+  if(err){ const e = new Error(err.message || "AniList error"); e.status = err.status || r.status; throw e; }
+  if(!r.ok) throw new Error("AniList " + r.status);
+  return b.data;
 }
-$("#cfgTest").onclick = () => testHook("anime");
-$("#cfgTestManga").onclick = () => testHook("manga");
-
-async function threadFor(list, st, c, k){
-  const lists = (c.lists != null ? c.lists : DEFAULT_LISTS).split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
-  const name = lists.includes(String(list || "Unknown").toLowerCase().trim()) ? titleCase(list) : "General Updates";
-  const key = "[" + KINDS[k].label + "] " + name;
-  if(st.threads[key]) return st.threads[key];
-  const r = await discord(c[KINDS[k].hook], { content: "📡 **" + name + "** | " + KINDS[k].label + " Telemetry Dashboard", thread_name: key }, { wait: "true" });
-  const id = String(r.channel_id || r.id || "");
-  if(!id) throw new Error("Discord returned no thread ID. Is this a forum channel webhook?");
-  st.threads[key] = id; saveSync(st, k); return id;
+async function tsMalRefresh(){
+  const m = tsCfg().mal || {};
+  if(!m.refresh) throw tsFatal("The MyAnimeList login has expired. Connect it again.");
+  const form = { client_id: m.clientId, grant_type: "refresh_token", refresh_token: m.refresh }; if(m.clientSecret) form.client_secret = m.clientSecret;
+  const r = await tsReq("https://myanimelist.net/v1/oauth2/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(form).toString() });
+  if(!r.ok || !r.body || !r.body.access_token) throw tsFatal("The MyAnimeList login has expired. Connect it again.");
+  tsPatch("mal", { access: r.body.access_token, refresh: r.body.refresh_token || m.refresh, expires: Date.now() + (r.body.expires_in || 2592000) * 1000 });
 }
-function category(it, k){
-  const m = it.media, d = [...(m.genres || []), ...(m.tags || []).map(t => t.name)].map(x => String(x).toLowerCase());
-  const active = Object.keys(it.customLists || {}).filter(x => it.customLists[x]);
-  if(active.length) return active[0];
-  if(k === "anime" && m.format === "MOVIE") return "Anime movies";
-  if(d.includes("isekai")) return "Iseki";
-  if(["hentai", "ecchi", "adult", "smut"].some(x => d.includes(x))) return "Hentai";
-  if(["milf", "older woman", "mother"].some(x => d.includes(x))) return "Milf";
-  if(d.includes("loli")) return "Loli";
-  return titleCase((it.status || "UNKNOWN").replace(/_/g, " "));
-}
-function weekKey(){
-  const d = new Date(), t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())), day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const y = t.getUTCFullYear(), w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7);
-  return y + "-W" + String(w).padStart(2, "0");
+async function tsMal(method, path, form){
+  let m = tsCfg().mal || {};
+  if(!m.access) throw tsFatal("MyAnimeList isn't connected.");
+  if(m.expires && Date.now() > m.expires - 86400000 && m.refresh){ await tsMalRefresh(); m = tsCfg().mal; }
+  for(let n = 0; n < 2; n++){
+    const h = { Authorization: "Bearer " + m.access, Accept: "application/json" }; if(form) h["Content-Type"] = "application/x-www-form-urlencoded";
+    const r = await tsReq("https://api.myanimelist.net/v2" + path, { method, headers: h, body: form ? new URLSearchParams(form).toString() : undefined });
+    if(r.status === 401 && n === 0){ await tsMalRefresh(); m = tsCfg().mal; continue; }
+    return r;
+  }
 }
 
-async function runSync(k){
-  if(syncing) return;
-  const K = KINDS[k], c = cfg(), src = (c.source || state.user || "").trim(), hook = c[K.hook];
-  $("#syncLog").textContent = "";
-  if(!src) return slog("Set a source AniList username in Settings.");
-  if(!hook) return slog("Add your " + k + " Discord webhook in Settings first.");
-  syncing = true; $("#syncNow").disabled = true; $("#syncNowManga").disabled = true;
-  const st = loadSync(k); st.sync = st.sync || {}; st.threads = st.threads || {};
-  const first = !st.last_update; let highest = st.last_update || 0, sent = 0, failed = 0;
-  slog(first ? "First " + k + " run: building a silent baseline. Nothing is sent to Discord." : "Checking " + src + " for " + k + " changes…");
+// ----- sending one title -----
+async function tsPushAl(it, k, ms, c){
+  if(!c.add && !ms.e){   // "add titles that aren't on the target yet" is off: only update ones that are already there
+    let found = null;
+    try{ found = (await tsAl(TS_AL_FIND, { m: it.mediaId, u: c.al.userId }, c.al.token)).MediaList; }
+    catch(e){ if(e.fatal || e.net || (e.status && e.status !== 404)) throw e; }
+    if(!found) return "skipped";
+    ms.e = found.id;
+  }
+  const d = await tsAl(TS_AL_SAVE, tsAlVars(it, TS_KINDS[k].type), c.al.token);
+  ms.e = d.SaveMediaListEntry.id; return "sent";
+}
+async function tsPushMal(it, k, ms, c){
+  const id = it.media && it.media.idMal, kind = TS_KINDS[k].mal;
+  if(!id) return "nomal";
+  if(!c.add && !ms.x){
+    const r = await tsMal("GET", "/" + kind + "/" + id + "?fields=my_list_status");
+    if(!(r.ok && r.body && r.body.my_list_status && r.body.my_list_status.status)) return "skipped";
+    ms.x = 1;
+  }
+  const r = await tsMal("PUT", "/" + kind + "/" + id + "/my_list_status", tsMalFields(it, TS_KINDS[k].type, !!ms.m));
+  if(r.status === 404) return "nomal";   // MyAnimeList doesn't know this id
+  if(!r.ok) throw new Error("MyAnimeList " + r.status + (r.body && r.body.message ? ": " + r.body.message : ""));
+  return "sent";
+}
+async function tsRemove(r, k, targets, c){
+  if(targets.includes("al") && r.a){
+    let id = r.e;
+    if(!id){ try{ const d = await tsAl(TS_AL_FIND, { m: Number(r.id), u: c.al.userId }, c.al.token); id = d.MediaList && d.MediaList.id; }catch(e){ if(e.fatal || e.net) throw e; } }
+    if(id) await tsAl(TS_AL_DELETE, { id }, c.al.token);
+  }
+  if(targets.includes("mal") && r.m && r.i){
+    const x = await tsMal("DELETE", "/" + TS_KINDS[k].mal + "/" + r.i + "/my_list_status");
+    if(!x.ok && x.status !== 404) throw new Error("MyAnimeList " + x.status);
+  }
+}
+
+// ----- a run -----
+function tsRenderStatus(){
+  const c = tsCfg(), line = k => { const m = tsMem(k); return TS_KINDS[k].label + ": " + (m.last_run ? new Date(m.last_run).toLocaleString() + " · " + Object.keys(m.media || {}).length + " titles remembered" : "never synced"); };
+  const al = c.al && c.al.token, mal = c.mal && c.mal.access;
+  $("#syncStatus").textContent = "Source: " + (c.source || state.user || "not set") + "\nTargets: " + ([al ? "AniList (" + c.al.user + ")" : "", mal ? "MyAnimeList (" + (c.mal.user || "connected") + ")" : ""].filter(Boolean).join(", ") || "none connected yet") + "\n" + line("anime") + "\n" + line("manga");
+  $("#tsAlState").textContent = al ? "Connected as " + c.al.user + "." : "Not connected."; $("#tsAlForget").hidden = !al;
+  $("#tsMalState").textContent = mal ? "Connected as " + (c.mal.user || "your account") + "." : "Not connected."; $("#tsMalForget").hidden = !mal;
+}
+function tsFill(){
+  const c = tsCfg(), al = c.al || {}, mal = c.mal || {};
+  $("#tsSource").value = c.source || ""; $("#tsSource").placeholder = state.user || "your AniList username";
+  $("#tsAlId").value = al.clientId || ""; $("#tsAlSecret").value = al.clientSecret || "";
+  $("#tsMalId").value = mal.clientId || ""; $("#tsMalSecret").value = mal.clientSecret || ""; $("#tsMalRedirect").value = mal.redirect || "http://localhost";
+  $("#tsSendAl").checked = c.sendAl !== false; $("#tsSendMal").checked = c.sendMal !== false; $("#tsAdd").checked = c.add !== false;
+  $("#tsRemove").checked = !!c.remove; $("#tsAuto").checked = !!c.auto;
+}
+function tsSaveForm(){
+  const c = tsCfg(); c.source = $("#tsSource").value.trim();
+  c.al = Object.assign({}, c.al, { clientId: $("#tsAlId").value.trim(), clientSecret: $("#tsAlSecret").value.trim() });
+  c.mal = Object.assign({}, c.mal, { clientId: $("#tsMalId").value.trim(), clientSecret: $("#tsMalSecret").value.trim(), redirect: $("#tsMalRedirect").value.trim() || "http://localhost" });
+  c.sendAl = $("#tsSendAl").checked; c.sendMal = $("#tsSendMal").checked; c.add = $("#tsAdd").checked; c.remove = $("#tsRemove").checked; c.auto = $("#tsAuto").checked;
+  LSset(TS_KEY, c);
+}
+function tsSetBusy(on){ tsBusy = on; $("#syncNow").disabled = on; $("#syncNowManga").disabled = on; $("#syncStop").hidden = !on; }
+
+async function tsRun(k, modeForFirst){
+  if(tsBusy) return;
+  const c = tsCfg(), targets = tsTargets(c), src = (c.source || state.user || "").trim(), K = TS_KINDS[k];
+  tsLogClear();
+  if(!advancedOn()) return tsLog("Turn on Advanced features in App Settings first.");
+  if(!src) return tsLog("Set a source AniList username first.");
+  if(!targets.length) return tsLog("Connect a target AniList account or MyAnimeList first, and tick where to send.");
+  tsSetBusy(true); tsStopFlag = false;
+  const mem = tsMem(k), media = mem.media || {}, first = tsFirstTargets(media, targets), modes = {};
+  for(const t of targets) modes[t] = first.includes(t) ? (modeForFirst || "baseline") : "delta";
+  let sentAl = 0, sentMal = 0, skipped = 0, noMal = 0, failed = 0, stopped = false;
   try{
-    const items = []; let page = 1, more = true;
-    while(more){
-      const { json } = await gql(syncQ(k), { u: src, p: page });
-      const d = json.data && json.data.Page;
-      if(!d) throw new Error(json.errors ? json.errors[0].message : "AniList returned no data");
-      more = d.pageInfo.hasNextPage;
-      for(const it of d.mediaList){
-        if(!it || !it.media) continue;
-        if(!first && it.updatedAt <= (st.last_update || 0)){ more = false; break; }
-        if(it.updatedAt > highest) highest = it.updatedAt;
-        items.push(it);
-      }
-      page++; if(more) await sleep(1000);
-    }
-    slog("Read " + items.length + " list entries.");
-    const vips = (c.vipList != null ? c.vipList : DEFAULT_VIP).split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
-    for(const it of items){
-      const id = String(it.mediaId), progress = it.progress || 0, m = it.media;
-      if(!(id in st.sync)){ st.sync[id] = progress; continue; }
-      const prev = st.sync[id];
-      if(progress <= prev){ st.sync[id] = progress; continue; }
-      const done = it.status === "COMPLETED", g = (progress - prev) * 10 + (done ? 100 : 0);
-      if(!st.weekly || st.weekly.week !== weekKey()) st.weekly = { week: weekKey(), g: 0 };
-      st.weekly.g += g; st.points = (st.points || 0) + g;
-      const title = m.title.english || m.title.romaji || "Unknown", romaji = m.title.romaji || "N/A";
-      const color = m.coverImage && m.coverImage.color ? parseInt(m.coverImage.color.replace("#", ""), 16) : 3447003;
-      const total = m[K.total], left = total != null ? total - progress : "?";
-      const embed = { title: ("UPDATE: " + title).slice(0, 256), color,
-        author: { name: done ? "🏆 " + g + "G EARNED | SERIES COMPLETED" : "🎮 +" + g + "G | Weekly: " + st.weekly.g + "G" },
-        fields: [{ name: "🇯🇵 Romaji", value: romaji }, { name: "📊 Status", value: it.status || "UNKNOWN" },
-          { name: "✅ Progress", value: String(progress), inline: true }, { name: "⏳ Left", value: String(left), inline: true }],
-        image: m.coverImage && m.coverImage.extraLarge ? { url: m.coverImage.extraLarge } : undefined };
+    tsLog("Reading " + K.label.toLowerCase() + " list of " + src + "…");
+    const raw = await collection(src, K.type, "", TS_F), seen = new Set(), entries = [];
+    for(const e of raw){ if(!e || !e.media || seen.has(e.mediaId)) continue; seen.add(e.mediaId); entries.push(e); }
+    if(!entries.length && Object.keys(media).length) throw new Error("AniList returned an empty list for " + src + ", so nothing was changed.");
+    const plan = tsPlanMulti(entries, media, targets, modes), work = plan.work, now = plan.now;
+    const names = { al: "target AniList", mal: "MyAnimeList" };
+    tsLog(entries.length + " titles read. " + (work.length ? work.length + " to send." : "Nothing to send.") + (first.length && modes[first[0]] === "baseline" ? " First run for " + first.map(t => names[t]).join(" and ") + ": remembering your list, sending nothing." : ""));
+    const save = () => LSset("wn_ts_state_" + k, { v: 1, last_run: mem.last_run || 0, media: now });
+    let i = 0;
+    for(const w of work){
+      if(tsStopFlag){ stopped = true; break; }
+      i++; const ms = now[w.id], title = (w.entry.media.title && (w.entry.media.title.english || w.entry.media.title.romaji)) || "#" + w.id;
+      $("#syncStatus").textContent = K.label + ": sending " + i + " of " + work.length + "…";
       try{
-        const tid = await threadFor(category(it, k), st, c, k);
-        await discord(hook, { embeds: [embed] }, { thread_id: tid }); await sleep(2000);
-        const names = (romaji + " " + (m.title.english || "")).toLowerCase();
-        if(c.vipHook && vips.some(v => names.includes(v))){
-          await discord(c.vipHook, { embeds: [{ ...embed, title: "⭐ VIP UPDATE: " + title, description: "S-Tier Franchise Update." }] }); await sleep(2000);
-        }
-        sent++; slog("Sent: " + title + " → " + progress);
-      }catch(e2){ failed++; slog("Discord failed for " + title + ": " + e2.message); }
-      if(c.write && auth.token && src.toLowerCase() !== String(state.user).toLowerCase()){
-        try{ await gql("mutation($id:Int,$p:Int,$s:Int){SaveMediaListEntry(mediaId:$id,progress:$p,scoreRaw:$s){id}}", { id: it.mediaId, p: progress, s: it.score || 0 }); }
-        catch(e3){ slog("Copy to your account failed for " + title + ": " + e3.message); }
+        if(w.need.includes("al")){ const r = await tsPushAl(w.entry, k, ms, c); if(r === "sent") sentAl++; else skipped++; ms.a = w.fp; await tsGap(700); }
+        if(w.need.includes("mal")){ const r = await tsPushMal(w.entry, k, ms, c); if(r === "sent") sentMal++; else if(r === "nomal") noMal++; else skipped++; ms.m = w.fp; await tsGap(350); }
+      }catch(e){
+        failed++; tsLog("Failed: " + title + " (" + e.message + ")");
+        if(e.fatal || e.net){ tsLog("Stopped. " + e.message); stopped = true; break; }
       }
-      st.sync[id] = progress;
+      if(i % 15 === 0) save();
     }
-    st.last_update = highest; st.last_run = Date.now(); saveSync(st, k);
-    slog("Done. " + sent + " sent, " + failed + " failed." + (first ? " Baseline saved." : ""));
-    if(c.logHook){ try{ await discord(c.logHook, { embeds: [{ title: titleCase(k) + " sync finished", description: sent + " update(s) sent, " + failed + " failed.", color: 3447003 }] }); }catch(_){} }
-  }catch(e2){ slog("Sync stopped: " + e2.message); }
-  finally{ syncing = false; $("#syncNow").disabled = false; $("#syncNowManga").disabled = false; renderSyncStatus(); }
+    // titles that are gone from the source
+    let removed = 0;
+    if(!stopped && plan.removed.length){
+      if(c.remove && !tsRemovalLooksWrong(plan.removed.length, Object.keys(media).length)){
+        for(const r of plan.removed){ try{ await tsRemove(r, k, targets, c); removed++; await tsGap(500); }catch(e){ failed++; tsLog("Couldn't remove #" + r.id + " (" + e.message + ")"); if(e.fatal || e.net){ stopped = true; break; } } }
+      }else if(c.remove){ tsLog(plan.removed.length + " titles disappeared from the source, which looks wrong. Nothing was removed from the targets. Check the source username."); for(const r of plan.removed) now[r.id] = { ...(media[r.id] || {}), keep: 1 }; }
+    }
+    LSset("wn_ts_state_" + k, { v: 1, last_run: Date.now(), media: now });
+    tsLog((stopped ? "Stopped. " : "Done. ") + (targets.includes("al") ? sentAl + " sent to AniList. " : "") + (targets.includes("mal") ? sentMal + " sent to MyAnimeList. " : "") + (skipped ? skipped + " left alone (not on the target). " : "") + (noMal ? noMal + " have no MyAnimeList page. " : "") + (removed ? removed + " removed. " : "") + failed + " failed.");
+  }catch(e){ tsLog("Sync stopped: " + e.message); }
+  finally{ tsSetBusy(false); tsRenderStatus(); }
+}
+function tsStart(k){
+  if(tsBusy) return;
+  if(!advancedOn()){ tsLogClear(); return tsLog("Turn on Advanced features in App Settings first."); }
+  const c = tsCfg(), targets = tsTargets(c);
+  if(!targets.length){ tsLogClear(); return tsLog("Connect a target AniList account or MyAnimeList first, and tick where to send."); }
+  const first = tsFirstTargets(tsMem(k).media || {}, targets), names = { al: "target AniList", mal: "MyAnimeList" };
+  if(first.length) pickSheet("First sync to " + first.map(t => names[t]).join(" and "), [["all", "Copy my whole list (overwrites matching titles there)"], ["baseline", "Only send changes from now on"]], "", v => tsRun(k, v));
+  else tsRun(k, "delta");
 }
 async function maybeAutoSync(){
-  const c = cfg(); if(!c.auto) return;
+  if(!advancedOn()) return;
+  const c = tsCfg(); if(!c.auto || !tsTargets(c).length) return;
   for(const k of ["anime", "manga"]){
-    if(!c[KINDS[k].hook]) continue;
-    if(Date.now() - (loadSync(k).last_run || 0) > 3 * 3600 * 1000) await runSync(k);
+    const m = tsMem(k); if(!m.last_run) continue;   // the first run is always started by hand
+    if(Date.now() - m.last_run > 3 * 3600 * 1000) await tsRun(k, "delta");
   }
 }
-$("#syncNow").onclick = () => runSync("anime");
-$("#syncNowManga").onclick = () => runSync("manga");
+
+// ----- connecting the two accounts -----
+function tsOpenUrl(u){ const B = isNative && nativePlugin("Browser"); if(B) B.open({ url: u }); else window.open(u, "_blank", "noopener"); }
+function tsRand(n){ const ch = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~", a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, x => ch[x % ch.length]).join(""); }
+$("#tsAlOpen").onclick = () => {
+  tsLogClear(); const id = $("#tsAlId").value.trim();
+  if(!id) return tsLog("Enter your AniList client ID first.");
+  tsSaveForm(); tsOpenUrl("https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&redirect_uri=" + encodeURIComponent(TS_AL_PIN) + "&response_type=code");
+  tsLog("Log in with the account you want to copy TO, then paste the code AniList shows.");
+};
+$("#tsAlConnect").onclick = async () => {
+  tsLogClear(); tsSaveForm();
+  const id = $("#tsAlId").value.trim(), secret = $("#tsAlSecret").value.trim(), { code } = tsParseCode($("#tsAlCode").value);
+  if(!id || !secret) return tsLog("Enter the client ID and the client secret.");
+  if(!code) return tsLog("Paste the code AniList showed you.");
+  try{
+    const r = await tsReq("https://anilist.co/api/v2/oauth/token", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ grant_type: "authorization_code", client_id: id, client_secret: secret, redirect_uri: TS_AL_PIN, code }) }, 1);
+    const tok = r.body && r.body.access_token;
+    if(!tok) throw new Error("AniList said: " + ((r.body && (r.body.hint || r.body.message || r.body.error)) || "no token") + ". Check the client ID, secret and redirect URL.");
+    const v = (await tsAl("query{Viewer{id name}}", {}, tok)).Viewer, src = (tsCfg().source || state.user || "").toLowerCase();
+    if(v.name.toLowerCase() === src) throw new Error("That is the same account as the source. Log in with the account you want to copy to.");
+    tsPatch("al", { token: tok, user: v.name, userId: v.id }); $("#tsAlCode").value = ""; tsLog("Connected to AniList as " + v.name + ".");
+  }catch(e){ tsLog("Couldn't connect: " + e.message); }
+  tsRenderStatus();
+};
+$("#tsAlForget").onclick = () => { tsPatch("al", { token: "", user: "", userId: 0 }); tsLogClear(); tsLog("Target AniList disconnected."); tsRenderStatus(); };
+$("#tsMalOpen").onclick = () => {
+  tsLogClear(); const id = $("#tsMalId").value.trim(), redirect = $("#tsMalRedirect").value.trim() || "http://localhost";
+  if(!id) return tsLog("Enter your MyAnimeList client ID first.");
+  tsSaveForm(); const verifier = tsRand(64), st = tsRand(16);
+  tsPatch("mal", { pending: { verifier, state: st } });
+  tsOpenUrl("https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(id) + "&code_challenge=" + verifier + "&code_challenge_method=plain&state=" + st + "&redirect_uri=" + encodeURIComponent(redirect));
+  tsLog("Approve the app. You'll land on your redirect URL; copy that whole address (or just the code in it) and paste it below.");
+};
+$("#tsMalConnect").onclick = async () => {
+  tsLogClear(); tsSaveForm();
+  const c = tsCfg(), m = c.mal || {}, { code, state: st } = tsParseCode($("#tsMalCode").value);
+  if(!m.clientId) return tsLog("Enter your MyAnimeList client ID first.");
+  if(!code) return tsLog("Paste the link (or the code) MyAnimeList sent you back with.");
+  if(!m.pending || !m.pending.verifier) return tsLog("Tap \"Open MyAnimeList login\" first, then paste what it sends back.");
+  if(st && m.pending.state && st !== m.pending.state) return tsLog("That link doesn't belong to this login attempt. Open the login again and use the new link.");
+  try{
+    const form = { client_id: m.clientId, grant_type: "authorization_code", code, redirect_uri: m.redirect || "http://localhost", code_verifier: m.pending.verifier }; if(m.clientSecret) form.client_secret = m.clientSecret;
+    const r = await tsReq("https://myanimelist.net/v1/oauth2/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(form).toString() }, 1);
+    if(!r.ok || !r.body || !r.body.access_token) throw new Error("MyAnimeList said: " + ((r.body && (r.body.message || r.body.error)) || "no token") + ". Check the client ID, secret and redirect URL.");
+    tsPatch("mal", { access: r.body.access_token, refresh: r.body.refresh_token || "", expires: Date.now() + (r.body.expires_in || 2592000) * 1000, pending: null });
+    const me = await tsMal("GET", "/users/@me"); const name = me.ok && me.body && me.body.name;
+    tsPatch("mal", { user: name || "" }); $("#tsMalCode").value = ""; tsLog("Connected to MyAnimeList" + (name ? " as " + name : "") + ".");
+  }catch(e){ tsLog("Couldn't connect: " + e.message); }
+  tsRenderStatus();
+};
+$("#tsMalForget").onclick = () => { tsPatch("mal", { access: "", refresh: "", expires: 0, user: "", pending: null }); tsLogClear(); tsLog("MyAnimeList disconnected."); tsRenderStatus(); };
+
+$("#tsSave").onclick = () => { tsSaveForm(); tsLogClear(); tsLog("Settings saved on this device."); tsRenderStatus(); };
+$("#tsReset").onclick = () => { try{ localStorage.removeItem("wn_ts_state_anime"); localStorage.removeItem("wn_ts_state_manga"); }catch(_){} tsRenderStatus(); $("#syncLog").hidden = true; };
+$("#syncNow").onclick = () => tsStart("anime");
+$("#syncNowManga").onclick = () => tsStart("manga");
+$("#syncStop").onclick = () => { tsStopFlag = true; tsLog("Stopping after this title…"); };

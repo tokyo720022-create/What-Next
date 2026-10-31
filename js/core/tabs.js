@@ -3,6 +3,7 @@
 const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", taste: "#taste", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
 const TAB_OF = { taste: "pick", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
 function showTab(t){
+  if(t === "set-sync" && !advancedOn()) t = "settings";   // AniList Triple Sync only opens when Advanced features are on
   const shown = SCREENS[t];
   new Set(Object.values(SCREENS)).forEach(id => { $(id).hidden = id !== shown; });
   document.querySelectorAll("#tabs .tab").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === (TAB_OF[t] || t))));
@@ -16,7 +17,7 @@ function showTab(t){
   if(t === "chat") renderRecent();
   if(t === "profile") renderProfile();
   if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); }
-  if(t === "set-sync"){ fillCfg(); renderSyncStatus(); }
+  if(t === "set-sync"){ tsFill(); tsRenderStatus(); }
   if(t === "set-anilist") loadAniSettings();
   if(t === "set-lists") lsLoad(false);
   if(t === "set-account") fillAccount();

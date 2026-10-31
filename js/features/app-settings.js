@@ -13,7 +13,7 @@ for(const th of THEMES){
 }
 function fillApp(){
   const c = appCfg();
-  $("#appAvatar").checked = c.avatar === "circle"; $("#appSplash").checked = !!c.splash; $("#appRelative").checked = !!c.relative;
+  $("#appAvatar").checked = c.avatar === "circle"; $("#appSplash").checked = !!c.splash; $("#appAdvanced").checked = !!c.advanced; $("#appRelative").checked = !!c.relative;
   $("#appAllAnime").value = c.allpos.anime; $("#appAllManga").value = c.allpos.manga;
   for(const k of ["JP", "KR", "CN", "TW"]) $("#appName" + k).value = c.naming[k] || "";
   chipSet("#appSize", c.size);
@@ -21,6 +21,7 @@ function fillApp(){
 const redrawTitles = () => { mcache.clear(); trendAt = 0; if(lists[curType] && lists[curType].entries) renderList(); };
 $("#appAvatar").onchange = () => setApp({ avatar: $("#appAvatar").checked ? "circle" : "square" });
 $("#appSplash").onchange = () => setApp({ splash: $("#appSplash").checked });
+$("#appAdvanced").onchange = () => setApp({ advanced: $("#appAdvanced").checked });
 $("#appRelative").onchange = () => setApp({ relative: $("#appRelative").checked });
 $("#appSize").addEventListener("click", ev => { const b = ev.target.closest(".chip"); if(!b) return; setApp({ size: b.dataset.v }); chipSet("#appSize", b.dataset.v); });
 for(const [id, type] of [["#appAllAnime", "anime"], ["#appAllManga", "manga"]]) $(id).onchange = () => { setApp({ allpos: Object.assign(appCfg().allpos, { [type]: $(id).value }) }); if(lists[type] && lists[type].entries && curType === type) renderList(); };

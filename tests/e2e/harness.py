@@ -1,6 +1,6 @@
 # Test harness: serves the app and fakes AniList (it keeps its own state, like the real one).
 # Run any *.e2e.py file here, or all of them with run_all.py. Needs: pip install playwright && playwright install chromium
-import json, re, sys, threading, http.server, socketserver, functools, os, time
+import urllib.parse, json, re, sys, threading, http.server, socketserver, functools, os, time
 from playwright.sync_api import sync_playwright
 
 SITE = os.environ.get("SITE") or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -89,16 +89,83 @@ def taste_ref(k):
     if k % 4 == 1: names.append("Slice of Life")      # 25%
     return {"id": 9000 + k, "genres": ["Action", "Comedy"] if k % 2 else ["Drama", "Romance"], "tags": _tags(names)}
 
+
+# ---- AniList Triple Sync fakes: the source list, the target AniList account, MyAnimeList and both OAuth endpoints ----
+def _ts_entry(mid, mal, status, prog, score, **o):
+    e = {"mediaId": mid, "status": status, "progress": prog, "progressVolumes": o.get("vol", 0), "repeat": o.get("repeat", 0), "private": o.get("private", False), "notes": o.get("notes", ""), "score": score,
+         "startedAt": o.get("start", {"year": None, "month": None, "day": None}), "completedAt": o.get("done", {"year": None, "month": None, "day": None}), "updatedAt": 1700000000 + mid,
+         "media": {"id": mid, "idMal": mal, "title": {"romaji": "Src %d" % mid, "english": "Source Title %d" % mid}}}
+    return e
+def ts_reset():
+    TS.clear()
+    TS.update({"src": {"ANIME": [_ts_entry(2001, 5001, "CURRENT", 3, 80, start={"year": 2026, "month": 1, "day": 5}), _ts_entry(2002, 5002, "COMPLETED", 12, 100, start={"year": 2025, "month": 3, "day": 1}, done={"year": 2025, "month": 3, "day": 20}, notes="great"),
+                          _ts_entry(2003, None, "PLANNING", 0, 0), _ts_entry(2004, 5004, "REPEATING", 5, 70, repeat=1), _ts_entry(2005, 5005, "DROPPED", 2, 45), _ts_entry(2006, None, "PAUSED", 1, 0)],
+               "MANGA": [_ts_entry(3001, 6001, "CURRENT", 20, 90, vol=2), _ts_entry(3002, 6002, "COMPLETED", 80, 85, vol=9, private=True), _ts_entry(3003, 6003, "PLANNING", 0, 0)]},
+        "al_db": {}, "al_saved": [], "al_deleted": [], "al_found": [], "al_fail": set(), "al_invalid": False, "mal": {}, "mal_calls": [], "mal_tok": [], "al_tok": [], "mal_expire_first": False, "mal_missing": {5005}})
+TS = {}
+ts_reset()
+def ts_json(route, obj, status=200): route.fulfill(status=status, content_type="application/json", body=json.dumps(obj))
+def ts_target(route, q, v):
+    if TS["al_invalid"]: return ts_json(route, {"errors": [{"message": "Invalid token", "status": 400}], "data": None}, 400)
+    if "Viewer" in q: return ts_json(route, {"data": {"Viewer": {"id": 777, "name": "TargetUser"}}})
+    if "SaveMediaListEntry" in q:
+        if v["mediaId"] in TS["al_fail"]: return ts_json(route, {"errors": [{"message": "Boom for %d" % v["mediaId"], "status": 500}], "data": None}, 200)
+        TS["al_saved"].append(v); TS["al_db"][v["mediaId"]] = 9000 + v["mediaId"]
+        return ts_json(route, {"data": {"SaveMediaListEntry": {"id": 9000 + v["mediaId"]}}})
+    if "MediaList(mediaId" in q:
+        TS["al_found"].append(v["m"])
+        if v["m"] in TS["al_db"]: return ts_json(route, {"data": {"MediaList": {"id": TS["al_db"][v["m"]]}}})
+        return ts_json(route, {"errors": [{"message": "Not Found.", "status": 404}], "data": {"MediaList": None}}, 404)
+    if "DeleteMediaListEntry" in q:
+        TS["al_deleted"].append(v["id"]); return ts_json(route, {"data": {"DeleteMediaListEntry": {"deleted": True}}})
+    return ts_json(route, {"data": {}})
+def ts_oauth_mal(route, request):
+    f = {k: x[0] for k, x in urllib.parse.parse_qs(request.post_data or "").items()}; TS["mal_tok"].append(f)
+    if f.get("grant_type") == "authorization_code" and f.get("code") == "malcode123" and f.get("code_verifier") and f.get("redirect_uri") == "http://localhost" and f.get("client_id") == "malid":
+        return ts_json(route, {"token_type": "Bearer", "access_token": "MALTOK1", "refresh_token": "MALREF1", "expires_in": 2678400})
+    if f.get("grant_type") == "refresh_token" and f.get("refresh_token") == "MALREF1":
+        return ts_json(route, {"token_type": "Bearer", "access_token": "MALTOK2", "refresh_token": "MALREF2", "expires_in": 2678400})
+    return ts_json(route, {"error": "invalid_grant", "message": "bad code or verifier"}, 400)
+def ts_mal_api(route, request):
+    tok = (request.headers.get("authorization") or "").replace("Bearer ", "")
+    path = urllib.parse.urlparse(request.url).path; method = request.method
+    if tok not in ("MALTOK1", "MALTOK2") or (tok == "MALTOK1" and TS["mal_expire_first"]): return ts_json(route, {"error": "invalid_token"}, 401)
+    if path == "/v2/users/@me": return ts_json(route, {"id": 1, "name": "MalTester"})
+    m = re.match(r"/v2/(anime|manga)/(\d+)(/my_list_status)?$", path)
+    if not m: return ts_json(route, {"error": "not_found"}, 404)
+    kind, mid = m.group(1), int(m.group(2)); key = (kind, mid)
+    if method == "PUT":
+        f = {k: x[0] for k, x in urllib.parse.parse_qs(request.post_data or "", keep_blank_values=True).items()}
+        if mid in TS["mal_missing"]: TS["mal_calls"].append(("PUT404", kind, mid, tok)); return ts_json(route, {"error": "not_found"}, 404)
+        TS["mal"][key] = f; TS["mal_calls"].append(("PUT", kind, mid, tok, f)); return ts_json(route, {"status": f.get("status")})
+    if method == "DELETE":
+        TS["mal_calls"].append(("DELETE", kind, mid, tok))
+        if key in TS["mal"]: del TS["mal"][key]; return route.fulfill(status=200, body="")
+        return ts_json(route, {"error": "not_found"}, 404)
+    TS["mal_calls"].append(("GET", kind, mid, tok)); st = TS["mal"].get(key)
+    return ts_json(route, {"id": mid, **({"my_list_status": {"status": st.get("status")}} if st else {})})
+
 def handle(route, request):
     url = request.url
+    if "anilist.co/api/v2/oauth/token" in url:
+        b = json.loads(request.post_data or "{}"); TS["al_tok"].append(b)
+        if b.get("code") == "alcode123" and b.get("client_secret") == "alsecret" and b.get("client_id") == "4242" and b.get("redirect_uri") == "https://anilist.co/api/v2/oauth/pin" and b.get("grant_type") == "authorization_code":
+            return ts_json(route, {"token_type": "Bearer", "expires_in": 31536000, "access_token": "TARGETTOK"})
+        return ts_json(route, {"error": "invalid_grant", "message": "The authorization code is invalid", "hint": "bad code"}, 400)
+    if "myanimelist.net/v1/oauth2/token" in url: return ts_oauth_mal(route, request)
+    if "api.myanimelist.net/v2" in url: return ts_mal_api(route, request)
     if "graphql.anilist.co" in url:
         if NET["off"]: return route.abort("internetdisconnected")
         body = json.loads(request.post_data or "{}"); q = body.get("query", ""); v = body.get("variables", {}) or {}
+        if request.headers.get("authorization") == "Bearer TARGETTOK": return ts_target(route, q, v)
         if "MediaListCollection" in q:
             COLLREQ.append(v.get("t"))
             if NET["fail"] > 0: NET["fail"] -= 1; return route.abort("failed")
             if NET["delay"]: time.sleep(NET["delay"] / 1000)
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
+        if "MediaListCollection" in q and "progressVolumes" in q and "idMal" in q:   # the Triple Sync source read
+            t = v.get("t", "ANIME"); TS.setdefault("src_reads", []).append((t, v.get("u") or v.get("userName")))
+            return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": [e for e in TS["src"][t]]}]}})
         if "MediaListCollection" in q and "tags{name" in q:   # the taste report's list query
             t = v.get("t", "ANIME"); TASTEREQ.append(("list", t))
             es = [e for e in DATA[t] if e["status"] in ("COMPLETED", "CURRENT", "REPEATING", "PAUSED", "DROPPED")]

@@ -35,18 +35,21 @@ jobs:
         run: |
           BASE=$(node -p "require('./package.json').version")
           echo "name=$BASE-b${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-          echo "code=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_OUTPUT"
-      - name: Sign with the same key every time, so a new APK installs over the old one
-        run: |
-          mkdir -p ~/.android
-          cp android-signing/debug.keystore ~/.android/debug.keystore
-      - name: Add login deep link and version
+          # Minutes since 2023-11-14. It only ever goes up, even if the run counter is ever reset, so Android never sees a downgrade.
+          echo "code=$(( ($(date +%s) - 1700000000) / 60 ))" >> "$GITHUB_OUTPUT"
+      - name: Sign with the same key every time and set the version, so a new APK installs over the old one
+        run: bash android-signing/patch-android.sh "${{ steps.ver.outputs.name }}" "${{ steps.ver.outputs.code }}"
+      - name: Add login deep link
         run: |
           sed -i 's#</activity>#<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="whatnext"/></intent-filter></activity>#' android/app/src/main/AndroidManifest.xml
-          sed -i 's/versionName "1.0"/versionName "${{ steps.ver.outputs.name }}"/; s/versionCode 1/versionCode ${{ steps.ver.outputs.code }}/' android/app/build.gradle
           grep -q 'android:scheme="whatnext"' android/app/src/main/AndroidManifest.xml || { echo "The login deep link was not added to AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Check the APK has the shared signing key and the right version
+        id: fp
+        run: |
+          bash android-signing/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
+          echo "key=$(tr -d ' \n' < android-signing/fingerprint.txt)" >> "$GITHUB_OUTPUT"
       - name: Name the APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk "WhatNext-v${{ steps.ver.outputs.name }}.apk"
       - name: Publish a new release for this build
@@ -55,6 +58,7 @@ jobs:
           tag_name: v${{ steps.ver.outputs.name }}
           name: What Next? v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}."
           generate_release_notes: true
           make_latest: true
           files: WhatNext-v${{ steps.ver.outputs.name }}.apk

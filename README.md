@@ -31,12 +31,16 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 - **List editor:** status, progress stepper, score slider, start and finish dates, rewatches, priority, custom lists, notes, private, favourite, and remove. Reaching the last episode completes the entry and sets dates automatically.
 - **People:** on your Profile, tap Following or Followers for the list (a Mutual badge marks people who follow you back; the three-dot menu can follow, unfollow, or open AniList). Tap anyone to open their profile: banner, avatar, counts, an affinity score from the scores you both gave to the same titles (needs 5 or more shared scores), their statistics, View Detail Statistics with the same charts as yours, Follow, and Message.
 - **Profile:** your AniList banner and avatar (ring uses your AniList profile colour), a View on AniList button, anime, manga, following and followers counts, your anime and manga statistics, and your bio, with Stats, Chat, and Settings as tiles at the very bottom, under Tendencies. The banner and avatar are read from AniList; the AniList API does not let apps change them. It also has **Tendencies** (Anime or Manga: what you seem to love and hate, tags you like, favourite release years, the year you started, and your completion rate, worked out from your AniList stats) and **Favourites** with filters for Anime, Manga, Characters, Staff, and Studios (tap one to open it; Show more loads the rest).
-- **Settings:** Discord and secrets, and three pages that follow the AniList apps:
+- **Settings:** App Settings, AniList Triple Sync (only when Advanced features are on), account, and three pages that follow the AniList apps:
   - **App Settings** (this app only): a theme picker with eight anime themes (Sakura Flowers, One Piece, Naruto, Gintama, Dragon Ball, Bleach, Rent-a-Girlfriend, Attack on Titan; Sakura Flowers has soft petals and Gintama has Edo wave patterns), One Piece being the default; round or square profile pictures; text size; the opening logo screen; where "All" sits in the status chips; relative or exact air times; how titles from Japan, Korea, China and Taiwan are shown (Follow AniList, Romaji, English, Native); privacy (blur covers, hidden titles); and a reset.
   - **AniList Settings** (saved on your account, with a Save Changes bar): bio, profile colour, title language, staff and character naming, activity merge time, 18+ content, airing notifications, and only getting messages from people you follow.
   - **Account Settings:** who you are signed in as, buttons that open the right AniList pages (profile, account, import, app access, delete account), waiting changes, clearing saved lists and pictures, copying app info, and **Log out** (tap twice to confirm).
 - **Login screen:** the logo over a soft animated background, what the app does, Log in or Create account, and a note that you log in on anilist.co and the app never sees your password.
-- **Discord sync:** anime and manga updates from your AniList list are posted to Discord forum threads, run from inside the app.
+- **AniList Triple Sync (advanced):** copies your list (the source: the account you are logged in with, or any AniList username) to a **second AniList account** and to **MyAnimeList**, for anime and manga. It is locked: it only appears in Settings, and only runs, when **App Settings > Advanced features** is switched on.
+  - You bring your own keys. For the target AniList account, make an API client at anilist.co/settings/developer with the Redirect URL `https://anilist.co/api/v2/oauth/pin`, type its **client ID and client secret**, log in with the account to copy to, and paste the code AniList shows. For MyAnimeList, make an API app at myanimelist.net/apiconfig, type its **client ID** (and secret if it has one) and the same **redirect URL**, log in, and paste the link or code you are sent back with. Secrets and tokens stay on this device. MyAnimeList refuses requests from websites, so it works in the Android app only (the app uses native requests, see `CapacitorHttp` in `capacitor.config.json`). AniList's own token step may be blocked in a browser too, so use the Android app to connect.
+  - What is sent: status, progress, volumes, score, rewatches, start and finish dates, notes and privacy (AniList) or the matching MyAnimeList fields. Titles need a MyAnimeList ID to go to MyAnimeList; those without one only go to AniList and are counted.
+  - The first run to each target asks how to start: **copy my whole list** (overwrites matching titles there) or **only send changes from now on**. After that a fingerprint of each title is remembered per target, so only changed titles are sent, and a failed title is retried next time. Options: add titles that aren't on the target yet, also remove titles from the targets when you remove them here (off by default; a sudden mass disappearance is never mirrored), and sync when the app opens every 3 hours (never for a first run). There is a Stop button, and AniList and MyAnimeList are paced to stay within their rate limits.
+  - It is the same logic as the AniList to MyAnimeList delta engines in the Anilist-triple-sync repository (`mal_sync_engine.py`, `mal_manga_sync_engine.py`) and its AniList write-back, moved into the app. The Discord webhook posting that the old Discord Sync page had was removed.
 - **Schedule:** a countdown to the next episode of every airing anime on your list.
 - **Stats:** two tabs. **Overview** shows your AniList statistics with anime and manga side by side (totals, genres, status, demographics, formats, tags, score spread). **Progress** shows today's goal ring and streak, a last 7 days chart, a Continue list with +1 buttons, and your backlog. The daily count includes episodes and chapters you update on AniList or other apps, read from your AniList activity (if you turned off list activity on AniList, only this app's updates count).
 - **List Settings:** the same options as AniList's list settings page, saved to your account with Save Changes: scoring system and advanced scoring, default list order, split Completed by format, which list activity to stop creating, custom anime and manga lists (add or remove), and the section order (Start Reorder uses the up and down buttons). Removing a custom list also removes it from every title that uses it.
@@ -123,14 +127,14 @@ views/
   shell/                header, tab bar
   screens/              login, pick, discover, seasonal, taste, calendar, chat, schedule,
                         stats, lists, profile
-  settings/             menu, app, anilist, lists, sync, account, about
+  settings/             menu, app, anilist, lists, sync (AniList Triple Sync), account, about
   sheets/               filter, customise, overlays (media page and editor), relmap, user
 js/
   core/                 compat, diagnostics, core and Pick engine, tabs, auth,
                         tracker, theme, start
   features/             discover, seasonal, taste (screen), taste-math (the maths), pick-taste (new picks), refresh (swipe down), profile-extra (tendencies, favourites), calendar, lists, media page, entity pages
                         (character/staff/studio), editor, relation map, users, profile,
-                        stats, list settings, app settings, settings, sync (Discord),
+                        stats, list settings, app settings, settings, sync (AniList Triple Sync) and triple-math (its maths),
                         chat, trending, and so on
 tests/                  structure check, unit tests, and real-browser screen tests
 .github/workflows/      tests.yml, unpack-site.yml, build-apk.yml
@@ -155,6 +159,7 @@ Every change to a list entry goes through `js/core/tracker.js`: the +1 buttons o
 node tests/check-structure.js        files, lists, ids, CSS, versions
 node tests/unit/rules.test.js        tracking rules and score formats
 node tests/unit/taste.test.js        taste report maths
+node tests/unit/triple.test.js       AniList Triple Sync maths
 python tests/e2e/run_all.py          real-browser tests against a fake AniList (needs: pip install playwright && playwright install chromium)
 ```
 

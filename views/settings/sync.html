@@ -1,64 +1,93 @@
 <section id="setSync" hidden>
   <button class="back" data-go="settings">← Settings</button>
   <h2 class="ph">AniList Triple Sync</h2>
-  <p class="sub" style="margin:8px 0 0">Copies your list (the source) to a second AniList account and to MyAnimeList. After the first run, only titles that changed are sent.</p>
+  <p class="sub" style="margin:8px 0 0">Copies your list (the source) to a second AniList account and to MyAnimeList, for anime and manga. After the first run, only titles that changed are sent.</p>
   <div class="card" style="margin-top:16px">
     <p class="sub" id="syncStatus" style="white-space:pre-line">Never synced.</p>
     <div class="row" style="margin-top:12px">
       <button class="go" id="syncNow" style="margin:0;flex:1 1 0;width:auto">Sync anime</button>
       <button class="go" id="syncNowManga" style="margin:0;flex:1 1 0;width:auto">Sync manga</button>
     </div>
+    <div class="row" style="margin-top:8px">
+      <button class="go alt" id="syncBoth" style="margin:0;flex:1 1 0;width:auto">Sync both</button>
+      <button class="go alt" id="syncPreview" style="margin:0;flex:1 1 0;width:auto">Preview</button>
+    </div>
     <button class="go alt" id="syncStop" hidden>Stop</button>
     <pre class="log" id="syncLog" hidden></pre>
+    <div id="syncPending" hidden></div>
+  </div>
+  <div class="card" id="syncProblems" hidden>
+    <b id="syncProblemsHead">Problems</b>
+    <div id="syncProblemList"></div>
+    <div class="tsrow"><button class="chip" id="syncRetry">Try the rejected ones again</button><button class="chip" id="syncProblemsClear">Clear list</button></div>
   </div>
 
-  <div class="q">Source</div>
+  <div class="q">Settings</div>
+  <p class="sub" style="margin:0 0 6px">Everything below is saved on this device as you change it.</p>
+
+  <div class="q tsq">Source</div>
   <div class="card" style="margin-top:0">
     <label for="tsSource" style="margin-top:0">Source AniList username</label>
     <input id="tsSource" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="defaults to your login">
   </div>
 
-  <div class="q">Target AniList account</div>
+  <div class="q tsq">Target AniList account</div>
   <div class="card" style="margin-top:0">
     <p class="sub" id="tsAlState" style="margin-top:0">Not connected.</p>
     <p class="sub">Make your own API client at anilist.co/settings/developer and set its Redirect URL to https://anilist.co/api/v2/oauth/pin. Log in with the account you want to copy to.</p>
-    <label for="tsAlId">Client ID</label>
+    <label for="tsAlId">AniList client ID</label>
     <input id="tsAlId" inputmode="numeric" autocomplete="off" placeholder="e.g. 12345">
-    <label for="tsAlSecret">Client secret</label>
+    <label for="tsAlSecret">AniList client secret</label>
     <input id="tsAlSecret" type="password" autocomplete="off" placeholder="from your AniList API client">
     <button class="go alt" id="tsAlOpen" type="button">1. Open AniList login</button>
     <label for="tsAlCode">Code AniList shows you</label>
-    <input id="tsAlCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste it here">
+    <input id="tsAlCode" class="tscode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste it here">
     <button class="go" id="tsAlConnect" type="button">2. Connect</button>
     <button class="go alt" id="tsAlForget" type="button" hidden>Disconnect</button>
   </div>
 
-  <div class="q">MyAnimeList account</div>
+  <div class="q tsq">MyAnimeList account</div>
   <div class="card" style="margin-top:0">
     <p class="sub" id="tsMalState" style="margin-top:0">Not connected.</p>
     <p class="sub">Make your own API app at myanimelist.net/apiconfig and give it a Redirect URL (for example http://localhost). Type the same one below. MyAnimeList only works in the Android app, because it blocks websites.</p>
-    <label for="tsMalId">Client ID</label>
+    <label for="tsMalId">MyAnimeList client ID</label>
     <input id="tsMalId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="from your MyAnimeList API app">
-    <label for="tsMalSecret">Client secret (if your app has one)</label>
+    <label for="tsMalSecret">MyAnimeList client secret (if your app has one)</label>
     <input id="tsMalSecret" type="password" autocomplete="off" placeholder="optional">
     <label for="tsMalRedirect">Redirect URL</label>
     <input id="tsMalRedirect" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="http://localhost">
     <button class="go alt" id="tsMalOpen" type="button">1. Open MyAnimeList login</button>
     <label for="tsMalCode">Link or code you are sent back with</label>
-    <input id="tsMalCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste the whole address or just the code">
+    <input id="tsMalCode" class="tscode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste the whole address or just the code">
     <button class="go" id="tsMalConnect" type="button">2. Connect</button>
     <button class="go alt" id="tsMalForget" type="button" hidden>Disconnect</button>
   </div>
 
-  <div class="q">Options</div>
+  <div class="q tsq">Discord report (optional)</div>
+  <div class="card" style="margin-top:0">
+    <p class="sub" style="margin-top:0">Posts a short report to a Discord channel after each sync. A forum channel works too: each report starts its own thread.</p>
+    <label for="tsDcUrl">Discord webhook link</label>
+    <input id="tsDcUrl" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/...">
+    <label class="chk"><input type="checkbox" id="tsDcOn"> Send a report after each sync</label>
+    <label class="chk"><input type="checkbox" id="tsDcQuiet"> Skip the report when nothing happened</label>
+    <label class="chk"><input type="checkbox" id="tsDcTitles"> List the titles that were sent</label>
+    <button class="go alt" id="tsDcTest" type="button">Send a test message</button>
+  </div>
+
+  <div class="q tsq">Options</div>
   <div class="card" style="margin-top:0">
     <label class="chk"><input type="checkbox" id="tsSendAl"> Send to the target AniList account</label>
     <label class="chk"><input type="checkbox" id="tsSendMal"> Send to MyAnimeList</label>
+    <label class="chk"><input type="checkbox" id="tsProtect"> Protect the targets: never lower progress, never clear a score, notes or dates, and leave titles that are further along there (checks each title first, so it is slower)</label>
     <label class="chk"><input type="checkbox" id="tsAdd"> Add titles that aren't on the target yet</label>
     <label class="chk"><input type="checkbox" id="tsRemove"> Also remove titles from the targets when I remove them here</label>
-    <label class="chk"><input type="checkbox" id="tsAuto"> Sync when the app opens (every 3 hours)</label>
+    <label class="chk"><input type="checkbox" id="tsSkipAdultMal"> Don't send 18+ titles to MyAnimeList</label>
+    <label class="chk"><input type="checkbox" id="tsAuto"> Sync when the app opens, if the last sync is older than</label>
+    <select id="tsAutoHours" aria-label="Hours between automatic syncs">
+      <option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option>
+    </select>
     <button class="go" id="tsSave">Save settings</button>
     <button class="go alt" id="tsReset">Reset sync memory</button>
-    <p class="sub" style="margin-top:12px">Your client secrets and login tokens are stored only on this device. Resetting memory makes the next sync ask how to start again.</p>
+    <p class="sub" style="margin-top:12px">Your client secrets, login tokens and webhook link are stored only on this device. Resetting memory makes the next sync ask how to start again. A long sync only runs while the app is open, so the screen is kept awake during it.</p>
   </div>
 </section>

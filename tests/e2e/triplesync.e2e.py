@@ -27,7 +27,7 @@ def main(page, out):
     page.evaluate("showTab('settings')")
     check("Settings now shows AniList Triple Sync, and no Discord Sync", page.locator("#rowSync").is_visible() and "AniList Triple Sync" in t("#rowSync") and "Discord" not in t("#settings"))
     page.click("#rowSync"); page.wait_for_selector("#setSync:not([hidden])")
-    check("the page is called AniList Triple Sync and has no Discord webhooks", "AniList Triple Sync" in t("#setSync h2") and page.locator("#cfgHook, #cfgMangaHook, #cfgVipHook").count() == 0 and "webhook" not in t("#setSync").lower())
+    check("the page is called AniList Triple Sync", "AniList Triple Sync" in t("#setSync h2"))
     # ---------- nothing connected ----------
     page.click("#syncNow"); page.wait_for_timeout(150)
     check("syncing with nothing connected explains what to do", "Connect a target AniList account" in t("#syncLog"), t("#syncLog"))
@@ -54,6 +54,7 @@ def main(page, out):
     check("connected: code exchanged with the verifier, client ID, secret and redirect", f["code_verifier"] == pend["verifier"] and f["client_secret"] == "malsecret" and f["client_id"] == "malid" and f["redirect_uri"] == "http://localhost", f)
     check("MyAnimeList tokens and name are kept on the device, the pending login is cleared", store()["mal"]["access"] == "MALTOK1" and store()["mal"]["refresh"] == "MALREF1" and store()["mal"]["user"] == "MalTester" and not store()["mal"].get("pending"))
     check("status line lists both targets", "Targets: AniList (TargetUser), MyAnimeList (MalTester)" in t("#syncStatus"), t("#syncStatus"))
+    page.uncheck("#tsProtect")   # these first checks are about plain sending; the "protect the targets" checks are in triplesync2.e2e.py
     # ---------- first run: ask how to start ----------
     page.click("#syncNow"); page.wait_for_selector(".dsheet .dopt")
     sheet = t(".dsheet")

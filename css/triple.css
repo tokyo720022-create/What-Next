@@ -1,0 +1,10 @@
+/* css/triple.css: AniList Triple Sync page (settings groups, titles waiting, problems) */
+.tsq{margin-top:20px}
+.tsrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tspend{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.tspend .sub{margin:0}
+.tsfail{padding:10px 0;border-top:1px solid var(--line);font-size:.88rem;line-height:1.3}
+.tsfail b{display:block;margin-bottom:2px}
+.tsfail span{color:var(--muted)}
+#syncProblems{margin-top:12px}
+#tsAutoHours{margin-top:8px}

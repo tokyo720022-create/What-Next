@@ -90,35 +90,54 @@ def taste_ref(k):
     return {"id": 9000 + k, "genres": ["Action", "Comedy"] if k % 2 else ["Drama", "Romance"], "tags": _tags(names)}
 
 
-# ---- AniList Triple Sync fakes: the source list, the target AniList account, MyAnimeList and both OAuth endpoints ----
+# ---- AniList Triple Sync fakes: the source list, the target AniList account, MyAnimeList, Discord and both OAuth endpoints ----
 def _ts_entry(mid, mal, status, prog, score, **o):
     e = {"mediaId": mid, "status": status, "progress": prog, "progressVolumes": o.get("vol", 0), "repeat": o.get("repeat", 0), "private": o.get("private", False), "notes": o.get("notes", ""), "score": score,
          "startedAt": o.get("start", {"year": None, "month": None, "day": None}), "completedAt": o.get("done", {"year": None, "month": None, "day": None}), "updatedAt": 1700000000 + mid,
-         "media": {"id": mid, "idMal": mal, "title": {"romaji": "Src %d" % mid, "english": "Source Title %d" % mid}}}
+         "media": {"id": mid, "idMal": mal, "isAdult": o.get("adult", False), "title": {"romaji": "Src %d" % mid, "english": "Source Title %d" % mid}}}
     return e
 def ts_reset():
     TS.clear()
     TS.update({"src": {"ANIME": [_ts_entry(2001, 5001, "CURRENT", 3, 80, start={"year": 2026, "month": 1, "day": 5}), _ts_entry(2002, 5002, "COMPLETED", 12, 100, start={"year": 2025, "month": 3, "day": 1}, done={"year": 2025, "month": 3, "day": 20}, notes="great"),
                           _ts_entry(2003, None, "PLANNING", 0, 0), _ts_entry(2004, 5004, "REPEATING", 5, 70, repeat=1), _ts_entry(2005, 5005, "DROPPED", 2, 45), _ts_entry(2006, None, "PAUSED", 1, 0)],
                "MANGA": [_ts_entry(3001, 6001, "CURRENT", 20, 90, vol=2), _ts_entry(3002, 6002, "COMPLETED", 80, 85, vol=9, private=True), _ts_entry(3003, 6003, "PLANNING", 0, 0)]},
-        "al_db": {}, "al_saved": [], "al_deleted": [], "al_found": [], "al_fail": set(), "al_invalid": False, "mal": {}, "mal_calls": [], "mal_tok": [], "al_tok": [], "mal_expire_first": False, "mal_missing": {5005}})
+        "al_db": {}, "al_state": {}, "al_seed": {}, "al_saved": [], "al_deleted": [], "al_found": [], "al_fail": set(), "al_reject": set(), "al_delete_fail": set(), "al_invalid": False, "rl": None,
+        "mal": {}, "mal_calls": [], "mal_tok": [], "al_tok": [], "mal_expire_first": False, "mal_dead": False, "mal_missing": {5005}, "mal_reject": set(), "mal_forbid": set(),
+        "discord": [], "discord_attempts": [], "discord_forum": False, "discord_429": 0, "discord_fail": False, "src_404": False})
 TS = {}
 ts_reset()
-def ts_json(route, obj, status=200): route.fulfill(status=status, content_type="application/json", body=json.dumps(obj))
+def ts_json(route, obj, status=200, headers=None): route.fulfill(status=status, content_type="application/json", body=json.dumps(obj), headers=headers or {})
+def _rl_headers():
+    rl = TS.get("rl")
+    if not rl: return {}
+    TS["rl"] = None   # only the next answer carries it
+    return {"X-RateLimit-Remaining": str(rl["remaining"]), "X-RateLimit-Reset": str(int(time.time() + rl["reset_in"]) + 1), "Access-Control-Expose-Headers": "X-RateLimit-Remaining, X-RateLimit-Reset"}
+_NODATE = {"year": None, "month": None, "day": None}
 def ts_target(route, q, v):
-    if TS["al_invalid"]: return ts_json(route, {"errors": [{"message": "Invalid token", "status": 400}], "data": None}, 400)
-    if "Viewer" in q: return ts_json(route, {"data": {"Viewer": {"id": 777, "name": "TargetUser"}}})
+    hd = _rl_headers()
+    if TS["al_invalid"]: return ts_json(route, {"errors": [{"message": "Invalid token", "status": 400}], "data": None}, 400, hd)
+    if "Viewer" in q: return ts_json(route, {"data": {"Viewer": {"id": 777, "name": "TargetUser"}}}, 200, hd)
     if "SaveMediaListEntry" in q:
-        if v["mediaId"] in TS["al_fail"]: return ts_json(route, {"errors": [{"message": "Boom for %d" % v["mediaId"], "status": 500}], "data": None}, 200)
-        TS["al_saved"].append(v); TS["al_db"][v["mediaId"]] = 9000 + v["mediaId"]
-        return ts_json(route, {"data": {"SaveMediaListEntry": {"id": 9000 + v["mediaId"]}}})
+        mid = v["mediaId"]
+        if mid in TS["al_reject"]: return ts_json(route, {"errors": [{"message": "Invalid value for %d" % mid, "status": 400}], "data": None}, 400, hd)
+        if mid in TS["al_fail"]: return ts_json(route, {"errors": [{"message": "Boom for %d" % mid, "status": 500}], "data": None}, 200, hd)
+        TS["al_saved"].append(v); TS["al_db"][mid] = TS["al_db"].get(mid) or 9000 + mid; TS["al_state"][mid] = v; TS["al_seed"].pop(mid, None)
+        return ts_json(route, {"data": {"SaveMediaListEntry": {"id": TS["al_db"][mid]}}}, 200, hd)
     if "MediaList(mediaId" in q:
-        TS["al_found"].append(v["m"])
-        if v["m"] in TS["al_db"]: return ts_json(route, {"data": {"MediaList": {"id": TS["al_db"][v["m"]]}}})
-        return ts_json(route, {"errors": [{"message": "Not Found.", "status": 404}], "data": {"MediaList": None}}, 404)
+        m = v["m"]; TS["al_found"].append(m)
+        if m in TS["al_seed"]: return ts_json(route, {"data": {"MediaList": {"id": 5000 + m, **TS["al_seed"][m]}}}, 200, hd)
+        if m in TS["al_db"]:
+            s = TS["al_state"].get(m) or {}
+            return ts_json(route, {"data": {"MediaList": {"id": TS["al_db"][m], "status": s.get("status", "CURRENT"), "progress": s.get("progress", 0), "progressVolumes": s.get("progressVolumes", 0), "repeat": s.get("repeat", 0), "private": s.get("private", False), "notes": s.get("notes", ""),
+                                                          "score": s.get("scoreRaw", 0), "startedAt": s.get("startedAt") or _NODATE, "completedAt": s.get("completedAt") or _NODATE}}}, 200, hd)
+        return ts_json(route, {"errors": [{"message": "Not Found.", "status": 404}], "data": {"MediaList": None}}, 404, hd)
     if "DeleteMediaListEntry" in q:
-        TS["al_deleted"].append(v["id"]); return ts_json(route, {"data": {"DeleteMediaListEntry": {"deleted": True}}})
-    return ts_json(route, {"data": {}})
+        if v["id"] in TS["al_delete_fail"]: TS["al_delete_fail"].discard(v["id"]); return ts_json(route, {"errors": [{"message": "Delete exploded", "status": 500}], "data": None}, 200, hd)
+        TS["al_deleted"].append(v["id"])
+        for mid, eid in list(TS["al_db"].items()):
+            if eid == v["id"]: del TS["al_db"][mid]
+        return ts_json(route, {"data": {"DeleteMediaListEntry": {"deleted": True}}}, 200, hd)
+    return ts_json(route, {"data": {}}, 200, hd)
 def ts_oauth_mal(route, request):
     f = {k: x[0] for k, x in urllib.parse.parse_qs(request.post_data or "").items()}; TS["mal_tok"].append(f)
     if f.get("grant_type") == "authorization_code" and f.get("code") == "malcode123" and f.get("code_verifier") and f.get("redirect_uri") == "http://localhost" and f.get("client_id") == "malid":
@@ -126,24 +145,40 @@ def ts_oauth_mal(route, request):
     if f.get("grant_type") == "refresh_token" and f.get("refresh_token") == "MALREF1":
         return ts_json(route, {"token_type": "Bearer", "access_token": "MALTOK2", "refresh_token": "MALREF2", "expires_in": 2678400})
     return ts_json(route, {"error": "invalid_grant", "message": "bad code or verifier"}, 400)
+def _mal_status(form, kind):
+    if not form: return None
+    g = lambda k: int(form.get(k) or 0)
+    out = {"status": form.get("status"), "score": g("score"), "start_date": form.get("start_date", ""), "finish_date": form.get("finish_date", "")}
+    if kind == "anime": out.update(num_episodes_watched=g("num_watched_episodes"), is_rewatching=form.get("is_rewatching") == "true", num_times_rewatched=g("num_times_rewatched"))
+    else: out.update(num_chapters_read=g("num_chapters_read"), num_volumes_read=g("num_volumes_read"), is_rereading=form.get("is_rereading") == "true", num_times_reread=g("num_times_reread"))
+    return out
 def ts_mal_api(route, request):
     tok = (request.headers.get("authorization") or "").replace("Bearer ", "")
     path = urllib.parse.urlparse(request.url).path; method = request.method
-    if tok not in ("MALTOK1", "MALTOK2") or (tok == "MALTOK1" and TS["mal_expire_first"]): return ts_json(route, {"error": "invalid_token"}, 401)
-    if path == "/v2/users/@me": return ts_json(route, {"id": 1, "name": "MalTester"})
+    if TS["mal_dead"] or tok not in ("MALTOK1", "MALTOK2") or (tok == "MALTOK1" and TS["mal_expire_first"]): return ts_json(route, {"error": "invalid_token"}, 401)
+    if path == "/v2/users/@me": return ts_json(route, {"id": 31337, "name": "MalTester"})
     m = re.match(r"/v2/(anime|manga)/(\d+)(/my_list_status)?$", path)
     if not m: return ts_json(route, {"error": "not_found"}, 404)
     kind, mid = m.group(1), int(m.group(2)); key = (kind, mid)
     if method == "PUT":
         f = {k: x[0] for k, x in urllib.parse.parse_qs(request.post_data or "", keep_blank_values=True).items()}
         if mid in TS["mal_missing"]: TS["mal_calls"].append(("PUT404", kind, mid, tok)); return ts_json(route, {"error": "not_found"}, 404)
+        if mid in TS["mal_forbid"]: TS["mal_calls"].append(("PUT403", kind, mid, tok)); return ts_json(route, {"error": "forbidden", "message": "nsfw"}, 403)
+        if mid in TS["mal_reject"]: TS["mal_calls"].append(("PUT400", kind, mid, tok)); return ts_json(route, {"error": "invalid_content", "message": "num_watched_episodes is out of range"}, 400)
         TS["mal"][key] = f; TS["mal_calls"].append(("PUT", kind, mid, tok, f)); return ts_json(route, {"status": f.get("status")})
     if method == "DELETE":
         TS["mal_calls"].append(("DELETE", kind, mid, tok))
         if key in TS["mal"]: del TS["mal"][key]; return route.fulfill(status=200, body="")
         return ts_json(route, {"error": "not_found"}, 404)
-    TS["mal_calls"].append(("GET", kind, mid, tok)); st = TS["mal"].get(key)
-    return ts_json(route, {"id": mid, **({"my_list_status": {"status": st.get("status")}} if st else {})})
+    TS["mal_calls"].append(("GET", kind, mid, tok)); st = _mal_status(TS["mal"].get(key), kind)
+    return ts_json(route, {"id": mid, **({"my_list_status": st} if st else {})})
+def ts_discord(route, request):
+    body = json.loads(request.post_data or "{}")
+    if TS["discord_fail"]: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
+    if TS["discord_429"] > 0: TS["discord_429"] -= 1; return ts_json(route, {"message": "You are being rate limited.", "retry_after": 0.01}, 429)
+    if TS["discord_forum"] and "thread_name" not in body:
+        TS["discord_attempts"].append(body); return ts_json(route, {"message": "Webhooks posted to forum channels must have a thread_name or thread_id", "code": 220001}, 400)
+    TS["discord"].append(body); return route.fulfill(status=204, body="")
 
 def handle(route, request):
     url = request.url
@@ -154,6 +189,7 @@ def handle(route, request):
         return ts_json(route, {"error": "invalid_grant", "message": "The authorization code is invalid", "hint": "bad code"}, 400)
     if "myanimelist.net/v1/oauth2/token" in url: return ts_oauth_mal(route, request)
     if "api.myanimelist.net/v2" in url: return ts_mal_api(route, request)
+    if "discord.com/api/webhooks" in url or "discordapp.com/api/webhooks" in url: return ts_discord(route, request)
     if "graphql.anilist.co" in url:
         if NET["off"]: return route.abort("internetdisconnected")
         body = json.loads(request.post_data or "{}"); q = body.get("query", ""); v = body.get("variables", {}) or {}
@@ -165,6 +201,7 @@ def handle(route, request):
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
         if "MediaListCollection" in q and "progressVolumes" in q and "idMal" in q:   # the Triple Sync source read
             t = v.get("t", "ANIME"); TS.setdefault("src_reads", []).append((t, v.get("u") or v.get("userName")))
+            if TS["src_404"]: return ts_json(route, {"errors": [{"message": "User not found", "status": 404}], "data": {"MediaListCollection": None}}, 404)
             return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": [e for e in TS["src"][t]]}]}})
         if "MediaListCollection" in q and "tags{name" in q:   # the taste report's list query
             t = v.get("t", "ANIME"); TASTEREQ.append(("list", t))

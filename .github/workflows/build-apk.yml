@@ -47,24 +47,35 @@ jobs:
           sed -i 's#</activity>#<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="whatnext"/></intent-filter></activity>#' android/app/src/main/AndroidManifest.xml
           grep -q 'android:scheme="whatnext"' android/app/src/main/AndroidManifest.xml || { echo "The login deep link was not added to AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
-      - name: Build the APK
+      - name: Build the APK (a release build, or a debug build if that fails)
+        id: build
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+        run: |
+          cd android && chmod +x gradlew
+          if ./gradlew assembleRelease; then
+            echo "apk=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
+            echo "kind=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The release build failed (see the error above), so a debug build was made instead. A debug APK can be inspected on the phone, so fix the release build when you can."
+            ./gradlew assembleDebug
+            echo "apk=android/app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_OUTPUT"
+            echo "kind=debug" >> "$GITHUB_OUTPUT"
+          fi
       - name: Check the APK has the shared signing key and the right version
         id: fp
         run: |
-          bash android-signing/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
+          bash android-signing/verify-apk.sh "${{ steps.build.outputs.apk }}" "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
           echo "key=$(tr -d ' \n' < android-signing/fingerprint.txt)" >> "$GITHUB_OUTPUT"
       - name: Name the APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "WhatNext-v${{ steps.ver.outputs.name }}.apk"
+        run: cp "${{ steps.build.outputs.apk }}" "WhatNext-v${{ steps.ver.outputs.name }}.apk"
       - name: Publish a new release for this build
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.name }}
           name: What Next? v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
-          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}."
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build."
           generate_release_notes: true
           make_latest: true
           files: WhatNext-v${{ steps.ver.outputs.name }}.apk

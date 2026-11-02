@@ -30,7 +30,7 @@ def main(page, out):
     # ================= settings: everything in one place, saved as you change it =================
     fresh()
     body = t("#setSync").lower()   # the labels are shown in capitals
-    check("the page has every setting: AniList client ID and secret, MyAnimeList client ID, secret and redirect, a Discord webhook, and the options", all(x.lower() in body for x in ("AniList client ID", "AniList client secret", "MyAnimeList client ID", "MyAnimeList client secret", "Redirect URL", "Discord webhook link", "Protect the targets", "Add titles that aren't on the target yet", "Sync when the app opens")))
+    check("the page has every setting: AniList client ID and secret, MyAnimeList client ID, secret and redirect, a Discord webhook, and the options", all(x.lower() in body for x in ("AniList client ID", "AniList client secret", "MyAnimeList client ID", "MyAnimeList client secret", "Redirect URL", "Log report webhook link", "Anime webhook link", "Manga webhook link", "Lists that get their own thread", "Protect the targets", "Add titles that aren't on the target yet", "Sync when the app opens")))
     d = cfg(); ui = lambda i: page.is_checked(i)
     check("a fresh install shows the defaults, and the engine uses the same ones", [ui("#tsSendAl"), ui("#tsSendMal"), ui("#tsProtect"), ui("#tsAdd"), ui("#tsRemove"), ui("#tsSkipAdultMal"), ui("#tsAuto"), ui("#tsDcOn"), ui("#tsDcQuiet"), ui("#tsDcTitles")] == [d["sendAl"], d["sendMal"], d["protect"], d["add"], d["remove"], d["skipAdultMal"], d["auto"], d["dcOn"], d["dcQuiet"], d["dcTitles"]] == [True, True, True, True, False, False, False, True, True, False] and page.input_value("#tsAutoHours") == "3" and d["autoHours"] == 3, (d, [ui("#tsAdd"), ui("#tsProtect")]))
     page.uncheck("#tsSendMal")

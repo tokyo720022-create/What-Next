@@ -4,8 +4,12 @@
 const TS_KEY = "wn_ts", TS_AL_PIN = "https://anilist.co/api/v2/oauth/pin";
 const TS_KINDS = { anime: { type: "ANIME", label: "Anime", mal: "anime" }, manga: { type: "MANGA", label: "Manga", mal: "manga" } };
 // One place for the defaults, so the screen and the engine always agree.
-const TS_DEF = { sendAl: true, sendMal: true, add: true, protect: true, remove: false, skipAdultMal: false, auto: false, autoHours: 3, dcOn: true, dcQuiet: true, dcTitles: false, dcUrl: "", source: "" };
-const TS_F = "mediaId status progress progressVolumes repeat private notes score(format:POINT_100) startedAt{year month day} completedAt{year month day} updatedAt media{id idMal isAdult title{romaji english}}";
+const TS_DEF = { sendAl: true, sendMal: true, add: true, protect: true, remove: false, skipAdultMal: false, auto: false, autoHours: 3, dcOn: true, dcQuiet: true, dcTitles: false, dcUrl: "", dcAnime: "", dcManga: "", dcLists: TS_DC_LISTS, source: "" };
+// What to read from the source. The extra fields (custom lists, cover, totals, tags) are only asked for when a Discord card webhook needs them.
+const tsFields = dc => "mediaId status progress progressVolumes repeat private notes score(format:POINT_100) startedAt{year month day} completedAt{year month day} updatedAt" + (dc ? " customLists(asArray:true)" : "")
+  + " media{id idMal isAdult title{romaji english}" + (dc ? " format genres tags{name} episodes chapters coverImage{extraLarge color}" : "") + "}";
+const tsDcHook = (c, k) => { const u = k === "anime" ? c.dcAnime : c.dcManga; return tsWebhookOk(u) ? String(u).trim() : ""; };
+const TS_DC_MAX = 50;   // cards per run, so a long break can't flood the channel
 const TS_AL_SAVE = "mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$progressVolumes:Int,$scoreRaw:Int,$repeat:Int,$private:Boolean,$notes:String,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput){SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,progressVolumes:$progressVolumes,scoreRaw:$scoreRaw,repeat:$repeat,private:$private,notes:$notes,startedAt:$startedAt,completedAt:$completedAt){id}}";
 const TS_AL_READ = "query($m:Int,$u:Int){MediaList(mediaId:$m,userId:$u){id status progress progressVolumes repeat private notes score(format:POINT_100) startedAt{year month day} completedAt{year month day}}}";
 const TS_AL_DELETE = "mutation($id:Int){DeleteMediaListEntry(id:$id){deleted}}";
@@ -159,6 +163,44 @@ async function tsDiscordPost(url, payload){
   if(!r.ok) throw new Error("Discord " + r.status);
 }
 
+// Update cards go to forum threads such as "[ANIME] Iseki". A thread is made once per name and its id remembered. A plain channel (not a forum) just gets the cards.
+const tsPlain = {};
+const tsThreads = () => { try{ return JSON.parse(localStorage.getItem("wn_ts_threads") || "{}") || {}; }catch(_){ return {}; } };
+const tsThreadSave = (url, key, id) => { const t = tsThreads(), w = url.replace(/[?].*$/, ""); t[w + "|" + key] = id; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} };
+async function tsDcRequest(url, body){
+  let r; try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }catch(_){ throw tsNetErr(); }
+  if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }catch(_){ throw tsNetErr(); } }
+  return r;
+}
+async function tsMakeThread(url, name, display, kindLabel){
+  const sep = url.includes("?") ? "&" : "?", r = await tsDcRequest(url + sep + "wait=true", { content: "📡 **" + display + "** | " + kindLabel + " Telemetry Dashboard", thread_name: name });
+  if(!r.ok){
+    let b = null; try{ b = await r.clone().json(); }catch(_){}
+    if(r.status === 400 && b && b.code === 220003){ const e = new Error("not a forum"); e.plain = true; throw e; }
+    throw new Error("Discord " + r.status);
+  }
+  let b = {}; try{ b = await r.json(); }catch(_){}
+  const id = String(b.channel_id || b.id || "");
+  if(!id) throw new Error("Discord made the thread but sent no thread id");
+  tsThreadSave(url, name, id); return id;
+}
+async function tsPostCard(url, kind, cat, embed){
+  const kindLabel = kind.toUpperCase(), name = tsThreadName(cat, kind), display = cat.own ? tsPyTitle(cat.name) : "General Updates";
+  const w = url.replace(/[?].*$/, ""), key = w + "|" + name, sep = url.includes("?") ? "&" : "?";
+  for(let attempt = 0; attempt < 2; attempt++){
+    let id = null;
+    if(!tsPlain[w]){
+      id = tsThreads()[key] || null;
+      if(!id){ try{ id = await tsMakeThread(url, name, display, kindLabel); }catch(e){ if(e.plain) tsPlain[w] = true; else throw e; } }
+    }
+    const r = await tsDcRequest(id ? url + sep + "thread_id=" + id : url, { embeds: [embed] });
+    if(r.ok) return;
+    let b = null; try{ b = await r.clone().json(); }catch(_){}
+    if(attempt === 0 && id && (r.status === 404 || (b && b.code === 10003))){ const t = tsThreads(); delete t[key]; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} continue; }   // the thread was deleted: make a new one
+    throw new Error("Discord " + r.status);
+  }
+}
+
 // ----- problems that stay after the run (rejected or failed titles) -----
 function tsStoreProblems(k, stats, okKeys){
   const keep = tsFails(k).filter(p => !okKeys.has(p.id + "|" + p.t) && !stats.problems.some(n => n.id === p.id && n.t === p.t));
@@ -166,9 +208,9 @@ function tsStoreProblems(k, stats, okKeys){
 }
 
 // ----- a run -----
-async function tsReadSource(src, K){
+async function tsReadSource(src, K, dc){
   let raw;
-  try{ raw = await collection(src, K.type, "", TS_F); }
+  try{ raw = await collection(src, K.type, "", tsFields(dc)); }
   catch(e){
     if(/User not found/i.test(e.message) && src.toLowerCase() !== (state.user || "").toLowerCase()) throw new Error("Couldn't read " + src + "'s " + K.label.toLowerCase() + " list. Check the spelling. Private lists can only be read for the account you are logged in with.");
     throw e;
@@ -184,15 +226,16 @@ async function tsRun(k, modeForFirst, opts = {}){
   const c = tsCfg(), src = tsSrcName(c), srcL = src.toLowerCase();
   if(!advancedOn()){ tsLog("Turn on Advanced features in App Settings first."); return false; }
   if(!src){ tsLog("Set a source AniList username first."); return false; }
-  const targets = tsActive(c);
+  const targets = tsActive(c), hook = tsDcHook(c, k);
   if(tsTargets(c).includes("al") && !targets.includes("al")) tsLog("Skipping the target AniList: it is the same account as the source.");
-  if(!targets.length){ tsLog("Connect a target AniList account or MyAnimeList first, and tick where to send."); return false; }
+  if(!targets.length && !hook){ tsLog("Connect a target AniList account or MyAnimeList first, and tick where to send. (Or add a Discord " + k + " webhook to only post update cards.)"); return false; }
   tsSetBusy(true); tsStopFlag = false; await tsWake(true);
-  const t0 = Date.now(), okKeys = new Set(), st = { sentAl: 0, sentMal: 0, same: 0, ahead: 0, skipped: 0, noMal: 0, adult: 0, rejected: 0, failed: 0, removed: 0, titles: [], problems: [] };
+  for(const w in tsPlain) delete tsPlain[w];   // forget "this channel is not a forum": it is checked again once per run, in case the channel was changed
+  const t0 = Date.now(), okKeys = new Set(), st = { sentAl: 0, sentMal: 0, same: 0, ahead: 0, skipped: 0, noMal: 0, adult: 0, rejected: 0, failed: 0, removed: 0, cards: 0, cardFails: 0, titles: [], problems: [] };
   let stopped = false, ran = false;
   try{
     tsLog((opts.preview ? "Preview: reading the " : "Reading the ") + K.label.toLowerCase() + " list of " + src + "…");
-    const entries = await tsReadSource(src, K), mem0 = tsMem(k);
+    const entries = await tsReadSource(src, K, !!hook), mem0 = tsMem(k);
     const rec = tsReconcile(mem0, tsIdent(c, targets));
     rec.notes.forEach(n => tsLog(n));
     const media = rec.media, first = tsFirstTargets(media, targets), modes = {};
@@ -210,6 +253,7 @@ async function tsRun(k, modeForFirst, opts = {}){
         if(t === "mal"){ const none = list.filter(w => !(w.entry.media && w.entry.media.idMal)).length, adult = c.skipAdultMal ? list.filter(w => w.entry.media && w.entry.media.isAdult).length : 0; line += ". " + none + " have no MyAnimeList page" + (adult ? ", " + adult + " adult titles are skipped" : ""); }
         tsLog(line + ".");
       }
+      if(hook){ const a = tsAnnounce(entries, media); tsLog(a.baseline ? "Discord " + k + " cards: the first run only remembers your progress, so nothing is posted." : "Discord " + k + " cards: " + a.post.length + " update card(s) would be posted."); }
       if(gone.length) tsLog(gone.length + " title(s) are gone from the source. " + (c.remove ? "They would be removed from the targets." : "They would be forgotten, not removed."));
       ran = true; return true;
     }
@@ -255,12 +299,28 @@ async function tsRun(k, modeForFirst, opts = {}){
         }
       }
     }
+    // ----- update cards for the Discord anime / manga webhook -----
+    if(hook && !tsStopFlag){
+      const ann = tsAnnounce(entries, media), queue = ann.post.slice(0, TS_DC_MAX), unsettled = new Set();
+      if(ann.baseline) tsLog("Discord " + k + " cards: the first run only remembers your progress, so nothing is posted.");
+      for(let n = 0; n < queue.length; n++){
+        const e = queue[n];
+        if(tsStopFlag){ stopped = true; for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break; }
+        try{ const cat = tsCategory(e, k, c.dcLists); tsNote(K.label + ": posting card " + (n + 1) + " of " + queue.length + "…"); await tsPostCard(hook, k, cat, tsCard(e, k, cat)); st.cards++; await tsGap(1500); }
+        catch(err){
+          st.cardFails++; tsLog("Couldn't post the Discord card for #" + e.mediaId + " (" + err.message + ").");
+          if(err.net){ for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break; }
+        }
+      }
+      if(ann.post.length > TS_DC_MAX) tsLog((ann.post.length - TS_DC_MAX) + " more update(s) were not posted (limit " + TS_DC_MAX + " cards per run).");
+      for(const id in ann.dp) if(!unsettled.has(id) && now[id]) now[id].dp = ann.dp[id];   // cards that could not be posted because of the connection are tried again next time
+    }
     save(stopped ? (mem0.last_run || 0) : Date.now());   // a run that was stopped does not count as synced
     tsStoreProblems(k, st, okKeys);
     const seconds = Math.round((Date.now() - t0) / 1000);
     tsLog((stopped ? "Stopped. " : "Done. ") + (targets.includes("al") ? st.sentAl + " sent to AniList. " : "") + (targets.includes("mal") ? st.sentMal + " sent to MyAnimeList. " : "")
       + (st.same ? st.same + " already up to date. " : "") + (st.ahead ? st.ahead + " left alone (the target is further along). " : "") + (st.skipped ? st.skipped + " left alone (not on the target). " : "") + (st.noMal ? st.noMal + " have no MyAnimeList page. " : "") + (st.adult ? st.adult + " adult titles skipped. " : "")
-      + (st.removed ? st.removed + " removed. " : "") + (st.rejected ? st.rejected + " rejected. " : "") + st.failed + " failed.");
+      + (st.removed ? st.removed + " removed. " : "") + (st.rejected ? st.rejected + " rejected. " : "") + (st.cards ? st.cards + " card(s) posted to Discord. " : "") + st.failed + " failed.");
     ran = !stopped;
     if(c.dcOn && c.dcUrl && tsWebhookOk(c.dcUrl)){
       const report = { kind: K.label, source: src, targets: targets.map(t => TS_NAMES[t]), ...st, titles: c.dcTitles ? st.titles : [], seconds, stopped };
@@ -284,7 +344,7 @@ function tsStart(kinds, preview){
   tsSaveForm(); tsLogClear();
   if(!advancedOn()) return tsLog("Turn on Advanced features in App Settings first.");
   const c = tsCfg(), targets = tsActive(c);
-  if(!targets.length) return tsLog(tsTargets(c).length ? "Skipping the target AniList: it is the same account as the source. Connect another account or MyAnimeList." : "Connect a target AniList account or MyAnimeList first, and tick where to send.");
+  if(!targets.length && !tsDcHook(c, "anime") && !tsDcHook(c, "manga")) return tsLog(tsTargets(c).length ? "Skipping the target AniList: it is the same account as the source. Connect another account or MyAnimeList." : "Connect a target AniList account or MyAnimeList first, and tick where to send. (Or add a Discord anime or manga webhook to only post update cards.)");
   if(preview) return tsSeq(kinds, "all", { preview: true, append: true });
   const first = [...new Set(kinds.flatMap(k => tsFirstTargets(tsReconcile(tsMem(k), tsIdent(c, targets)).media, targets)))];   // a newly connected account counts as a first run too
   if(first.length) pickSheet("First sync to " + first.map(t => ({ al: "target AniList", mal: "MyAnimeList" })[t]).join(" and "), [["all", "Copy my whole list (never overwrites a title that is further along there)"], ["baseline", "Only send changes from now on"]], "", v => tsSeq(kinds, v, { append: true }));
@@ -292,7 +352,7 @@ function tsStart(kinds, preview){
 }
 async function maybeAutoSync(){
   if(!advancedOn()) return;
-  const c = tsCfg(); if(!c.auto || !tsActive(c).length) return;
+  const c = tsCfg(); if(!c.auto || !(tsActive(c).length || tsDcHook(c, "anime") || tsDcHook(c, "manga"))) return;
   for(const k of ["anime", "manga"]){
     const m = tsMem(k); if(!m.last_run) continue;   // the first run is always started by hand
     if(Date.now() - m.last_run > Math.max(1, Number(c.autoHours) || 3) * 3600 * 1000) await tsRun(k, "delta", { auto: true });
@@ -343,17 +403,21 @@ function tsFill(){
   $("#tsSource").value = c.source || ""; $("#tsSource").placeholder = state.user || "your AniList username";
   $("#tsAlId").value = al.clientId || ""; $("#tsAlSecret").value = al.clientSecret || "";
   $("#tsMalId").value = mal.clientId || ""; $("#tsMalSecret").value = mal.clientSecret || ""; $("#tsMalRedirect").value = mal.redirect || "http://localhost";
-  $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles;
+  $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcAnime").value = c.dcAnime || ""; $("#tsDcManga").value = c.dcManga || ""; $("#tsDcLists").value = c.dcLists; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) $(id).checked = !!c[key];
   $("#tsAutoHours").value = String(c.autoHours);
 }
 // Saves what the form shows. Called whenever something changes and before every sync, so the screen and the engine never disagree.
 function tsSaveForm(){
-  const c = tsRaw(), url = $("#tsDcUrl").value.trim();
+  const c = tsRaw();
   c.source = $("#tsSource").value.trim();
   c.al = Object.assign({}, c.al, { clientId: $("#tsAlId").value.trim(), clientSecret: $("#tsAlSecret").value.trim() });
   c.mal = Object.assign({}, c.mal, { clientId: $("#tsMalId").value.trim(), clientSecret: $("#tsMalSecret").value.trim(), redirect: $("#tsMalRedirect").value.trim() || "http://localhost" });
-  if(!url || tsWebhookOk(url)) c.dcUrl = url; else tsLog("That isn't a Discord webhook link, so it was not saved.");
+  for(const [id, key, label] of [["#tsDcUrl", "dcUrl", "log report"], ["#tsDcAnime", "dcAnime", "anime"], ["#tsDcManga", "dcManga", "manga"]]){
+    const url = $(id).value.trim();
+    if(!url || tsWebhookOk(url)) c[key] = url; else tsLog("That isn't a Discord webhook link, so the " + label + " webhook was not saved.");
+  }
+  c.dcLists = $("#tsDcLists").value.trim();
   c.dcOn = $("#tsDcOn").checked; c.dcQuiet = $("#tsDcQuiet").checked; c.dcTitles = $("#tsDcTitles").checked;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) c[key] = $(id).checked;
   c.autoHours = Number($("#tsAutoHours").value) || 3;
@@ -420,6 +484,17 @@ $("#tsDcTest").onclick = async () => {
   catch(e){ tsLog("Couldn't post to Discord (" + e.message + "). Check the webhook link."); }
 };
 
+// Sends a sample card so the webhook can be checked. It goes to the General Updates thread of that channel.
+async function tsTestCard(k){
+  tsLogClear(); tsSaveForm(); const url = tsDcHook(tsCfg(), k);
+  if(!url) return tsLog("Paste a Discord " + k + " webhook link first.");
+  for(const w in tsPlain) delete tsPlain[w];
+  const e = { mediaId: 0, status: "CURRENT", progress: 3, customLists: [], media: { title: { english: "Test card", romaji: "Tesuto kaado" }, format: "TV", genres: [], tags: [], episodes: 12, chapters: 80, coverImage: { extraLarge: "", color: "#43a1d4" } } };
+  try{ const cat = { name: "General Updates", own: false }, embed = tsCard(e, k, cat); embed.title = "TEST: this is how an update card looks"; await tsPostCard(url, k, cat, embed); tsLog("Test card sent to the " + k + " channel."); }
+  catch(err){ tsLog("Couldn't post to Discord (" + err.message + "). Check the webhook link."); }
+}
+$("#tsDcAnimeTest").onclick = () => tsTestCard("anime");
+$("#tsDcMangaTest").onclick = () => tsTestCard("manga");
 $("#tsSave").onclick = () => { tsSaveForm(); tsLogClear(); tsLog("Settings saved on this device."); tsRenderStatus(); };
 $("#tsReset").onclick = () => { for(const k of ["wn_ts_state_anime", "wn_ts_state_manga", "wn_ts_fail_anime", "wn_ts_fail_manga"]) try{ localStorage.removeItem(k); }catch(_){} tsRenderStatus(); $("#syncLog").hidden = true; };
 $("#syncNow").onclick = () => tsStart(["anime"]);

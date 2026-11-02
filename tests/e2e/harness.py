@@ -94,7 +94,9 @@ def taste_ref(k):
 def _ts_entry(mid, mal, status, prog, score, **o):
     e = {"mediaId": mid, "status": status, "progress": prog, "progressVolumes": o.get("vol", 0), "repeat": o.get("repeat", 0), "private": o.get("private", False), "notes": o.get("notes", ""), "score": score,
          "startedAt": o.get("start", {"year": None, "month": None, "day": None}), "completedAt": o.get("done", {"year": None, "month": None, "day": None}), "updatedAt": 1700000000 + mid,
-         "media": {"id": mid, "idMal": mal, "isAdult": o.get("adult", False), "title": {"romaji": "Src %d" % mid, "english": "Source Title %d" % mid}}}
+         "customLists": [{"name": n, "enabled": True} for n in o.get("lists", [])] + [{"name": "Unused list", "enabled": False}],
+         "media": {"id": mid, "idMal": mal, "isAdult": o.get("adult", False), "title": {"romaji": "Src %d" % mid, "english": "Source Title %d" % mid}, "format": o.get("fmt", "TV"), "genres": o.get("genres", []), "tags": [{"name": x} for x in o.get("tags", [])],
+                   "episodes": o.get("eps", 12), "chapters": o.get("chaps", 80), "coverImage": {"extraLarge": "https://img.test/cover%d.jpg" % mid, "color": o.get("color", "#43a1d4")}}}
     return e
 def ts_reset():
     TS.clear()
@@ -103,7 +105,8 @@ def ts_reset():
                "MANGA": [_ts_entry(3001, 6001, "CURRENT", 20, 90, vol=2), _ts_entry(3002, 6002, "COMPLETED", 80, 85, vol=9, private=True), _ts_entry(3003, 6003, "PLANNING", 0, 0)]},
         "al_db": {}, "al_state": {}, "al_seed": {}, "al_saved": [], "al_deleted": [], "al_found": [], "al_fail": set(), "al_reject": set(), "al_delete_fail": set(), "al_invalid": False, "rl": None,
         "mal": {}, "mal_calls": [], "mal_tok": [], "al_tok": [], "mal_expire_first": False, "mal_dead": False, "mal_missing": {5005}, "mal_reject": set(), "mal_forbid": set(),
-        "discord": [], "discord_attempts": [], "discord_forum": False, "discord_429": 0, "discord_fail": False, "src_404": False})
+        "discord": [], "discord_attempts": [], "discord_forum": False, "discord_429": 0, "discord_fail": False, "src_404": False,
+        "threads": {}, "cards": [], "discord_urls": [], "discord_plain": False, "dead_threads": set(), "discord_card_fail": False})
 TS = {}
 ts_reset()
 def ts_json(route, obj, status=200, headers=None): route.fulfill(status=status, content_type="application/json", body=json.dumps(obj), headers=headers or {})
@@ -173,12 +176,26 @@ def ts_mal_api(route, request):
     TS["mal_calls"].append(("GET", kind, mid, tok)); st = _mal_status(TS["mal"].get(key), kind)
     return ts_json(route, {"id": mid, **({"my_list_status": st} if st else {})})
 def ts_discord(route, request):
-    body = json.loads(request.post_data or "{}")
-    if TS["discord_fail"]: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
+    url = request.url; parsed = urllib.parse.urlparse(url); q = urllib.parse.parse_qs(parsed.query); wid = re.search(r"/webhooks/(\d+)/", url).group(1)
+    body = json.loads(request.post_data or "{}"); TS["discord_urls"].append(url)
+    card_hook = wid in ("111", "222")   # 111 = the anime webhook and 222 = the manga webhook in the tests; anything else is the log report
+    if TS["discord_fail"] and not card_hook: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
+    if TS["discord_card_fail"] and card_hook: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
     if TS["discord_429"] > 0: TS["discord_429"] -= 1; return ts_json(route, {"message": "You are being rate limited.", "retry_after": 0.01}, 429)
-    if TS["discord_forum"] and "thread_name" not in body:
-        TS["discord_attempts"].append(body); return ts_json(route, {"message": "Webhooks posted to forum channels must have a thread_name or thread_id", "code": 220001}, 400)
-    TS["discord"].append(body); return route.fulfill(status=204, body="")
+    if not card_hook:   # the log report
+        if TS["discord_forum"] and "thread_name" not in body:
+            TS["discord_attempts"].append(body); return ts_json(route, {"message": "Webhooks posted to forum channels must have a thread_name or thread_id", "code": 220001}, 400)
+        TS["discord"].append(body); return route.fulfill(status=204, body="")
+    thread_id = (q.get("thread_id") or [None])[0]
+    if "thread_name" in body:   # a forum thread is being made
+        if TS["discord_plain"]: return ts_json(route, {"message": "Webhooks can only create threads in forum channels", "code": 220003}, 400)
+        tid = str(9100 + len(TS["threads"])); TS["threads"][tid] = {"name": body["thread_name"], "hook": wid, "starter": body.get("content")}
+        return ts_json(route, {"id": "m" + tid, "channel_id": tid}) if "wait" in q else route.fulfill(status=204, body="")
+    if thread_id:
+        if thread_id not in TS["threads"] or thread_id in TS["dead_threads"]: return ts_json(route, {"message": "Unknown Channel", "code": 10003}, 404)
+        TS["cards"].append({"hook": wid, "thread": TS["threads"][thread_id]["name"], "thread_id": thread_id, "embed": body["embeds"][0], "url": url}); return route.fulfill(status=204, body="")
+    if TS["discord_plain"]: TS["cards"].append({"hook": wid, "thread": None, "thread_id": None, "embed": body["embeds"][0], "url": url}); return route.fulfill(status=204, body="")
+    return ts_json(route, {"message": "Webhooks posted to forum channels must have a thread_name or thread_id", "code": 220001}, 400)
 
 def handle(route, request):
     url = request.url
@@ -201,6 +218,7 @@ def handle(route, request):
         def ok(d): route.fulfill(status=200, content_type="application/json", body=json.dumps({"data": d}))
         if "MediaListCollection" in q and "progressVolumes" in q and "idMal" in q:   # the Triple Sync source read
             t = v.get("t", "ANIME"); TS.setdefault("src_reads", []).append((t, v.get("u") or v.get("userName")))
+            TS.setdefault("src_queries", []).append(q)
             if TS["src_404"]: return ts_json(route, {"errors": [{"message": "User not found", "status": 404}], "data": {"MediaListCollection": None}}, 404)
             return ok({"MediaListCollection": {"hasNextChunk": False, "lists": [{"entries": [e for e in TS["src"][t]]}]}})
         if "MediaListCollection" in q and "tags{name" in q:   # the taste report's list query

@@ -168,3 +168,52 @@ function tsReport(r){
   if(r.problems && r.problems.length) add("Problems", r.problems.slice(0, 8).map(p => p.title + " (" + p.msg + ")").join("\n"), false);
   return { title: "AniList Triple Sync · " + r.kind, description: (r.stopped ? "Stopped early. " : "Finished. ") + (r.sentAl + r.sentMal) + " update(s) sent" + (bad ? ", " + bad + " problem(s)" : "") + " in " + r.seconds + "s.", color: r.stopped || bad ? 15105570 : 5763719, fields, footer: { text: "What Next?" } };
 }
+
+// ----- Discord update cards (the anime and manga webhooks): one card per title whose progress went up -----
+// Which lists get their own thread. Anything else goes to "General Updates". (Same defaults as the Python engines.)
+const TS_DC_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning, tensei";
+const tsPyTitle = s => String(s).toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());   // like Python's str.title()
+const tsActiveLists = e => {
+  const c = e && e.customLists;
+  if(Array.isArray(c)) return c.filter(x => x && x.enabled).map(x => x.name);
+  if(c && typeof c === "object") return Object.keys(c).filter(k => c[k]);
+  return [];
+};
+// The list a title belongs to for threading: its first custom list, else a guess from its format and tags, else its status.
+function tsCategory(e, kind, own){
+  const m = e.media || {}, active = tsActiveLists(e);
+  let name = active[0] || null;
+  if(!name){
+    const d = [...(m.genres || []), ...(m.tags || []).map(t => t && t.name)].filter(Boolean).map(x => String(x).toLowerCase());
+    if(kind === "anime" && m.format === "MOVIE") name = "Anime movies";
+    else if(d.includes("isekai")) name = "Iseki";
+    else if(d.some(x => ["hentai", "ecchi", "adult", "smut"].includes(x))) name = "Hentai";
+    else if(d.some(x => ["milf", "older woman", "mother"].includes(x))) name = "Milf";
+    else if(d.includes("loli")) name = "Loli";
+  }
+  if(!name) name = tsPyTitle(String(e.status || "UNKNOWN").replace(/_/g, " "));
+  const ownSet = String(own || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+  return { name, own: ownSet.includes(String(name).toLowerCase().trim()) };
+}
+const tsThreadName = (cat, kind) => "[" + kind.toUpperCase() + "] " + (cat.own ? tsPyTitle(cat.name) : "General Updates");
+const tsHexInt = h => /^#?[0-9a-f]{6}$/i.test(String(h || "")) ? parseInt(String(h).replace("#", ""), 16) : 3447003;
+function tsCard(e, kind, cat){
+  const m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId, total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0;
+  const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, done = e.status === "COMPLETED";
+  const embed = { title: ("UPDATE: " + title).slice(0, 256), color: tsHexInt(m.coverImage && m.coverImage.color),
+    fields: [{ name: "🇯🇵 Romaji", value: t.romaji || "N/A", inline: false }, { name: "📊 Status", value: e.status || "UNKNOWN", inline: false }, { name: "✅ Progress", value: String(p), inline: true }, { name: "⏳ Left", value: String(left), inline: true }],
+    footer: { text: cat.own ? tsPyTitle(cat.name) : "General Updates" } };
+  if(cover) embed.image = { url: cover };
+  if(done) embed.author = { name: "🏆 SERIES COMPLETED" };
+  return embed;
+}
+// Which titles get a card. The very first run only remembers progress; a title new to the list, or one whose progress went down, is remembered quietly.
+function tsAnnounce(entries, media){
+  const seenAny = Object.values(media).some(m => m && m.dp !== undefined), post = [], dp = {};
+  for(const e of entries){
+    const id = String(e.mediaId), prev = (media[id] || {}).dp, p = e.progress || 0;
+    dp[id] = p;
+    if(seenAny && prev !== undefined && p > prev) post.push(e);
+  }
+  return { post, dp, baseline: !seenAny };
+}

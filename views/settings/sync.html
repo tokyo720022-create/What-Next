@@ -63,15 +63,28 @@
     <button class="go alt" id="tsMalForget" type="button" hidden>Disconnect</button>
   </div>
 
-  <div class="q tsq">Discord report (optional)</div>
+  <div class="q tsq">Discord (optional)</div>
   <div class="card" style="margin-top:0">
-    <p class="sub" style="margin-top:0">Posts a short report to a Discord channel after each sync. A forum channel works too: each report starts its own thread.</p>
-    <label for="tsDcUrl">Discord webhook link</label>
+    <p class="sub" style="margin-top:0">Three webhooks, each optional. They are links you make in Discord (channel settings > Integrations > Webhooks). Forum channels work: the cards are sorted into threads.</p>
+    <b>Log report</b>
+    <p class="sub" style="margin-top:4px">A short summary of each sync: counts and problems.</p>
+    <label for="tsDcUrl">Log report webhook link</label>
     <input id="tsDcUrl" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/...">
     <label class="chk"><input type="checkbox" id="tsDcOn"> Send a report after each sync</label>
     <label class="chk"><input type="checkbox" id="tsDcQuiet"> Skip the report when nothing happened</label>
     <label class="chk"><input type="checkbox" id="tsDcTitles"> List the titles that were sent</label>
-    <button class="go alt" id="tsDcTest" type="button">Send a test message</button>
+    <button class="go alt" id="tsDcTest" type="button">Send a test report</button>
+    <b style="display:block;margin-top:22px">Update cards</b>
+    <p class="sub" style="margin-top:4px">One card for each title whose progress goes up, with its details and poster. It works even if no target account is connected. The first sync only remembers your progress and posts nothing.</p>
+    <label for="tsDcAnime">Anime webhook link</label>
+    <input id="tsDcAnime" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/...">
+    <button class="go alt" id="tsDcAnimeTest" type="button">Send a test anime card</button>
+    <label for="tsDcManga">Manga webhook link</label>
+    <input id="tsDcManga" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/...">
+    <button class="go alt" id="tsDcMangaTest" type="button">Send a test manga card</button>
+    <label for="tsDcLists">Lists that get their own thread (comma separated)</label>
+    <input id="tsDcLists" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. iseki, favourite, anime movies">
+    <p class="sub" style="margin-top:8px">A title goes to the thread of its first custom list if that list is named here (for example [ANIME] Iseki). Everything else goes to [ANIME] General Updates.</p>
   </div>
 
   <div class="q tsq">Options</div>

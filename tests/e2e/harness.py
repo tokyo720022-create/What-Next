@@ -106,7 +106,7 @@ def ts_reset():
         "al_db": {}, "al_state": {}, "al_seed": {}, "al_saved": [], "al_deleted": [], "al_found": [], "al_fail": set(), "al_reject": set(), "al_delete_fail": set(), "al_invalid": False, "rl": None,
         "mal": {}, "mal_calls": [], "mal_tok": [], "al_tok": [], "mal_expire_first": False, "mal_dead": False, "mal_missing": {5005}, "mal_reject": set(), "mal_forbid": set(),
         "discord": [], "discord_attempts": [], "discord_forum": False, "discord_429": 0, "discord_fail": False, "src_404": False,
-        "threads": {}, "cards": [], "discord_urls": [], "discord_plain": False, "dead_threads": set(), "discord_card_fail": False})
+        "threads": {}, "cards": [], "discord_urls": [], "discord_gets": [], "discord_plain": False, "dead_threads": set(), "discord_card_fail": False, "discord_card_400": False, "discord_5xx": False, "gone_hooks": set()})
 TS = {}
 ts_reset()
 def ts_json(route, obj, status=200, headers=None): route.fulfill(status=status, content_type="application/json", body=json.dumps(obj), headers=headers or {})
@@ -177,7 +177,13 @@ def ts_mal_api(route, request):
     return ts_json(route, {"id": mid, **({"my_list_status": st} if st else {})})
 def ts_discord(route, request):
     url = request.url; parsed = urllib.parse.urlparse(url); q = urllib.parse.parse_qs(parsed.query); wid = re.search(r"/webhooks/(\d+)/", url).group(1)
+    if request.method == "GET":   # "does this webhook exist?"
+        TS["discord_gets"].append(url)
+        if wid in TS["gone_hooks"]: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
+        return ts_json(route, {"id": wid, "name": "Test hook %s" % wid, "channel_id": "5000", "guild_id": "6000"})
     body = json.loads(request.post_data or "{}"); TS["discord_urls"].append(url)
+    if wid in TS["gone_hooks"]: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
+    if TS["discord_5xx"] and wid in ("111", "222"): return ts_json(route, {"message": "Service unavailable"}, 503)
     card_hook = wid in ("111", "222")   # 111 = the anime webhook and 222 = the manga webhook in the tests; anything else is the log report
     if TS["discord_fail"] and not card_hook: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
     if TS["discord_card_fail"] and card_hook: return ts_json(route, {"message": "Unknown Webhook", "code": 10015}, 404)
@@ -193,6 +199,7 @@ def ts_discord(route, request):
         return ts_json(route, {"id": "m" + tid, "channel_id": tid}) if "wait" in q else route.fulfill(status=204, body="")
     if thread_id:
         if thread_id not in TS["threads"] or thread_id in TS["dead_threads"]: return ts_json(route, {"message": "Unknown Channel", "code": 10003}, 404)
+        if TS["discord_card_400"]: return ts_json(route, {"message": "Invalid Form Body", "code": 50035}, 400)
         TS["cards"].append({"hook": wid, "thread": TS["threads"][thread_id]["name"], "thread_id": thread_id, "embed": body["embeds"][0], "url": url}); return route.fulfill(status=204, body="")
     if TS["discord_plain"]: TS["cards"].append({"hook": wid, "thread": None, "thread_id": None, "embed": body["embeds"][0], "url": url}); return route.fulfill(status=204, body="")
     return ts_json(route, {"message": "Webhooks posted to forum channels must have a thread_name or thread_id", "code": 220001}, 400)

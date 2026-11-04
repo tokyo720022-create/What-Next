@@ -152,7 +152,25 @@ async function tsWake(on){
 document.addEventListener("visibilitychange", () => { if(tsBusy && document.visibilityState === "visible" && !tsWakeLock) tsWake(true); });
 
 // ----- Discord -----
-async function tsDiscordPost(url, payload){
+// A Discord error in Discord's own words, which webhook it was, and what it usually means. config = the webhook itself is the problem, so nothing will work until it is fixed.
+const TS_DC_HINTS = { 10015: "The webhook was deleted, or its link is wrong. Make a new webhook in Discord and paste its link in Settings.", 10003: "The thread or channel no longer exists.",
+  50013: "The webhook's channel does not allow posting (missing permissions).", 50001: "The webhook has no access to that channel.", 40005: "The card is too large for Discord.", 50035: "Discord did not accept the contents of the card." };
+async function tsDcInfo(url){   // does this webhook exist? (a harmless read; null when it cannot be checked)
+  try{ const r = await fetch(url.replace(/[?].*$/, "")); if(r.ok){ const b = await r.json().catch(() => ({})); return { ok: true, name: b.name || "" }; } return { ok: false, status: r.status }; }catch(_){ return null; }
+}
+async function tsDcFail(r, label, step, url){
+  let b = null; try{ b = await r.clone().json(); }catch(_){}
+  const code = b && b.code, why = b && b.message ? b.message : "";
+  const e = new Error("Discord " + r.status + (why ? ": " + why : "") + (code ? " (" + code + ")" : "") + " while " + step + " (" + label + ")" + (TS_DC_HINTS[code] ? ". " + TS_DC_HINTS[code] : ""));
+  e.status = r.status; e.code = code; e.config = r.status === 401 || r.status === 403 || [10015, 50013, 50001].includes(code);
+  e.outage = r.status >= 500 || r.status === 429;   // Discord itself is struggling: not the card's fault, so try again later
+  if(!e.config && r.status === 404 && !TS_DC_HINTS[code]){   // a bare 404: find out whether the webhook itself is gone
+    const info = await tsDcInfo(url);
+    if(info && !info.ok && info.status === 404){ e.config = true; e.message += ". " + TS_DC_HINTS[10015]; }
+  }
+  return e;
+}
+async function tsDiscordPost(url, payload, label){
   const post = body => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   let r; try{ r = await post(payload); }catch(_){ throw tsNetErr(); }
   if(r.status === 400){   // a forum channel wants a thread name
@@ -160,7 +178,7 @@ async function tsDiscordPost(url, payload){
     if(b && b.code === 220001) r = await post(Object.assign({ thread_name: "AniList Triple Sync · " + new Date().toLocaleDateString() }, payload));
   }
   if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); r = await post(payload); }
-  if(!r.ok) throw new Error("Discord " + r.status);
+  if(!r.ok) throw await tsDcFail(r, label || "log report webhook", "posting the report", url);
 }
 
 // Update cards go to forum threads such as "[ANIME] Iseki". A thread is made once per name and its id remembered. A plain channel (not a forum) just gets the cards.
@@ -172,12 +190,12 @@ async function tsDcRequest(url, body){
   if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }catch(_){ throw tsNetErr(); } }
   return r;
 }
-async function tsMakeThread(url, name, display, kindLabel){
+async function tsMakeThread(url, name, display, kindLabel, label){
   const sep = url.includes("?") ? "&" : "?", r = await tsDcRequest(url + sep + "wait=true", { content: "📡 **" + display + "** | " + kindLabel + " Telemetry Dashboard", thread_name: name });
   if(!r.ok){
     let b = null; try{ b = await r.clone().json(); }catch(_){}
     if(r.status === 400 && b && b.code === 220003){ const e = new Error("not a forum"); e.plain = true; throw e; }
-    throw new Error("Discord " + r.status);
+    throw await tsDcFail(r, label, "making the thread " + name, url);
   }
   let b = {}; try{ b = await r.json(); }catch(_){}
   const id = String(b.channel_id || b.id || "");
@@ -185,19 +203,19 @@ async function tsMakeThread(url, name, display, kindLabel){
   tsThreadSave(url, name, id); return id;
 }
 async function tsPostCard(url, kind, cat, embed){
-  const kindLabel = kind.toUpperCase(), name = tsThreadName(cat, kind), display = cat.own ? tsPyTitle(cat.name) : "General Updates";
+  const label = kind + " webhook", kindLabel = kind.toUpperCase(), name = tsThreadName(cat, kind), display = cat.own ? tsPyTitle(cat.name) : "General Updates";
   const w = url.replace(/[?].*$/, ""), key = w + "|" + name, sep = url.includes("?") ? "&" : "?";
   for(let attempt = 0; attempt < 2; attempt++){
     let id = null;
     if(!tsPlain[w]){
       id = tsThreads()[key] || null;
-      if(!id){ try{ id = await tsMakeThread(url, name, display, kindLabel); }catch(e){ if(e.plain) tsPlain[w] = true; else throw e; } }
+      if(!id){ try{ id = await tsMakeThread(url, name, display, kindLabel, label); }catch(e){ if(e.plain) tsPlain[w] = true; else throw e; } }
     }
     const r = await tsDcRequest(id ? url + sep + "thread_id=" + id : url, { embeds: [embed] });
     if(r.ok) return;
     let b = null; try{ b = await r.clone().json(); }catch(_){}
     if(attempt === 0 && id && (r.status === 404 || (b && b.code === 10003))){ const t = tsThreads(); delete t[key]; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} continue; }   // the thread was deleted: make a new one
-    throw new Error("Discord " + r.status);
+    throw await tsDcFail(r, label, "posting the card to " + name, url);
   }
 }
 
@@ -308,7 +326,16 @@ async function tsRun(k, modeForFirst, opts = {}){
         if(tsStopFlag){ stopped = true; for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break; }
         try{ const cat = tsCategory(e, k, c.dcLists); tsNote(K.label + ": posting card " + (n + 1) + " of " + queue.length + "…"); await tsPostCard(hook, k, cat, tsCard(e, k, cat)); st.cards++; await tsGap(1500); }
         catch(err){
-          st.cardFails++; tsLog("Couldn't post the Discord card for #" + e.mediaId + " (" + err.message + ").");
+          st.cardFails++;
+          if(err.outage){   // Discord is having a problem: stop now and keep the cards for the next sync
+            tsLog("Discord had a problem (" + err.message + "). The " + (queue.length - n) + " card(s) not posted yet will be tried again on the next sync.");
+            for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break;
+          }
+          if(err.config){   // the webhook itself is broken: stop now instead of failing on every card, and keep the cards for the next sync
+            tsLog("Discord refused the " + k + " webhook. " + err.message + " The " + (queue.length - n) + " card(s) not posted yet will be tried again on the next sync.");
+            for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break;
+          }
+          tsLog("Couldn't post the Discord card for " + ((e.media.title && (e.media.title.english || e.media.title.romaji)) || "#" + e.mediaId) + " (" + err.message + ").");
           if(err.net){ for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break; }
         }
       }
@@ -489,9 +516,12 @@ async function tsTestCard(k){
   tsLogClear(); tsSaveForm(); const url = tsDcHook(tsCfg(), k);
   if(!url) return tsLog("Paste a Discord " + k + " webhook link first.");
   for(const w in tsPlain) delete tsPlain[w];
+  const info = await tsDcInfo(url);
+  if(info && !info.ok){ tsLog("Discord says that webhook doesn't exist (" + info.status + "). It was deleted, or the link is wrong. " + TS_DC_HINTS[10015]); return; }
+  if(info && info.ok) tsLog("Webhook found" + (info.name ? ": " + info.name : "") + ".");
   const e = { mediaId: 0, status: "CURRENT", progress: 3, customLists: [], media: { title: { english: "Test card", romaji: "Tesuto kaado" }, format: "TV", genres: [], tags: [], episodes: 12, chapters: 80, coverImage: { extraLarge: "", color: "#43a1d4" } } };
-  try{ const cat = { name: "General Updates", own: false }, embed = tsCard(e, k, cat); embed.title = "TEST: this is how an update card looks"; await tsPostCard(url, k, cat, embed); tsLog("Test card sent to the " + k + " channel."); }
-  catch(err){ tsLog("Couldn't post to Discord (" + err.message + "). Check the webhook link."); }
+  try{ const cat = { name: "General Updates", own: false }, embed = tsCard(e, k, cat); embed.title = "TEST: this is how an update card looks"; await tsPostCard(url, k, cat, embed); tsLog("Test card sent to the " + k + " channel, in the thread " + tsThreadName(cat, k) + "."); }
+  catch(err){ tsLog("Couldn't post to Discord. " + err.message); }
 }
 $("#tsDcAnimeTest").onclick = () => tsTestCard("anime");
 $("#tsDcMangaTest").onclick = () => tsTestCard("manga");

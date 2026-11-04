@@ -54,7 +54,7 @@ def main(page, out):
     check("Message opens a chat with them and closes the overlay", t("#chatWith") == "Moreaumi" and page.locator("#user").is_hidden())
     # ---- a person who does not follow back: Follow button is the primary action
     openUser(page, 303) if False else None
-    page.evaluate("openUser(303, 'Vaskim')"); page.wait_for_selector("#user .pname")
+    page.evaluate("openUser(303, 'Vaskim')"); page.wait_for_selector("#user .pname"); page.wait_for_function("document.querySelector('#user .uchips') && document.querySelector('#user .uchips').textContent.includes('Follows you') && document.querySelector('#user .uact.pri')")   # the name shows at once; the tags and buttons arrive when the profile has loaded
     check("someone you don't follow shows Follow and 'Follows you'", "Follows you" in t("#user .uchips") and page.locator('#user .uact.pri').count() == 1)
     page.click("#user .uback"); check("✕ closes the overlay", page.locator("#user").is_hidden())
     # ---- my own Following list from the profile

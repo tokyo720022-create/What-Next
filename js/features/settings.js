@@ -128,4 +128,3 @@ $("#resetFilters").onclick = () => {
   $("#setListsMsg").textContent = "List filters were reset.";
 };
 $("#aboutBuild").textContent = "Build " + (window.__REV || "unknown");
-$("#cleanReload").onclick = cleanReload;

@@ -1,0 +1,14 @@
+/* css/about.css: the About screen */
+.abrows .rowlink small{display:block;margin-top:2px;color:var(--muted);font-weight:400;font-size:.85rem}
+.abrows .rowlink.static{cursor:default}
+.abpanel{padding:14px 20px 16px;border-bottom:1px solid var(--line)}
+.abpanel .go{margin-top:10px}
+.abnotes{margin-top:6px;max-height:320px;overflow:auto;white-space:pre-line;font-size:.9rem;color:var(--muted);overflow-wrap:anywhere}
+.abnotes a{color:var(--sakura);text-decoration:underline}
+.ablic{display:block;width:100%;padding:10px 0;background:none;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.ablic:last-child{border-bottom:0}
+.ablic b{display:block;font-weight:600}
+.ablic small{display:block;color:var(--muted);font-size:.82rem}
+.ablinks{display:flex;justify-content:center;flex-wrap:wrap;gap:12px 22px;margin:30px 0 10px}
+.ablinks button{background:none;border:0;padding:8px;color:var(--sakura);cursor:pointer;line-height:0}
+.ablinks svg{width:30px;height:30px;fill:currentColor}

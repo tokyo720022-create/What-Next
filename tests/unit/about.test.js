@@ -1,0 +1,22 @@
+// Unit tests for the version helpers of the About screen (js/features/about.js). Run: node tests/unit/about.test.js
+const fs = require("fs"), vm = require("vm"), path = require("path");
+const ctx = { console }; vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../../js/features/about.js"), "utf8") + "\n;this.api = { verNums, releaseIsNewer, buildDate };", ctx);
+const { verNums, releaseIsNewer, buildDate } = ctx.api;
+let pass = 0, fail = 0;
+const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); ok ? pass++ : fail++; console.log((ok ? "PASS " : "FAIL ") + name + (ok ? "" : "\n   got  " + JSON.stringify(got) + "\n   want " + JSON.stringify(want))); };
+eq("reads a release tag", verNums("v2.1.1-b57"), [2, 1, 1, 57]);
+eq("reads a plain version", verNums("2.1.1"), [2, 1, 1, null]);
+eq("junk gives nothing", verNums("latest"), null);
+const rel = (tag, body) => ({ tag, body: body || "" });
+eq("a higher build number is an update", releaseIsNewer({ ver: "2.1.1-b57", code: 0 }, rel("v2.1.1-b58")), true);
+eq("the same build is up to date", releaseIsNewer({ ver: "2.1.1-b57", code: 0 }, rel("v2.1.1-b57")), false);
+eq("an older release is not an update", releaseIsNewer({ ver: "2.1.1-b57", code: 0 }, rel("v2.1.1-b50")), false);
+eq("a higher version wins over the build number", releaseIsNewer({ ver: "2.1.1-b90", code: 0 }, rel("v2.2.0-b3")), true);
+eq("two digits compare as numbers (b100 is newer than b99)", releaseIsNewer({ ver: "2.1.1-b99", code: 0 }, rel("v2.1.1-b100")), true);
+eq("same version, build unknown here: the version code in the release text decides", releaseIsNewer({ ver: "2.1.1", code: 1000 }, rel("v2.1.1-b9", "x, version code 2000, release build.")), true);
+eq("...and says up to date when the code is the same or lower", releaseIsNewer({ ver: "2.1.1", code: 2000 }, rel("v2.1.1-b9", "version code 2000")), false);
+eq("nothing to compare: can't tell", releaseIsNewer({ ver: "2.1.1", code: 0 }, rel("v2.1.1-b9")), null);
+eq("the build number gives the build date", buildDate(1000).toISOString(), new Date((1700000000 + 60000) * 1000).toISOString());
+eq("no build number, no date", buildDate(0), null);
+console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

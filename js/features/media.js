@@ -3,7 +3,8 @@
 const MEDIA_Q = "query($id:Int){Media(id:$id){id idMal type siteUrl isAdult title{romaji english native} synonyms bannerImage coverImage{extraLarge color} description(asHtml:false) format status episodes chapters volumes duration season seasonYear startDate{year month day} endDate{year month day} source countryOfOrigin averageScore meanScore popularity favourites isFavourite genres rankings{rank type context allTime} tags{name rank isMediaSpoiler isGeneralSpoiler description} studios{edges{isMain node{id name isAnimationStudio}}} nextAiringEpisode{airingAt episode} trailer{id site} externalLinks{site url type} characters(sort:[ROLE,RELEVANCE],perPage:14){edges{role node{id siteUrl name{full} image{medium}}}} staff(sort:[RELEVANCE],perPage:14){edges{role node{id siteUrl name{full} image{medium}}}} relations{edges{relationType node{id type format title{romaji english native} countryOfOrigin coverImage{large}}}} recommendations(sort:RATING_DESC,perPage:12){nodes{rating mediaRecommendation{id type format title{romaji english native} countryOfOrigin coverImage{large} averageScore seasonYear episodes chapters}}} mediaListEntry{id status progress score(format:POINT_100) repeat notes private priority startedAt{year month day} completedAt{year month day} customLists}}}";
 const TREND_Q = "query($t:MediaType){Page(perPage:12){media(type:$t,sort:TRENDING_DESC,isAdult:false){id type title{romaji english native} countryOfOrigin bannerImage coverImage{extraLarge} averageScore favourites genres description(asHtml:false) studios(isMain:true){nodes{name}} staff(sort:[RELEVANCE],perPage:3){edges{node{name{full}}}}}}}";
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const mcache = new Map(), mstack = [];
+const mcache = new Map(), mstack = [], mfresh = new Set();   // mfresh: saved pages already refreshed from AniList in this session
+const capMap = (m, n) => { while(m.size > n) m.delete(m.keys().next().value); };   // keeps in-memory caches small
 const fd = d => (!d || !d.year) ? "?" : (d.day ? d.day + " " : "") + (d.month ? MON[d.month - 1] + " " : "") + d.year;
 const dIn = d => d && d.year && d.month && d.day ? d.year + "-" + String(d.month).padStart(2, "0") + "-" + String(d.day).padStart(2, "0") : "";
 const dOut = v => { if(!v) return { year: null, month: null, day: null }; const [y, m, d] = v.split("-").map(Number); return { year: y, month: m, day: d }; };
@@ -27,18 +28,40 @@ function closeBar(){
   const bar = el("div", "mbar"), x = el("button", "mbtn", "✕"); x.setAttribute("aria-label", "Close"); x.onclick = closeMedia;
   bar.append(x); return bar;
 }
+async function fetchMedia(id){
+  const { json } = await gql(MEDIA_Q, { id });
+  const m = json.data && json.data.Media;
+  if(!m) throw new Error((json.errors && json.errors[0].message) || "Not found");
+  return m;
+}
+// A saved page (3 days) opens at once, then is brought up to date quietly: your list status and the scores may have changed since.
+async function refreshMedia(id){
+  mfresh.add(id);
+  try{
+    const m = await fetchMedia(id), old = mcache.get(id);
+    if(pend[id] && old && old.mediaListEntry) m.mediaListEntry = old.mediaListEntry;   // a change that is still waiting to sync wins
+    const same = JSON.stringify(old) === JSON.stringify(m);
+    mcache.set(id, m); cacheSet("card", "media_" + id, m);
+    const box = $("#media");
+    if(!same && !box.hidden && mstack[mstack.length - 1] === id){ const y = box.scrollTop; renderMedia(m); box.scrollTop = y; }
+  }catch(_){ mfresh.delete(id); }   // offline: keep the saved page and try again next time
+}
 async function showMedia(id){
   const box = $("#media"); box.hidden = false;
-  if(!mcache.has(id)){
+  if(!mcache.has(id)){ const c = cacheGet("card", "media_" + id); if(c){ mcache.set(id, c); capMap(mcache, 150); } }
+  if(mcache.has(id)){
+    if(mstack[mstack.length - 1] === id) renderMedia(mcache.get(id));
+    if(!mfresh.has(id)) refreshMedia(id);
+    return;
+  }
+  {
     const w = el("div", "mhead"); w.append(closeBar()); box.replaceChildren(w, el("div", "msg", "Loading…"));
     try{
-      const { json } = await gql(MEDIA_Q, { id });
-      const m = json.data && json.data.Media;
-      if(!m) throw new Error((json.errors && json.errors[0].message) || "Not found");
-      mcache.set(id, m);
+      const m = await fetchMedia(id);
+      mcache.set(id, m); capMap(mcache, 150); mfresh.add(id); cacheSet("card", "media_" + id, m);
     }catch(err){
       const w2 = el("div", "mhead"); w2.append(closeBar());
-      box.replaceChildren(w2, el("div", "msg", err.message.includes("Failed to fetch") ? "No connection. Try again." : err.message)); return;
+      box.replaceChildren(w2, el("div", "msg", isNetErr(err) ? "No connection. Try again." : err.message)); return;
     }
   }
   if(mstack[mstack.length - 1] === id) renderMedia(mcache.get(id));
@@ -100,9 +123,9 @@ function renderMedia(m){
   }
   if(extras.children.length) box.append(extras);
   // synopsis
-  const desc = clean(m.description);
+  const desc = mdPrep(m.description);
   if(desc){
-    const c = el("div", "clamp", desc), t = el("button", null, "More");
+    const c = el("div", "clamp"), t = el("button", null, "More"); c.append(richText(m.description));   // spoilers stay hidden until tapped
     t.onclick = () => { c.classList.toggle("open"); t.textContent = c.classList.contains("open") ? "Less" : "More"; };
     box.append(msec("Synopsis", c, t));
   }

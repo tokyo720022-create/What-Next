@@ -3,7 +3,7 @@
 const TEND_F = "count meanScore statuses{status count} genres(limit:40,sort:COUNT_DESC){genre count meanScore} tags(limit:40,sort:COUNT_DESC){tag{name category} count meanScore} releaseYears{releaseYear count meanScore} startYears{startYear count}";
 const TEND_Q = "query{Viewer{statistics{anime{" + TEND_F + "} manga{" + TEND_F + "}}}}";
 const pe = { tend: null, tendP: null, tendKind: "anime", favKind: "anime", fav: {}, favP: {} };
-const offlineMsg = err => /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message;
+const offlineMsg = err => isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message;
 
 function tendRender(){
   const box = $("#tendList"); box.replaceChildren();

@@ -3,18 +3,20 @@
 const fs = require("fs"), path = require("path"), vm = require("vm");
 const root = path.join(__dirname, ".."), read = f => fs.readFileSync(path.join(root, f), "utf8");
 let bad = 0; const fail = m => { bad++; console.log("FAIL " + m); }, ok = m => console.log("PASS " + m);
-const boot = read("boot.js"), sw = read("sw.js"), html = read("index.html");
+const boot = read("boot.js"), html = read("index.html");
 const VIEWS = JSON.parse(boot.match(/const VIEWS = (\[[\s\S]*?\]);\n/)[1]), SCRIPTS = JSON.parse(boot.match(/const SCRIPTS = (\[[\s\S]*?\]);/)[1]);
-const FILES = JSON.parse(sw.match(/const FILES = (\[[\s\S]*?\]);\n/)[1]), CSS = [...html.matchAll(/href="([^"]+\.css)"/g)].map(m => m[1]);
+const CSS = [...html.matchAll(/href="([^"]+\.css)"/g)].map(m => m[1]);
 const loaded = [...VIEWS.map(v => v[1]), ...SCRIPTS, ...CSS];
-const missing = loaded.concat(FILES.filter(f => f !== "./")).filter(f => !fs.existsSync(path.join(root, f)));
+const missing = loaded.filter(f => !fs.existsSync(path.join(root, f)));
 missing.length ? fail("files listed but missing: " + missing) : ok("every listed file exists");
-const notCached = loaded.filter(f => !FILES.includes(f)); notCached.length ? fail("loaded but not in sw.js: " + notCached) : ok("service worker lists every loaded file");
 const walk = d => fs.readdirSync(path.join(root, d), { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
 const orphan = ["css", "js", "views"].flatMap(walk).filter(f => /\.(css|js|html)$/.test(f) && !loaded.includes(f.replace(/\\/g, "/")));
 orphan.length ? fail("files on disk that are never loaded: " + orphan) : ok("no orphan files");
-const rev = boot.match(/const REV = "([^"]+)"/)[1], cache = sw.match(/const C = "([^"]+)"/)[1];
-cache === "wn-" + rev ? ok("boot.js REV and sw.js cache name agree (" + rev + ")") : fail("REV " + rev + " and cache " + cache + " do not match");
+const rev = boot.match(/const REV = "([^"]+)"/)[1]; /^\d+\.\d+\.\d+-r\d+$/.test(rev) ? ok("boot.js REV looks right (" + rev + ")") : fail("REV is not like 2.1.1-r22: " + rev);
+// All scripts share one global scope: the same top-level name declared twice stops the app from starting.
+const seenNames = new Map(); let dupNames = [];
+SCRIPTS.forEach(f => { for(const m of read(f).matchAll(/^(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm)){ if(seenNames.has(m[1]) && seenNames.get(m[1]) !== f) dupNames.push(m[1] + " (" + seenNames.get(m[1]) + ", " + f + ")"); else seenNames.set(m[1], f); } });
+dupNames.length ? fail("declared in two script files: " + dupNames) : ok("no top-level name is declared in two script files");
 SCRIPTS.forEach(f => { try{ new vm.Script(read(f), { filename: f }); }catch(e){ fail("syntax error in " + f + ": " + e.message); } });
 ok("all " + SCRIPTS.length + " scripts parse");
 const markup = VIEWS.map(v => read(v[1])).join("\n"), js = SCRIPTS.map(read).join("\n");

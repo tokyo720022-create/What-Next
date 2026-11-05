@@ -34,8 +34,8 @@ out = run(t1, viewport=(390, 844), init=DELAY_JS)
 # stale-while-revalidate + offline
 def t2(page, out):
     page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)"); page.wait_for_timeout(500)
-    page.evaluate("navigator.serviceWorker.ready.then(() => true)"); page.wait_for_timeout(800)
-    cached = page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('wn_list_'))")
+    page.wait_for_timeout(1500)   # the saved copy is written a moment after the last change
+    cached = page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('wn_c_acct_list_'))")
     (ok if cached else lambda m: note("BUG", m))("list cached in localStorage: %s" % cached)
     # second visit: cached list should appear instantly even if AniList is slow
     page.reload(); page.wait_for_selector("#boot", state="detached"); page.wait_for_selector("#tabs:not([hidden])"); page.evaluate("window.__delay = 2500")   # the logo splash covers the screen for about a second
@@ -43,15 +43,15 @@ def t2(page, out):
     (ok if dt < 1.0 else lambda m: note("BUG", m))("cached list shown immediately on revisit (%.2fs) while the refresh runs" % dt)
     page.wait_for_timeout(3500); page.evaluate("window.__delay = 0")
     # offline
-    NET["off"] = True; out["ctx"].set_offline(True)
+    NET["off"] = True   # AniList can't be reached. The app files are on the phone, so the page itself still loads, as in the Android app
     page.reload(); page.wait_for_selector("#tabs:not([hidden])", timeout=10000)
     page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)", timeout=8000); page.wait_for_timeout(1500)
     note_t = page.inner_text("#listNote") if not page.eval_on_selector("#listNote", "e => e.hidden") else ""
     n = page.locator("#listBody .lcard:not(.skel)").count()
     (ok if n > 0 and "Offline" in note_t else lambda m: note("BUG", m))("offline: %d cached cards shown with note %r" % (n, note_t))
     page.click('#tabs [data-v="pick"]'); page.wait_for_timeout(500)
-    ok("offline: app shell loads from the service worker cache") if page.is_visible("#tabs") else note("BUG", "offline: shell did not load")
-    out["ctx"].set_offline(False); NET["off"] = False
+    ok("offline: the app opens and shows your saved data") if page.is_visible("#tabs") else note("BUG", "offline: shell did not load")
+    NET["off"] = False
 out = run(t2, init=DELAY_JS)
 
 # themes
@@ -79,14 +79,13 @@ harness.N = 1200
 harness.DATA["ANIME"] = [harness.entry(i, "ANIME") for i in range(1200)]
 run(t4)
 
-# service worker versioning
+# leftovers of the old web version (service worker caches) are removed at start
 def t5(page, out):
     page.wait_for_timeout(1200)
-    names = page.evaluate("caches.keys()"); print("cache names:", names)
     page.evaluate("caches.open('wn-legacy-old').then(c => c.put('/x', new Response('x')))")
-    page.evaluate("navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister())))"); page.reload(); page.wait_for_timeout(2500)
+    page.reload(); page.wait_for_timeout(2500)
     names2 = page.evaluate("caches.keys()")
-    (ok if "wn-legacy-old" not in names2 else lambda m: note("BUG", m))("old caches are removed when a new service worker activates: %s" % names2)
+    (ok if "wn-legacy-old" not in names2 else lambda m: note("BUG", m))("old service worker caches are removed at start: %s" % names2)
 run(t5)
 print("\nrobustness findings:", len(FINDINGS))
 import sys as _s

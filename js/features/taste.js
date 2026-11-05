@@ -2,14 +2,14 @@
 // ---------- Taste report ----------
 const TZ_F = "status score(format:POINT_100) media{id isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} genres tags{name rank isMediaSpoiler} averageScore popularity startDate{year}}";
 const TZ_REF_Q = "query TasteRef($p:Int,$t:MediaType){Page(page:$p,perPage:50){media(type:$t,sort:POPULARITY_DESC,isAdult:false){id genres tags{name rank isMediaSpoiler}}}}";
-const TZ_REF_PAGES = 4, TZ_REF_DAYS = 7;
+const TZ_REF_PAGES = 4;
 const tz = { type: "anime", token: 0, cache: {} };
 const tzKind = () => tz.type === "manga" ? "manga" : "anime";
 
-// The "average fan" sample: the most popular titles on AniList. Kept on this device for a week.
+// The "average fan" sample: the most popular titles on AniList. Saved on this device with the 3-day card cache.
 async function tzRef(type){
-  const key = "wn_taste_ref_" + type;
-  try{ const c = JSON.parse(localStorage.getItem(key) || "null"); if(c && Date.now() - c.t < TZ_REF_DAYS * 864e5 && c.items && c.items.length) return c.items; }catch(_){}
+  const key = "tref_" + type, saved = cacheGet("card", key);
+  if(Array.isArray(saved) && saved.length) return saved;
   const items = [];
   for(let p = 1; p <= TZ_REF_PAGES; p++){
     const { json } = await gql(TZ_REF_Q, { p, t: type.toUpperCase() }), pg = json.data && json.data.Page;
@@ -17,7 +17,7 @@ async function tzRef(type){
     for(const m of pg.media) items.push({ genres: m.genres || [], tags: (m.tags || []).filter(t => t.rank >= 50 && !t.isMediaSpoiler).map(t => ({ name: t.name, rank: t.rank })) });
     if(pg.media.length < 50) break;
   }
-  try{ localStorage.setItem(key, JSON.stringify({ t: Date.now(), items })); }catch(_){}
+  if(items.length) cacheSet("card", key, items);
   return items;
 }
 
@@ -134,7 +134,7 @@ async function tzLoad(){
     if(token === tz.token) tzRender(rep);
   }catch(err){
     if(token !== tz.token) return;
-    body.replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, tzLoad));
+    body.replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, tzLoad));
   }
 }
 function tasteOpen(){ tzLoad(); }

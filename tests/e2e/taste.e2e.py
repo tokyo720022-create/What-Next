@@ -35,14 +35,14 @@ def main(page, out):
     check("entry card now shows the archetype and code", "The Portal Hopper" in t("#tasteBtn") and code in t("#tasteBtn"), t("#tasteBtn"))
     page.click("#tasteBtn"); page.wait_for_selector("#tzBody .tzhero")
     check("reopening uses the saved report (no new requests)", len(harness.TASTEREQ) == before, harness.TASTEREQ[before:])
-    check("reference sample is kept on the device", page.evaluate("!!localStorage.getItem('wn_taste_ref_anime')"))
+    check("reference sample is kept on the device", page.evaluate("!!localStorage.getItem('wn_c_card_tref_anime')"))
     # manga
     page.click('#tzKinds .chip[data-v="manga"]'); page.wait_for_selector("#tzBody .tzhero, #tzBody .msg:not(:has-text('Reading'))", timeout=15000); page.wait_for_selector("#tzBody .tzcode")
     check("manga asks for the manga list and its own sample", ("list", "MANGA") in harness.TASTEREQ and ("ref", "MANGA", 1) in harness.TASTEREQ, harness.TASTEREQ)
     check("manga chip is selected", page.get_attribute('#tzKinds .chip[data-v="manga"]', "aria-pressed") == "true")
     check("narrow width: nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
     # offline error with retry
-    page.evaluate("tz.cache = {}; localStorage.removeItem('wn_taste_ref_anime')"); harness.NET["off"] = True
+    page.evaluate("tz.cache = {}; cacheDel('card', 'tref_anime')"); harness.NET["off"] = True
     page.click('#tzKinds .chip[data-v="anime"]'); page.wait_for_selector("#tzBody .msg", timeout=10000); page.wait_for_function("document.querySelector('#tzBody').textContent.includes('reach AniList')")
     check("offline: a clear message with a retry button", "reach AniList" in t("#tzBody") and page.locator("#tzBody button").count() >= 1, t("#tzBody"))
     harness.NET["off"] = False

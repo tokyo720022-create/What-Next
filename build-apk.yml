@@ -26,10 +26,10 @@ jobs:
           grep -q '"@capacitor/app"' package.json || { echo "package.json is missing @capacitor/app. Upload the new package.json."; exit 1; }
           grep -q '"@capacitor/browser"' package.json || { echo "package.json is missing @capacitor/browser. Upload the new package.json."; exit 1; }
       - run: npm install
-      - run: mkdir -p www && cp -r index.html boot.js sw.js manifest.webmanifest css js views assets www/ && (cp config.js www/ || true)
+      - run: mkdir -p www && cp -r index.html boot.js css js views assets www/ && (cp config.js www/ || true)
       - run: npx cap add android
       - name: Generate app icon and splash screen
-        run: npx --yes @capacitor/assets generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000' || echo "Icon generation failed. The build continues with the default icon."
+        run: npx --yes @capacitor/assets generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#0A0714' --splashBackgroundColorDark '#0A0714' || echo "Icon generation failed. The build continues with the default icon."
       - name: Work out the version of this build
         id: ver
         run: |

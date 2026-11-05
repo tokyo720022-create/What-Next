@@ -11,7 +11,9 @@ def main(page, out):
     check("safety note about anilist.co", "never see your password" in t("#setup .lsafe"))
     check("the buttons can be reached and tapped", page.evaluate("(() => { for(const id of ['#loginBtn', '#registerBtn']){ const b = document.querySelector(id); b.scrollIntoView(); const r = b.getBoundingClientRect(); if(r.bottom > innerHeight || r.right > innerWidth || r.left < 0) return false; } return true; })()"))
     check("nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
-    page.click("#loginBtn"); page.wait_for_timeout(300); check("web login still shows its message", t("#loginErr") != "", t("#loginErr"))
+    page.evaluate("window.__o = []; window.open = u => { window.__o.push(u); return null; }"); page.click("#loginBtn"); page.wait_for_timeout(300)
+    check("Log in opens AniList with the built-in app ID", page.evaluate("window.__o.filter(Boolean)") == ["https://anilist.co/api/v2/oauth/authorize?client_id=54060&response_type=token"], page.evaluate("window.__o"))
+    check("no error is shown", t("#loginErr") == "", t("#loginErr"))
 for vp in ((360, 780), (320, 568)):
     out = run(main, viewport=vp, anon=True); print("-- viewport", vp)
     real = [c for c in out["console"] if "ERR_INTERNET" not in c[1]]

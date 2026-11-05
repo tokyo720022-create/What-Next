@@ -27,7 +27,7 @@ const ly = LS("wn_ly", { layout: "grid", cols: 3, hideUnscored: false, hideProgr
 const fstore = LS("wn_lf", { persist: false, anime: null, manga: null });
 const lf = { anime: (fstore.persist && fstore.anime) || defFilter(), manga: (fstore.persist && fstore.manga) || defFilter() };
 const LIST_BATCH = 48;
-const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
+const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, refreshErr: "", cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
 const lists = { anime: mkList(), manga: mkList() };
 let curType = "anime";
 const tt = m => { const t = m.title || {}, per = appCfg().naming[m.countryOfOrigin], p = per || localStorage.getItem("wn_tlang") || "ENGLISH"; return (p === "ROMAJI" ? t.romaji : p === "NATIVE" ? (t.native || t.romaji) : t.english) || t.english || t.romaji || "Untitled"; };
@@ -38,10 +38,11 @@ const SORTS = {
   POP: (a, b) => (b.m.popularity || 0) - (a.m.popularity || 0), YEAR: (a, b) => yearOf(b.m) - yearOf(a.m)
 };
 
-const lcacheKey = type => "wn_list_" + type + "_" + String(state.user || "").toLowerCase();
-function readListCache(type){ try{ const r = JSON.parse(localStorage.getItem(lcacheKey(type)) || "null"); return r && Array.isArray(r.entries) ? r : null; }catch(_){ return null; } }
-function writeListCache(type, entries){ try{ localStorage.setItem(lcacheKey(type), JSON.stringify({ at: Date.now(), entries })); }catch(_){} }
-function clearListCaches(){ try{ Object.keys(localStorage).filter(k => k.indexOf("wn_list_") === 0).forEach(k => localStorage.removeItem(k)); }catch(_){} }
+// Saved copy of each list (account cache, 14 days). Written a moment after the last change, so tapping +1 many times saves once.
+const lcacheName = type => "list_" + type + "_" + acctUser();
+function readListCache(type){ const m = cacheMeta("acct", lcacheName(type)); return m && m.d && Array.isArray(m.d.entries) ? { at: m.at, entries: m.d.entries } : null; }
+function writeListCache(type, entries){ cacheSetSoon("acct", lcacheName(type), { entries }, 800); }
+function clearListCaches(){ cacheDelPrefix("acct", "list_"); }
 function setListNote(t){ const n = $("#listNote"); n.hidden = !t; n.textContent = t || ""; n.classList.remove("warn"); n.onclick = null; }
 // If the cards are squashed (old or mismatched files), say so and offer a clean reload instead of a blank list.
 let guardTimer = 0;
@@ -75,7 +76,7 @@ function showListLoading(type){
   $("#listStatus").replaceChildren(); $("#listMore").hidden = true; $("#listCount").textContent = "Loading…"; setListNote("");
 }
 function showListError(type, err){
-  const offline = /Failed to fetch|NetworkError|Load failed/i.test(err.message), box = el("div", "msg state");
+  const offline = isNetErr(err), box = el("div", "msg state");
   box.append(el("b", null, offline ? "Can't reach AniList" : "Couldn't load your " + type + " list"), el("p", "sub", offline ? "Check your connection and try again." : err.message));
   const retry = el("button", "go", "Retry"); retry.onclick = () => { showListLoading(type); loadFresh(type); };
   box.append(retry); $("#listBody").className = ""; $("#listBody").replaceChildren(box);
@@ -92,8 +93,8 @@ async function refreshList(type){
   const L = lists[type]; if(L.refreshing) return; L.refreshing = true;
   try{
     const entries = await fetchEntries(type);
-    L.entries = entries; L.stale = false; L.offline = false; L.cachedAt = Date.now(); L.rev++; writeListCache(type, entries);
-  }catch(_){ L.offline = true; }
+    L.entries = entries; L.stale = false; L.offline = false; L.refreshErr = ""; L.cachedAt = Date.now(); L.rev++; writeListCache(type, entries);
+  }catch(err){ if(isNetErr(err)){ L.offline = true; L.refreshErr = ""; } else L.refreshErr = err.message; }   // only "can't reach AniList" counts as offline
   L.refreshing = false;
   if(curType === type && !$("#lists").hidden) renderList({ keepScroll: true });
 }
@@ -171,7 +172,7 @@ function renderList(opts){
   }
   const more = $("#listMore"); more.hidden = view.length <= shown;
   more.textContent = "Show more (" + shown + " of " + view.length + ")";
-  setListNote(L.offline ? "Offline. Showing your saved list" + (L.cachedAt ? " from " + new Date(L.cachedAt).toLocaleString() : "") + "." : "");
+  setListNote(L.offline ? "Offline. Showing your saved list" + (L.cachedAt ? " from " + new Date(L.cachedAt).toLocaleString() : "") + "." : L.refreshErr ? "Couldn't refresh your list (" + L.refreshErr + "). Showing your saved copy." : "");
   guardListLayout();
   if(opts && opts.keepScroll) window.scrollTo(0, y);
 }

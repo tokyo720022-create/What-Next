@@ -7,7 +7,7 @@ const U_Q = "query($id:Int!){User(id:$id){id name siteUrl about(asHtml:false) ba
 const U_TOGGLE_Q = "mutation($id:Int){ToggleFollow(userId:$id){id isFollowing}}";
 const AFF_Q = "query($u:String,$t:MediaType,$c:Int){MediaListCollection(userName:$u,type:$t,chunk:$c,perChunk:500){hasNextChunk lists{entries{mediaId score(format:POINT_100)}}}}";
 
-const uMsg = err => /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection" : err.message;
+const uMsg = err => isNetErr(err) ? "no connection" : err.message;
 const meId = () => state.uid || (profMe && profMe.id) || 0;
 const myName = () => state.user || savedName();
 const uTag = u => (u.isFollowing && u.isFollower ? "Mutual" : u.isFollower ? "Follows you" : "");

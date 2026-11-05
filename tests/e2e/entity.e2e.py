@@ -25,7 +25,8 @@ def main(page, out):
     # --- character page
     page.click("#media .person:has-text('Hero One')"); page.wait_for_selector("#media h1:has-text('Hero One')")
     check("character page: name, native name, numbers", "ヒーロー" in page.inner_text("#media .mrow") and "15" in page.inner_text("#media .mstats") and "Media" in page.inner_text("#media .mstats"), page.inner_text("#media .mstats"))
-    check("character page: spoilers removed from the About text", "Secret" not in page.inner_text("#media .clamp") and "Loves" in page.inner_text("#media .clamp"), page.inner_text("#media .clamp"))
+    check("character page: the spoiler in the About text is hidden until tapped", page.locator("#media .clamp .spl").count() == 1 and page.evaluate("getComputedStyle(document.querySelector('#media .clamp .spl')).color") == "rgba(0, 0, 0, 0)" and "Loves" in page.inner_text("#media .clamp"), page.inner_text("#media .clamp"))
+    page.click("#media .clamp .spl", position={"x": 3, "y": 3}); check("character page: tapping the spoiler shows it", page.evaluate("document.querySelector('#media .clamp .spl').classList.contains('on')") and "Secret" in page.inner_text("#media .clamp"))
     vas = page.eval_on_selector_all("#media h3:has-text('Voice actors') + .hscroll .person", "els => els.map(e => e.textContent)")
     check("character page: voice actors listed once each, Japanese first", len(vas) == 2 and vas[0].startswith("Actor Jp"), vas)
     check("character page: series grid with roles", page.locator("#media .mgrid .mcard").count() == 2 and "MAIN" in page.inner_text("#media .mgrid"))

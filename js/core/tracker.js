@@ -4,7 +4,6 @@ const EMPTY_DATE = { year: null, month: null, day: null };
 const POOL = ["CURRENT", "REPEATING", "PLANNING"];          // statuses the Pick screen can suggest
 const fdBlank = d => !d || !d.year;
 const fdToday = () => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }; };
-const isNetErr = e => /Failed to fetch|NetworkError|Load failed|network/i.test((e && e.message) || "");
 
 // ---- Rules (pure: no screen, no network) ----
 // cur: { status, progress, repeat, startedAt, completedAt }   ch: { status } or { progress }
@@ -74,7 +73,7 @@ function findEntry(id, type){
   return { cur: { status: src.status, progress: src.progress || 0, repeat: src.repeat || 0, startedAt: src.startedAt, completedAt: src.completedAt }, total: total || null };
 }
 const FIELDS = ["status", "progress", "repeat", "startedAt", "completedAt"];
-const savePool = () => { try{ localStorage.setItem("wn_cache", JSON.stringify(state.items)); }catch(_){} };
+const savePool = () => cacheSetSoon("acct", "pool_" + acctUser(), state.items, 600);   // saved a moment later, so a burst of taps writes once
 
 // Update every on-screen copy at once.
 function applyLocal(id, type, patch){
@@ -94,6 +93,7 @@ function applyLocal(id, type, patch){
       FIELDS.concat(["score", "notes", "priority", "private"]).forEach(k => { if(k in patch) M.mediaListEntry[k] = patch[k]; });
       if(patch.customLists){ const o = {}; patch.customLists.forEach(n => { o[n] = true; }); M.mediaListEntry.customLists = o; }
     }
+    cacheSetSoon("card", "media_" + id, M, 1500);
   }
 }
 function renderAfter(id, type){
@@ -123,12 +123,12 @@ async function runJob(id){
       const job = pend[id], ver = job.ver;
       let json;
       try{ ({ json } = await gql(TRACK_Q, toVars(id, job.patch))); }
-      catch(err){ if(isNetErr(err)){ result = { ok: false, queued: true }; break; } throw err; }
+      catch(err){ if(isNetErr(err) || !auth.token){ result = { ok: false, queued: true }; break; } throw err; }   // no connection, or the login was refused: keep the change and send it later
       if(json.errors) throw new Error(json.errors[0].message);
       if(pend[id] && pend[id].ver === ver) delete pend[id];
       const M = mcache.get(id), saved = json.data.SaveMediaListEntry;
       if(M && M.mediaListEntry && saved) M.mediaListEntry.id = saved.id;
-      if(job.isNew){ mcache.delete(id); invalidateLists(); refreshPool(); }
+      if(job.isNew){ mcache.delete(id); cacheDel("card", "media_" + id); invalidateLists(); refreshPool(); }
       savePending();
     }
   }catch(err){
@@ -140,7 +140,7 @@ async function runJob(id){
   const ws = waiters[id] || []; delete waiters[id]; ws.forEach(r => r(result));
   if(typeof renderPending === "function") renderPending();
 }
-function flushPending(){ Object.keys(pend).forEach(id => { if(!inflight.has(id)) pump(id); }); }
+function flushPending(){ if(!auth.token) return; Object.keys(pend).forEach(id => { if(!inflight.has(id)) pump(id); }); }
 let poolTimer = 0;
 function refreshPool(){
   clearTimeout(poolTimer);
@@ -181,7 +181,7 @@ async function trackRemove(id, type, entryId){
     const { json } = await gql("mutation($id:Int){DeleteMediaListEntry(id:$id){deleted}}", { id: entryId });
     if(json.errors) throw new Error(json.errors[0].message);
   }catch(err){ return { ok: false, error: err, offline: isNetErr(err) }; }
-  delete pend[id]; savePending(); mcache.delete(id);
+  delete pend[id]; savePending(); mcache.delete(id); cacheDel("card", "media_" + id);
   state.items = state.items.filter(x => x.media.id !== id); savePool();
   if(lists[type].entries){ lists[type].entries = lists[type].entries.filter(x => x.id !== id); lists[type].rev++; writeListCache(type, lists[type].entries); }
   return { ok: true };

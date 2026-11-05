@@ -2,19 +2,20 @@
 
 const $ = s => document.querySelector(s);
 const MIN_PER_CHAPTER = 6; // rough guess for reading speed
-const state = { user: "", kind: "BOTH", time: 30, genre: "ALL", adult: "ALL", items: [], skipped: new Set() };
+const state = { user: "", kind: "BOTH", time: 30, genre: "ALL", adult: "ALL", items: [], skipped: new Set(), fromCache: false, shownId: 0 };   // fromCache: the saved pool is on screen while the fresh list loads
 
 // Build genre chips from the genres that actually appear in the user's list.
-function buildGenres(){
-  state.genre = "ALL";
+function buildGenres(keep){
+  const prev = state.genre;
   const counts = new Map();
   for(const e of state.items) for(const g of e.media.genres || []) counts.set(g, (counts.get(g) || 0) + 1);
   const names = ["ALL", ...[...counts.entries()].sort((a,b) => b[1] - a[1]).map(x => x[0])];
+  state.genre = keep && names.includes(prev) ? prev : "ALL";   // keep your chip when the fresh list replaces the saved one
   const row = $("#genres");
   row.replaceChildren(...names.map(g => {
     const b = document.createElement("button");
     b.className = "chip"; b.dataset.v = g;
-    b.setAttribute("aria-pressed", String(g === "ALL"));
+    b.setAttribute("aria-pressed", String(g === state.genre));
     b.textContent = g === "ALL" ? "Any" : g;
     return b;
   }));
@@ -36,32 +37,44 @@ function msg(text){
   $("#result").replaceChildren(d);
 }
 
+const poolName = user => "pool_" + String(user || acctUser()).toLowerCase();
+// Show the saved Pick pool at once (before AniList answers), so there is no empty screen after the logo.
+function paintFromCache(name, items){
+  state.items = items; state.user = name; state.fromCache = true;
+  buildGenres();
+  $("#whoName").textContent = name;
+  $("#setup").hidden = true; $("#app").hidden = false;
+  $("#result").replaceChildren(); pick();
+}
 async function loadList(user){
-  msg("Loading your list…");
+  if(!state.fromCache) msg("Loading your list…");
   try{
     const entries = [];
     for(const t of ["ANIME", "MANGA"]) entries.push(...await collection(user, t, "status_in:[CURRENT,REPEATING,PLANNING]", ENTRY_F));
     const seen = new Map();
     for(const e of entries){ if(!seen.has(e.media.id)) seen.set(e.media.id, e); }
     state.items = [...seen.values()];
-    try{ localStorage.setItem("wn_cache", JSON.stringify(state.items)); }catch(_){}
+    cacheSet("acct", poolName(user), state.items);
     state.user = user;
-    buildGenres();
+    const painted = state.fromCache; state.fromCache = false;
+    buildGenres(painted);
     $("#whoName").textContent = user;
     $("#setup").hidden = true; $("#app").hidden = false;
     if(!state.items.length) return msg("Your lists have nothing in Watching, Reading, or Planning yet.");
+    if(painted && state.shownId && state.items.some(e => e.media.id === state.shownId)) return;   // the saved pick is still good: leave it on screen
     $("#result").replaceChildren();
     pick();
   }catch(err){
-    let cached = null;
-    try{ cached = JSON.parse(localStorage.getItem("wn_cache") || "null"); }catch(_){}
-    if(cached && cached.length && err.message.includes("Failed to fetch")){
+    const painted = state.fromCache; state.fromCache = false;
+    if(painted && state.items.length){ $("#whoName").textContent = isNetErr(err) ? "Offline" : user; return; }   // keep the saved pick, don't replace it with an error
+    const cached = cacheGet("acct", poolName(user));
+    if(cached && cached.length && isNetErr(err)){
       state.items = cached; state.user = user; buildGenres();
       $("#whoName").textContent = "Offline";
       $("#setup").hidden = true; $("#app").hidden = false; $("#result").replaceChildren(); return pick();
     }
-    msg(err.message.includes("Failed to fetch") ? "Couldn't reach AniList. Check your connection and try again." : err.message);
-  }
+    msg(isNetErr(err) ? "Couldn't reach AniList. Check your connection and try again." : err.message);
+  }finally{ readyNow(); }
 }
 
 // A title is "out" once AniList no longer calls it not-yet-released and its start date has passed.
@@ -137,7 +150,7 @@ function lineup(){
 }
 
 function show({e,p}){
-  const m = e.media, title = m.title.english || m.title.romaji;
+  const m = e.media, title = m.title.english || m.title.romaji; state.shownId = m.id;
   const hero = el("div", "hero");
   const bg = el("div", "bg"); bg.style.backgroundImage = "url(" + JSON.stringify(m.coverImage.extraLarge || m.coverImage.large) + ")";
   const inn = el("div", "in");

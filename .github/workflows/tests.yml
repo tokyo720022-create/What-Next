@@ -19,6 +19,8 @@ jobs:
         run: |
           node tests/check-structure.js
           node tests/unit/rules.test.js
+          node tests/unit/cache.test.js
+          node tests/unit/apk-signing.test.js
       - name: Install a browser for the screen tests
         run: |
           pip install playwright

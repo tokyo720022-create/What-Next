@@ -18,13 +18,21 @@ let asBusy = false, statsSeg = "overview";
 async function loadAniStats(force, uid){
   const key = uid || "me", hit = asCache.get(key);
   if(hit && !force && Date.now() - hit.at < 600000) return hit.st;
-  const ask = tags => gql(asQuery(tags, uid), uid ? { id: uid } : {});
-  let { json } = await ask(true);
-  const pick = j => j.data && (uid ? j.data.User : j.data.Viewer);
-  if(!pick(json)) ({ json } = await ask(false));   // retry without tags if AniList refuses the big request
-  const root = pick(json), st = root && root.statistics;
-  if(!st) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
-  asCache.set(key, { st, at: Date.now() }); return st;
+  try{
+    const ask = tags => gql(asQuery(tags, uid), uid ? { id: uid } : {});
+    let { json } = await ask(true);
+    const pick = j => j.data && (uid ? j.data.User : j.data.Viewer);
+    if(!pick(json)) ({ json } = await ask(false));   // retry without tags if AniList refuses the big request
+    const root = pick(json), st = root && root.statistics;
+    if(!st) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
+    asCache.set(key, { st, at: Date.now() }); capMap(asCache, 20);
+    if(!uid) cacheSet("acct", "stats_me_" + acctUser(), st);   // your own statistics are saved for 14 days
+    return st;
+  }catch(err){
+    const saved = !uid && isNetErr(err) ? cacheGet("acct", "stats_me_" + acctUser()) : null;
+    if(saved){ asCache.set(key, { st: saved, at: Date.now() - 540000 }); return saved; }   // offline: show the saved statistics, ask again in a minute
+    throw err;
+  }
 }
 
 // ----- small drawing helpers -----
@@ -107,7 +115,7 @@ async function renderAniStats(force){
   try{
     drawAniStats(box, await loadAniStats(force), () => { renderAniStats(true); });
   }catch(err){
-    const m = el("div", "msg state"); m.append(el("b", null, "Couldn't load your statistics"), el("span", null, /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "No connection." : err.message));
+    const m = el("div", "msg state"); m.append(el("b", null, "Couldn't load your statistics"), el("span", null, isNetErr(err) ? "No connection." : err.message));
     const b = el("button", "go alt", "Try again"); b.onclick = () => renderAniStats(true); m.append(b); box.replaceChildren(m);
   }finally{ asBusy = false; }
 }

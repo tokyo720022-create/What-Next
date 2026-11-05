@@ -5,12 +5,14 @@ const dayKey = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth() +
 function days(){ try{ return JSON.parse(localStorage.getItem("wn_days") || "{}"); }catch(_){ return {}; } }
 function goal(){ return Number(localStorage.getItem("wn_goal")) || 1; }
 // Counts come from two places: what you mark in this app, and your AniList activity (so updates made on AniList or other apps count too).
-function actDays(){ try{ const o = JSON.parse(localStorage.getItem("wn_actdays") || "null"); return o && o.days ? o : { at: 0, days: {}, since: {} }; }catch(_){ return { at: 0, days: {}, since: {} }; } }
+const actName = () => "actdays_" + acctUser();   // account cache, 14 days; the time inside is when the counts were last loaded
+function actDays(){ const o = cacheGet("acct", actName()); return o && o.days ? o : { at: 0, days: {}, since: {} }; }
 function dayCount(k, d, a){ d = d || days(); a = a || actDays(); return Math.max(d[k] || 0, ((a.days || {})[k] || 0) + ((a.since || {})[k] || 0)); }
 function bumpDay(n, key){
   const k = key || dayKey(), d = days(), a = actDays(); a.since = a.since || {};
   d[k] = Math.max(0, (d[k] || 0) + n); a.since[k] = Math.max(0, (a.since[k] || 0) + n);
-  try{ localStorage.setItem("wn_days", JSON.stringify(d)); localStorage.setItem("wn_actdays", JSON.stringify(a)); }catch(_){}
+  try{ localStorage.setItem("wn_days", JSON.stringify(d)); }catch(_){}
+  cacheSet("acct", actName(), a);
 }
 function streak(){
   const d = days(), a = actDays(), g = goal(), c = new Date(); let n = 0;
@@ -39,7 +41,7 @@ async function loadActivityDays(force){
     for(const x of pg.activities || []){ if(!x || !x.createdAt) continue; const k = dayKey(new Date(x.createdAt * 1000)); out[k] = (out[k] || 0) + actUnits(x); }
     if(!(pg.pageInfo && pg.pageInfo.hasNextPage)) break;
   }
-  try{ localStorage.setItem("wn_actdays", JSON.stringify({ at: Date.now(), days: out, since: {} })); }catch(_){}
+  cacheSet("acct", actName(), { at: Date.now(), days: out, since: {} });
   return out;
 }
 function fmtIn(secs){

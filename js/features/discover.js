@@ -112,7 +112,7 @@ async function dxLoad(reset){
     dx.hasNext = !!(pg.pageInfo && pg.pageInfo.hasNextPage); dx.page++;
   }catch(err){
     if(token !== dx.token) return;
-    list.replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, () => dxLoad(true))); dx.hasNext = false;
+    list.replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, () => dxLoad(true))); dx.hasNext = false;
   }finally{
     if(token === dx.token){ dx.busy = false; more.hidden = !(dx.hasNext && !("IntersectionObserver" in window)); dxWatch(); }
   }
@@ -157,10 +157,10 @@ function dxSelectRow(label, value, pairs, fn){
   s.value = value; s.onchange = () => fn(s.value); row.append(el("span", null, label), s); return row;
 }
 async function dxTagList(){
-  try{ const c = JSON.parse(localStorage.getItem("wn_tagcol") || "null"); if(c && Date.now() - c.at < 7 * 86400000 && c.tags.length) return c.tags; }catch(_){}
+  const saved = cacheGet("card", "tagcol"); if(Array.isArray(saved) && saved.length) return saved;
   const { json } = await gql("query{MediaTagCollection{name category isAdult}}", {});
   const tags = (json.data && json.data.MediaTagCollection) || []; if(!tags.length) throw new Error("No tags");
-  try{ localStorage.setItem("wn_tagcol", JSON.stringify({ at: Date.now(), tags })); }catch(_){}
+  cacheSet("card", "tagcol", tags);
   return tags;
 }
 function dxTagPicker(draft, done){
@@ -234,7 +234,7 @@ async function dmLoad(reset){
       const rows = [...seen.values()].sort((a, b) => b.s - a.s).slice(0, 20);
       list.replaceChildren(...(rows.length ? rows.map(r => dxMediaCard(r.m, 0)) : [dxEmpty("Nothing paused or dropped on your list.")]));
     }
-  }catch(err){ list.replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, () => dmLoad(true))); more.hidden = true; }
+  }catch(err){ list.replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, () => dmLoad(true))); more.hidden = true; }
 }
 $("#dmBack").onclick = () => dmShow("hub");
 $("#dmMore").onclick = () => dmLoad(false);

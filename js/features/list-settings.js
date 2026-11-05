@@ -27,7 +27,7 @@ async function lsLoad(force, quiet){
     $("#lsStatus").hidden = true; $("#lsForm").hidden = false; lsRender();
   }catch(err){
     const retry = el("button", "go alt", "Try again"); retry.onclick = () => lsLoad(true);
-    $("#lsStatus").textContent = "Couldn't load your list settings: " + (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection." : err.message); $("#lsStatus").append(retry);
+    $("#lsStatus").textContent = "Couldn't load your list settings: " + (isNetErr(err) ? "no connection." : err.message); $("#lsStatus").append(retry);
   }
 }
 
@@ -155,7 +155,7 @@ async function lsSave(){
     lsBusy = false; await lsLoad(true, true); toast("List settings saved");
   }catch(err){
     lsBusy = false; lsRender();
-    $("#lsMsg").textContent = "Couldn't save: " + (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection." : err.message);
+    $("#lsMsg").textContent = "Couldn't save: " + (isNetErr(err) ? "no connection." : err.message);
   }
 }
 $("#lsSave").onclick = lsSave;

@@ -2,7 +2,6 @@
 // ---------- Profile ----------
 let profLoaded = false, profMe = null;
 const PROFILE_COLORS = { blue: "#3db4f2", purple: "#c063ff", pink: "#fc9dd6", orange: "#ef881a", red: "#e13333", green: "#4cca51", gray: "#677b94" };
-const PROFILE_KEY = "wn_profile";
 const fmtN = n => (n == null ? "–" : Number(n).toLocaleString());
 const fmtMean = n => (n ? Number(n).toFixed(2) : "–");
 const safeUrl = u => (/^https:\/\//.test(u || "") ? u : "");
@@ -50,8 +49,7 @@ async function renderProfile(){
   $("#profName").textContent = state.user || savedName();
   if(typeof profExtras === "function") profExtras();
   if(profLoaded) return;
-  let cached = null;
-  try{ cached = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }catch(_){}
+  const pname = "profile_" + acctUser(), cached = cacheGet("acct", pname);
   const mine = cached && cached.v && String(cached.v.name || "").toLowerCase() === String(state.user || savedName()).toLowerCase();
   if(mine) paintProfile(cached);   // show the saved copy right away
   $("#profErr").hidden = true;
@@ -61,13 +59,13 @@ async function renderProfile(){
     if(!v) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
     const d = { v, following: mine ? cached.following : null, followers: mine ? cached.followers : null };
     profMe = { id: v.id, name: v.name }; paintProfile(d); profLoaded = true;
-    try{ localStorage.setItem(PROFILE_KEY, JSON.stringify(d)); }catch(_){}
+    cacheSet("acct", pname, d);
     try{
       const r2 = await gql(FOLLOW_Q, { id: v.id }), j = r2.json.data;
-      if(j){ d.following = j.fo && j.fo.pageInfo ? j.fo.pageInfo.total : d.following; d.followers = j.fe && j.fe.pageInfo ? j.fe.pageInfo.total : d.followers; paintProfile(d); try{ localStorage.setItem(PROFILE_KEY, JSON.stringify(d)); }catch(_){} }
+      if(j){ d.following = j.fo && j.fo.pageInfo ? j.fo.pageInfo.total : d.following; d.followers = j.fe && j.fe.pageInfo ? j.fe.pageInfo.total : d.followers; paintProfile(d); cacheSet("acct", pname, d); }
     }catch(_){}   // follower counts are optional
   }catch(err){
-    const msg = /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection" : err.message;
+    const msg = isNetErr(err) ? "no connection" : err.message;
     $("#profErr").textContent = "Couldn't load your profile (" + msg + "). Tap to try again."; $("#profErr").hidden = false;
   }
 }

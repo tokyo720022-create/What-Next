@@ -1,6 +1,6 @@
 # What Next?
 
-**Version 2.1.1** · Company: Tokyo Brotherhood · Creator: Hariharasuthan Karunakaran · Contributor: Claude (AI)
+**Version 3.0.0** · Company: Tokyo Brotherhood · Creator: Hariharasuthan Karunakaran · Contributor: Claude (AI)
 
 An Android app that picks what to watch or read next from your [AniList](https://anilist.co), based on how much time you have.
 
@@ -79,6 +79,10 @@ Tap **Log in with AniList** and approve. The browser returns you to the app sign
 ## Staying under AniList's request limit
 
 AniList limits how many requests an app may send per minute (its docs say 90, and 30 while the API is degraded) and answers "too many requests" with a one-minute timeout. `js/core/pacer.js` reads the real limit from AniList's answers and spaces requests so the limit is not hit. Reading screens keep a few requests in reserve, so saving your change never waits behind a big load. If AniList does say "slow down", everything waits for the time it asks for, and a clear message shows when the wait would be long.
+
+## Discord card themes
+
+Update cards for lists that have their own thread can have their own look (`TS_THEMES` in `js/features/triple-math.js`). So far: **Isekai** (lists named Isekai, Iseki or Tensei: violet, gem progress bar, quest wording) and **Rom Com** (lists named Rom Com or Romantic Comedy: pink, heart progress bar, love-story wording). Other lists keep the standard card. Turn themes off with **Themed cards** under Settings > Triple Sync > Discord; the **Look used by the test buttons** select previews a look in General Updates without touching your list threads. To add a theme, add an entry to `TS_THEMES` with the list names it matches.
 
 ## About screen
 
@@ -170,7 +174,7 @@ tests/                  structure check, unit tests, and real-browser screen tes
 
 If you add a new screen or script file, add it to the lists inside `boot.js`.
 
-**Releasing a change:** whenever any file changes, change `REV` in `boot.js` (for example `2.1.1-r22`). That makes every phone load the new files together instead of mixing old and new ones.
+**Releasing a change:** whenever any file changes, change `REV` in `boot.js` (for example `3.0.0-r2`). That makes every phone load the new files together instead of mixing old and new ones.
 
 ## Tracking (one place for every change)
 

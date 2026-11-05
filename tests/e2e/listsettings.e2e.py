@@ -40,7 +40,10 @@ def main(page, out):
     after = page.evaluate("[...document.querySelectorAll('#lsForm .lsord')].slice(0, 3).map(r => r.querySelector('span').textContent)")
     check("move up swaps two rows", after[0] == before[1] and after[1] == before[0], (before, after))
     # save
+    page.evaluate("cacheSet('acct', 'list_anime_tester', {entries: []}); cacheSet('acct', 'pool_tester', [1]); cacheSet('card', 'media_9', {x: 1}); cacheSet('card', 'trend_ANIME', [1])")
     harness.UPDATES.clear(); page.click("#lsSave"); page.wait_for_function("document.querySelector('#lsBar').hidden")
+    page.wait_for_timeout(300)
+    check("saving list settings drops saved lists, the Pick pool and saved pages (they hold scores in the old format), not other cards", all(page.evaluate("localStorage.getItem('%s')" % k) is None for k in ("wn_c_acct_list_anime_tester", "wn_c_acct_pool_tester", "wn_c_card_media_9")) and page.evaluate("localStorage.getItem('wn_c_card_trend_ANIME')") is not None)
     u = harness.UPDATES
     check("custom list deleted before the update is sent", u and u[0].get("delete") == {"n": "Iseki", "t": "ANIME"}, u[:1])
     up = u[-1] if u else {}

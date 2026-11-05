@@ -76,6 +76,10 @@ Login works like other AniList apps: the Client ID is built in, so people just t
 ### 3. Log in
 Tap **Log in with AniList** and approve. The browser returns you to the app signed in.
 
+## Staying under AniList's request limit
+
+AniList limits how many requests an app may send per minute (its docs say 90, and 30 while the API is degraded) and answers "too many requests" with a one-minute timeout. `js/core/pacer.js` reads the real limit from AniList's answers and spaces requests so the limit is not hit. Reading screens keep a few requests in reserve, so saving your change never waits behind a big load. If AniList does say "slow down", everything waits for the time it asks for, and a clear message shows when the wait would be long.
+
 ## Saved data and automatic sign-out
 
 The app keeps copies of what it loads so screens open at once and still work offline. Every saved item has a timestamp and is deleted by itself when it is too old (`js/core/cache.js`):
@@ -150,7 +154,7 @@ views/
   settings/             menu, app, anilist, lists, sync (AniList Triple Sync), account, about
   sheets/               filter, customise, overlays (media page and editor), relmap, user
 js/
-  core/                 compat, cache (smart cache and session clock), diagnostics, core and Pick engine,
+  core/                 compat, cache (smart cache and session clock), pacer (request limit), markup (text and spoilers), diagnostics, core and Pick engine,
                         tabs, auth, tracker, session (sign-out and wipe), theme, start
   features/             discover, seasonal, taste (screen), taste-math (the maths), pick-taste (new picks), refresh (swipe down), profile-extra (tendencies, favourites), calendar, lists, media page, entity pages
                         (character/staff/studio), editor, relation map, users, profile,

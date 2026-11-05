@@ -17,28 +17,34 @@ function gqlOnce(body, headers){
     })().then(v => { clearTimeout(timer); ok(v); }, e => { clearTimeout(timer); if(e && !e.net) e.net = true; bad(e); });
   });
 }
+const pacer = makePacer({ now: () => Date.now(), sleep, maxWait: 45000 });
 async function gql(query, variables){
   const headers = { "Content-Type": "application/json", "Accept": "application/json" };
   if(auth.token) headers.Authorization = "Bearer " + auth.token;
-  const body = JSON.stringify({ query, variables });
+  const body = JSON.stringify({ query, variables }), isChange = /^\s*mutation/i.test(query);
   let out;
   for(let attempt = 0; ; attempt++){
+    await pacer.pace(isChange);   // waits when the per-minute limit is used up (and after a 429), so AniList never has to say "too many requests"
     out = await gqlOnce(body, headers);
+    const h = out.res.headers, hv = k => Number(h && h.get && h.get(k));
+    if(hv("X-RateLimit-Limit") > 0) pacer.setLimit(hv("X-RateLimit-Limit"));
+    if(out.res.status === 429) pacer.setHold((hv("Retry-After") > 0 ? hv("Retry-After") : 60) * 1000);
     if(GQL_RETRY.includes(out.res.status) && attempt < 2){
-      const ra = Number(out.res.headers && out.res.headers.get && out.res.headers.get("Retry-After"));
-      const wait = ra > 0 ? ra * 1000 : 1500 * (attempt + 1);
+      const wait = out.res.status === 429 ? pacer.holdLeft() : 1500 * (attempt + 1);
       if(wait <= 10000){ await sleep(wait); continue; }
     }
     break;
   }
   const { res, json } = out;
   if(!json){
-    const e = new Error(res.status === 429 ? "AniList is busy right now (too many requests). Wait a minute and try again." : res.ok ? "AniList sent an answer the app couldn't read. Try again." : "AniList is having trouble right now (" + res.status + "). Try again soon.");
+    if(res.status === 429) throw pacer.busy(pacer.holdLeft());
+    const e = new Error(res.ok ? "AniList sent an answer the app couldn't read. Try again." : "AniList is having trouble right now (" + res.status + "). Try again soon.");
     e.net = true; throw e;
   }
   const bad = (json.errors || []).some(x => /invalid token|unauthenticated|unauthorized/i.test(x.message || "") || x.status === 400 && /token/i.test(x.message || ""));
   if(auth.token && (res.status === 401 || bad)){ clearAuth(); throw new Error("AniList didn't accept your login. Log in again."); }
-  if(GQL_RETRY.includes(res.status)){ const e = new Error(res.status === 429 ? "AniList is busy right now (too many requests). Wait a minute and try again." : "AniList is having trouble right now (" + res.status + "). Try again soon."); e.net = true; throw e; }
+  if(res.status === 429) throw pacer.busy(pacer.holdLeft());
+  if(GQL_RETRY.includes(res.status)){ const e = new Error("AniList is having trouble right now (" + res.status + "). Try again soon."); e.net = true; throw e; }
   return { res, json };
 }
 

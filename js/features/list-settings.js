@@ -150,6 +150,7 @@ async function lsSave(){
     if(json.errors) throw new Error(json.errors[0].message);
     try{ localStorage.setItem("wn_scorefmt", lset.score); }catch(_){}
     LOPT = null; mcache.clear();
+    cacheDelPrefix("acct", "list_"); cacheDel("acct", poolName()); cacheDelPrefix("card", "media_");   // saved lists and pages hold scores and custom lists in the old settings
     if(typeof invalidateLists === "function") invalidateLists();
     if(lists[curType] && lists[curType].entries) renderList();
     lsBusy = false; await lsLoad(true, true); toast("List settings saved");

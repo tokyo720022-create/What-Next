@@ -38,7 +38,7 @@ LISTOPT = {"scoreFormat": "POINT_100", "rowOrder": "updatedAt",
     "mangaList": {"sectionOrder": ["Reading", "Hentai", "Completed", "Rereading"], "splitCompletedSectionByFormat": False, "customLists": ["Hentai", "Fav"], "advancedScoring": ["Story", "Characters", "Visuals"], "advancedScoringEnabled": True},
     "act": {"CURRENT": False, "PLANNING": False, "COMPLETED": False, "DROPPED": False, "PAUSED": False, "REPEATING": True}}
 UPDATES = []
-ANIOPT = {"about": "Hello there", "options": {"titleLanguage": "ROMAJI", "displayAdultContent": True, "airingNotifications": True, "profileColor": "blue", "staffNameLanguage": "ROMAJI_WESTERN", "activityMergeTime": 360, "restrictMessagesToFollowing": False}}
+ANIOPT = {"about": "Hello there", "options": {"titleLanguage": "ROMAJI", "displayAdultContent": True, "airingNotifications": True, "profileColor": "blue", "staffNameLanguage": "ROMAJI_WESTERN", "activityMergeTime": 360, "restrictMessagesToFollowing": False, "timezone": "-05:00", "notificationOptions": [{"type": "AIRING", "enabled": True}, {"type": "FOLLOWING", "enabled": True}, {"type": "ACTIVITY_LIKE", "enabled": False}, {"type": "SOME_NEW_TYPE", "enabled": True}]}}
 ANIUPD = []
 RMGRAPH = {1001: [("SOURCE", 5000), ("SEQUEL", 5002), ("SIDE_STORY", 5003), ("SIDE_STORY", 5004), ("SPIN_OFF", 5005), ("ALTERNATIVE", 5006), ("PREQUEL", 5010), ("CHARACTER", 5020)],
     5000: [("ADAPTATION", 1001)], 5002: [("PREQUEL", 1001), ("SEQUEL", 5007)], 5003: [("PARENT", 1001)], 5004: [("PARENT", 1001)], 5005: [("PARENT", 1001)], 5006: [("ALTERNATIVE", 1001)],
@@ -393,7 +393,7 @@ def handle(route, request):
         if "UpdateUser(" in q and "staffNameLanguage:$sn" in q:
             ANIUPD.append(dict(v))
             if NET.get("updateerr"): return route.fulfill(status=200, content_type="application/json", body=json.dumps({"errors": [{"message": "Boom"}], "data": None}))
-            m = {"tl": "titleLanguage", "ad": "displayAdultContent", "an": "airingNotifications", "pc": "profileColor", "sn": "staffNameLanguage", "mt": "activityMergeTime", "rm": "restrictMessagesToFollowing"}
+            m = {"tl": "titleLanguage", "ad": "displayAdultContent", "an": "airingNotifications", "pc": "profileColor", "sn": "staffNameLanguage", "mt": "activityMergeTime", "rm": "restrictMessagesToFollowing", "tz": "timezone", "no": "notificationOptions"}
             for k, name in m.items():
                 if k in v: ANIOPT["options"][name] = v[k]
             if "about" in v: ANIOPT["about"] = v["about"]

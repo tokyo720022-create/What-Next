@@ -42,7 +42,9 @@ def main(page, out):
     page.evaluate("showTab('set-anilist')"); page.wait_for_selector("#aniForm .lssec")
     form = t("#aniForm").lower()
     check("AniList Settings has about, title language, staff naming, merge time, 18+, notifications, messages", all(x in form for x in ("about you", "title language", "staff and character naming", "activity merge time", "18+ content", "notifications", "messages")), form[:200])
-    check("current values are loaded", page.input_value("#aniForm textarea") == "Hello there" and page.evaluate("[...document.querySelectorAll('#aniForm select')].map(s => s.value)") == ["blue", "ROMAJI", "ROMAJI_WESTERN", "360"], page.evaluate("[...document.querySelectorAll('#aniForm select')].map(s => s.value)"))
+    check("current values are loaded", page.input_value("#aniForm textarea") == "Hello there" and page.evaluate("[...document.querySelectorAll('#aniForm select')].map(s => s.value)") == ["blue", "ROMAJI", "ROMAJI_WESTERN", "360", "-05:00"], page.evaluate("[...document.querySelectorAll('#aniForm select')].map(s => s.value)"))
+    check("Time zone and notification switches are shown, AniList's own wording for known ones and a readable name for new ones", all(x in form for x in ("time zone", "someone follows me", "someone likes my activity", "some new type")) and form.count("airing anime notifications") == 1, form[:300])
+    check("the AIRING type is not listed twice (it is the airing switch)", "airing" not in [x.strip() for x in form.split("\n")])
     check("score format moved to List Settings", "score" not in form.replace("list settings", "") or "score format, custom lists" in form)
     check("Save bar is hidden until something changes", page.locator("#aniBar").is_hidden())
     page.select_option("#aniForm select >> nth=1", "ENGLISH"); page.select_option("#aniForm select >> nth=3", "1440"); page.select_option("#aniForm select >> nth=0", "pink")
@@ -51,6 +53,18 @@ def main(page, out):
     harness.ANIUPD.clear(); page.click("#aniSave"); page.wait_for_function("document.querySelector('#aniBar').hidden"); page.wait_for_timeout(300)
     up = harness.ANIUPD[-1] if harness.ANIUPD else {}
     check("only the changed settings are sent", up == {"tl": "ENGLISH", "mt": 1440, "pc": "pink", "about": "My new bio", "rm": True}, up)
+    # a second save: time zone, a notification type and the airing switch. The full notification list is sent, as AniList replaces it as a whole.
+    page.evaluate("cacheSet('card', 'zz', [1]); cacheSet('card', 'media_1', {x: 1})")
+    page.select_option("#aniForm select >> nth=4", "09:00"); page.click("#aniForm label:has-text('someone likes my activity')"); page.click("#aniForm label:has-text('airing anime notifications')")
+    harness.ANIUPD.clear(); page.click("#aniSave"); page.wait_for_function("document.querySelector('#aniBar').hidden"); page.wait_for_timeout(300)
+    up2 = harness.ANIUPD[-1] if harness.ANIUPD else {}
+    check("time zone, airing and the whole notification list are sent", up2 == {"tz": "09:00", "an": False, "no": [{"type": "AIRING", "enabled": False}, {"type": "FOLLOWING", "enabled": True}, {"type": "ACTIVITY_LIKE", "enabled": True}, {"type": "SOME_NEW_TYPE", "enabled": True}]}, up2)
+    check("the form shows what was saved", page.evaluate("document.querySelectorAll('#aniForm select')[4].value") == "09:00")
+    page.click("#aniForm button:has-text('time zone')"); page.wait_for_timeout(200)
+    check("the phone's time zone can be picked in one tap", page.evaluate("document.querySelectorAll('#aniForm select')[4].value") == page.evaluate("(() => { const m = -new Date().getTimezoneOffset(), a = Math.abs(m); return (m < 0 ? '-' : '') + String(Math.floor(a / 60)).padStart(2, '0') + ':' + String(a % 60).padStart(2, '0'); })()"))
+    page.select_option("#aniForm select >> nth=4", "09:00")
+    page.click("#aniForm label:has-text('18+ content')"); harness.ANIUPD.clear(); page.click("#aniSave"); page.wait_for_function("document.querySelector('#aniBar').hidden"); page.wait_for_timeout(500)
+    check("18+ change: saved cards and pages were dropped", page.evaluate("localStorage.getItem('wn_c_card_zz')") is None and page.evaluate("localStorage.getItem('wn_c_card_media_1')") is None)
     check("title language is applied in the app straight away", page.evaluate("localStorage.getItem('wn_tlang')") == "ENGLISH")
     check("the form reloads with the saved values", page.input_value("#aniForm textarea") == "My new bio" and page.evaluate("document.querySelector('#aniForm select').value") == "pink")
     page.fill("#aniForm textarea", "Another"); harness.NET["updateerr"] = True; page.click("#aniSave"); page.wait_for_timeout(500)
@@ -58,7 +72,9 @@ def main(page, out):
     check("AniList Settings: nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
 
     # ================= Account Settings =================
+    page.evaluate("cacheSet('acct', 'profile_tester', { v: { avatar: { large: 'https://example.test/a.png' } } })")
     page.evaluate("showTab('set-account')"); page.wait_for_selector("#setAccount .rowlink")
+    check("Account Settings shows your avatar from the saved profile", page.is_visible("#acAvatar") and page.get_attribute("#acAvatar", "src") == "https://example.test/a.png", page.get_attribute("#acAvatar", "src"))
     acc = t("#setAccount")
     check("account page shows who is signed in", t("#acName") == "Tester" and "Signed in with AniList" in acc)
     check("AniList account links", all(x in acc for x in ("Update Profile", "Update Account", "Import Lists", "Manage app access", "Delete Account")))

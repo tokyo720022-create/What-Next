@@ -80,6 +80,10 @@ Tap **Log in with AniList** and approve. The browser returns you to the app sign
 
 AniList limits how many requests an app may send per minute (its docs say 90, and 30 while the API is degraded) and answers "too many requests" with a one-minute timeout. `js/core/pacer.js` reads the real limit from AniList's answers and spaces requests so the limit is not hit. Reading screens keep a few requests in reserve, so saving your change never waits behind a big load. If AniList does say "slow down", everything waits for the time it asks for, and a clear message shows when the wait would be long.
 
+## About screen
+
+Settings > About shows the version (read from the installed app), **Check for updates** (asks GitHub for the latest stable release and opens it when it is newer than the installed build; otherwise it says "No new updates available"), **What's new** (the release notes), **Open source licenses**, **Privacy policy** (`PRIVACY.md`) and link icons. The icons for website, Discord, X, Facebook and Reddit only appear when their address is filled in under `links` in `config.js`. Releases are named `v<version>-b<build>` by the build workflow, and the update check relies on that.
+
 ## Saved data and automatic sign-out
 
 The app keeps copies of what it loads so screens open at once and still work offline. Every saved item has a timestamp and is deleted by itself when it is too old (`js/core/cache.js`):

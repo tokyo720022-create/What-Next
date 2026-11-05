@@ -47,7 +47,7 @@ const tsIdent = (c, targets) => ({ src: tsSrcName(c).toLowerCase(), al: targets.
 
 // ----- network -----
 function tsNetErr(){
-  const e = new Error(isNative ? "Couldn't reach the server. Check your connection." : "This service blocks websites. Use the Android app for this step.");
+  const e = new Error("Couldn't reach the server. Check your connection.");
   e.net = true; return e;
 }
 async function tsReq(url, o, tries = 3){

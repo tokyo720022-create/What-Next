@@ -56,7 +56,7 @@ async function tastePick(){
     show(top[Math.floor(Math.random() * top.length)]);
   }catch(err){
     if(token !== pt.token) return;
-    msg(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection and try again." : err.message);
+    msg(isNetErr(err) ? "Couldn't reach AniList. Check your connection and try again." : err.message);
   }
 }
 $("#tastePickBtn").onclick = () => { state.skipped.clear(); tastePick(); };

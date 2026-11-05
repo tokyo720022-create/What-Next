@@ -30,7 +30,7 @@ async function openChat(name){
     err.textContent = ""; $("#chatNote").textContent = "";
     $("#chatHome").hidden = true; $("#chatRoom").hidden = false; $("#chatWith").textContent = u.name;
     await loadThread(true); startChatTimer();
-  }catch(e2){ err.textContent = e2.message.includes("Failed to fetch") ? "No connection. Try again." : e2.message; }
+  }catch(e2){ err.textContent = isNetErr(e2) ? "No connection. Try again." : e2.message; }
 }
 async function loadThread(scroll){
   if(!chat.id) return;

@@ -119,7 +119,13 @@ async function czLoad(){
   const r = czRange(), from = czTs(r.start) - 1, to = czTs(r.end), token = ++cz.token; czHeader();
   const hit = cz.cache.find(c => c.from <= from && c.to >= to && Date.now() - c.at < 300000);
   if(hit){ cz.items = hit.items.filter(x => x.airingAt > from && x.airingAt < to); czRender(); return; }
-  $("#czBody").replaceChildren(el("div", "msg", "Loading the schedule…"));
+  // The saved schedule (7 days) shows at once. If it is older than 5 minutes it is refreshed quietly: air times and your list status change.
+  const ckey = from + "_" + to, saved = cacheMeta("cal", ckey); let quiet = false;
+  if(saved && Array.isArray(saved.d)){
+    cz.items = saved.d; czRender();
+    if(saved.age < 300000){ cz.cache.push({ from, to, at: saved.at, items: saved.d }); return; }
+    quiet = true;
+  }else $("#czBody").replaceChildren(el("div", "msg", "Loading the schedule…"));
   try{
     const all = [];
     for(let p = 1; p <= 14; p++){
@@ -127,8 +133,8 @@ async function czLoad(){
       if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
       if(token !== cz.token) return; all.push(...pg.airingSchedules); if(!pg.pageInfo.hasNextPage) break;
     }
-    cz.cache = cz.cache.filter(c => Date.now() - c.at < 300000).slice(-3); cz.cache.push({ from, to, at: Date.now(), items: all }); cz.items = all; czRender();
-  }catch(err){ if(token !== cz.token) return; $("#czBody").replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, czLoad)); }
+    cz.cache = cz.cache.filter(c => Date.now() - c.at < 300000).slice(-3); cz.cache.push({ from, to, at: Date.now(), items: all }); cacheSet("cal", ckey, all); cz.items = all; czRender();
+  }catch(err){ if(token !== cz.token || quiet) return; $("#czBody").replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, czLoad)); }
 }
 
 // ----- controls -----

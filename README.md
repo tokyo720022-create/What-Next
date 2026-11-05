@@ -2,9 +2,9 @@
 
 **Version 2.1.1** · Company: Tokyo Brotherhood · Creator: Hariharasuthan Karunakaran · Contributor: Claude (AI)
 
-A phone-friendly web app that picks what to watch or read next from your [AniList](https://anilist.co), based on how much time you have.
+An Android app that picks what to watch or read next from your [AniList](https://anilist.co), based on how much time you have.
 
-The web version is plain HTML, CSS and JavaScript with no build step and no dependencies: a thin `index.html` loads the rest of the files. Host it on GitHub Pages and add it to your home screen, or build the Android app (APK) with the included GitHub workflow.
+The app is plain HTML, CSS and JavaScript inside an Android shell ([Capacitor](https://capacitorjs.com)): a thin `index.html` loads the rest of the files, and the included GitHub workflow builds the APK. There is no website version.
 
 There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover**, **Schedule**, and **Profile** (Stats, Chat, and Settings live inside Profile).
 
@@ -38,7 +38,7 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 - **Login screen:** the logo over a soft animated background, what the app does, Log in or Create account, and a note that you log in on anilist.co and the app never sees your password.
 - **AniList Triple Sync (advanced):** copies your list (the source: the account you are logged in with, or any AniList username) to a **second AniList account** and to **MyAnimeList**, for anime and manga, with an optional **Discord report**. It is locked: it only appears in Settings, and only runs, when **App Settings > Advanced features** is switched on.
   - **Settings, all on its own page and saved as you change them:** the source username; the target AniList client ID and secret; the MyAnimeList client ID, secret and redirect URL; the three Discord webhook links and the lists that get their own thread; and the options (send to AniList, send to MyAnimeList, protect the targets, add missing titles, remove titles, skip 18+ titles on MyAnimeList, auto-sync and how often: 1, 3, 6, 12 or 24 hours). Secrets, tokens and the webhook link stay on this device.
-  - **You bring your own keys.** For the target AniList account, make an API client at anilist.co/settings/developer with the Redirect URL `https://anilist.co/api/v2/oauth/pin`, type its client ID and secret, log in with the account to copy to, and paste the code AniList shows. For MyAnimeList, make an API app at myanimelist.net/apiconfig, type its client ID (and secret if it has one) and the same redirect URL, log in, and paste the link or code you are sent back with. MyAnimeList refuses requests from websites, so it works in the Android app only (the app uses native requests, see `CapacitorHttp` in `capacitor.config.json`); AniList's token step may be blocked in a browser too.
+  - **You bring your own keys.** For the target AniList account, make an API client at anilist.co/settings/developer with the Redirect URL `https://anilist.co/api/v2/oauth/pin`, type its client ID and secret, log in with the account to copy to, and paste the code AniList shows. For MyAnimeList, make an API app at myanimelist.net/apiconfig, type its client ID (and secret if it has one) and the same redirect URL, log in, and paste the link or code you are sent back with. The app uses native requests (see `CapacitorHttp` in `capacitor.config.json`), because MyAnimeList refuses requests that come from a web page.
   - **What is sent:** status, progress, volumes, score, rewatch counts, start and finish dates, notes and privacy (AniList), or the matching MyAnimeList fields. Titles need a MyAnimeList ID to go to MyAnimeList.
   - **Protect the targets (on by default):** each title is read on the target first. A title that is further along there (completed, or more progress) is left alone, an update never lowers progress or clears a score, notes, dates or rewatch count, and identical entries are not written again. This costs one extra request per title. Switch it off to let the source simply win.
   - **Starting:** the first run to each target asks how to start: copy the whole list, or only send changes from now on. The memory belongs to the accounts: connecting a different target account asks again for that target only, and changing the source clears the memory, so nothing is wrongly treated as removed. **Preview** says what would be sent without sending anything, and **Sync both** does anime then manga.
@@ -54,7 +54,7 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 - **Stats:** two tabs. **Overview** shows your AniList statistics with anime and manga side by side (totals, genres, status, demographics, formats, tags, score spread). **Progress** shows today's goal ring and streak, a last 7 days chart, a Continue list with +1 buttons, and your backlog. The daily count includes episodes and chapters you update on AniList or other apps, read from your AniList activity (if you turned off list activity on AniList, only this app's updates count).
 - **List Settings:** the same options as AniList's list settings page, saved to your account with Save Changes: scoring system and advanced scoring, default list order, split Completed by format, which list activity to stop creating, custom anime and manga lists (add or remove), and the section order (Start Reorder uses the up and down buttons). Removing a custom list also removes it from every title that uses it.
 - **Relation map:** on a title's page, Relations > Relation map draws the whole franchise as a graph (source above, prequels above, sequels and side stories below). Toggle Core, Related, and Character links, zoom with the buttons or two fingers, tap a label or use Branches to fold a branch, switch to List view, and add titles to Planning straight from the map. Big franchises stop at about 90 titles (140 with Character links).
-- **Offline:** installs to your home screen and shows your last saved list when you have no connection.
+- **Offline:** shows your last saved list and Pick when you have no connection, and keeps your changes until you are back online.
 - **Chat:** one-to-one private messages with other AniList users, using AniList's own message system.
 - **Login required:** you must log in with your AniList account. There is no guest mode.
 
@@ -67,24 +67,28 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 
 ## Setup
 
-### 1. Host it
-
-1. Upload `index.html`, `boot.js`, `config.js`, `sw.js`, `manifest.webmanifest`, and the `assets/`, `css/`, `js/`, and `views/` folders to the root of a GitHub repo (`sw.js`, the manifest, and `assets/` enable offline and home-screen install). From a phone, see *Getting the files into your repo from a phone* below.
-2. Go to **Settings → Pages**, set the source to **Deploy from a branch**, choose `main` and `/ (root)`, and save.
-3. Wait about a minute, then open your site at `https://<your-username>.github.io/<repo-name>/`.
+### 1. Build the app
+Push the files to your GitHub repo (from a phone, see *Getting the files into your repo from a phone* below). The **Build APK** workflow then builds the app and publishes it as a new release.
 
 ### 2. AniList login (one time, for the developer)
-Login works like other AniList apps: the Client ID is built in, so users just tap **Login**, AniList opens in the browser, and they come back to the app signed in. Create two clients at [anilist.co/settings/developer](https://anilist.co/settings/developer):
-
-- **Website client:** Redirect URL is your site address, for example `https://<your-username>.github.io/<repo-name>/`.
-- **Android client:** Redirect URL is `whatnext://auth`.
-
-Put the two Client IDs in `config.js` (`clientWeb` and `clientApp`). Client IDs are public, not secrets.
-
-The Android app falls back to a built-in default client ID, so its login works even without `config.js`. The website version needs `clientWeb` set; without it the login screen tells the user to use the Android app or add a website client.
+Login works like other AniList apps: the Client ID is built in, so people just tap **Login**, AniList opens in the browser, and they come back to the app signed in. Create a client at [anilist.co/settings/developer](https://anilist.co/settings/developer) with the Redirect URL `whatnext://auth`, and put its Client ID in `config.js` (`clientApp`). Client IDs are public, not secrets. Without `config.js` the app uses a built-in default.
 
 ### 3. Log in
-Tap **Log in with AniList** and approve. On the website you come back to the page signed in; in the Android app the browser returns you to the app automatically.
+Tap **Log in with AniList** and approve. The browser returns you to the app signed in.
+
+## Saved data and automatic sign-out
+
+The app keeps copies of what it loads so screens open at once and still work offline. Every saved item has a timestamp and is deleted by itself when it is too old (`js/core/cache.js`):
+
+| Kind | Kept for | What it is |
+|---|---|---|
+| Cards | 3 days | anime and manga pages, character/staff/studio pages, trending, the seasonal chart, the taste sample, tag list |
+| Calendar | 7 days | the airing schedule |
+| Account | 14 days | your lists, your Pick pool, your profile, your statistics, your activity days |
+
+Old items are swept when the app opens, when you come back to it, and every hour. Saved pages are shown first and refreshed quietly (your list status and scores can change). Changes that are waiting to sync, your settings and your daily goal are never cleared by the cache. **Settings > Account > Clear saved lists and pictures** clears the cache by hand.
+
+**14 days unused = signed out.** The app remembers when it was last used. If that was more than 14 days ago, it tries once to send any changes that were waiting, signs you out, and removes your saved data from the phone; you log in again. Logging out by hand removes the same things (the login, saved data, waiting changes, Triple Sync keys and chats). If a different AniList account logs in on the same phone, the old account's data is removed first.
 
 ## Logo and splash screen
 
@@ -131,9 +135,7 @@ The app is split into folders, so one problem area can be fixed without touching
 ```
 index.html              thin shell: splash, #screens, #overlays
 boot.js                 loads the views and scripts in order; holds REV
-config.js               AniList client IDs
-sw.js                   offline support (service worker)
-manifest.webmanifest    home-screen install
+config.js               AniList client ID
 capacitor.config.json   Android app settings (Capacitor)
 package.json            Capacitor plugins and the app version
 assets/                 logo, app icons and the splash-screen image
@@ -148,8 +150,8 @@ views/
   settings/             menu, app, anilist, lists, sync (AniList Triple Sync), account, about
   sheets/               filter, customise, overlays (media page and editor), relmap, user
 js/
-  core/                 compat, diagnostics, core and Pick engine, tabs, auth,
-                        tracker, theme, start
+  core/                 compat, cache (smart cache and session clock), diagnostics, core and Pick engine,
+                        tabs, auth, tracker, session (sign-out and wipe), theme, start
   features/             discover, seasonal, taste (screen), taste-math (the maths), pick-taste (new picks), refresh (swipe down), profile-extra (tendencies, favourites), calendar, lists, media page, entity pages
                         (character/staff/studio), editor, relation map, users, profile,
                         stats, list settings, app settings, settings, sync (AniList Triple Sync) and triple-math (its maths),
@@ -158,9 +160,9 @@ tests/                  structure check, unit tests, and real-browser screen tes
 .github/workflows/      tests.yml, unpack-site.yml, build-apk.yml
 ```
 
-If you add a new screen or script file, add it to the lists inside `boot.js` and `sw.js`.
+If you add a new screen or script file, add it to the lists inside `boot.js`.
 
-**Releasing a change:** whenever any file changes, change `REV` in `boot.js` and the matching name in `sw.js` (for example `2.1.1-r5` and `wn-2.1.1-r5`). That makes every phone fetch the new files together instead of mixing old and new ones. `node tests/check-structure.js` fails if the two do not match.
+**Releasing a change:** whenever any file changes, change `REV` in `boot.js` (for example `2.1.1-r22`). That makes every phone load the new files together instead of mixing old and new ones.
 
 ## Tracking (one place for every change)
 

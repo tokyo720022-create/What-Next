@@ -208,7 +208,7 @@ async function rmLoad(force){
     if(rm.listView) rmDrawList(); else if(rm.firstFit){ rm.firstFit = false; rm.z = Math.max(0.5, Math.min(1, ($("#rmView").clientWidth - 12) / rm.layout.W)); rmApplyZoom(); rmCenterRoot(); }
   }catch(err){
     if(token !== rm.token) return;
-    $("#rmStatus").textContent = "Couldn't load the map: " + (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection." : err.message) + " Tap ⟳ to try again.";
+    $("#rmStatus").textContent = "Couldn't load the map: " + (isNetErr(err) ? "no connection." : err.message) + " Tap ⟳ to try again.";
   }
 }
 function openRelMap(id){

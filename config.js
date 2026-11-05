@@ -1,7 +1,5 @@
-// AniList login settings. Client IDs are public numbers, not secrets.
-// Android app client: Redirect URL must be exactly  whatnext://auth
-// Website client: needs its own AniList client whose Redirect URL is your site address.
+// AniList login settings. The Client ID is a public number, not a secret.
+// Android app client: its Redirect URL must be exactly  whatnext://auth
 window.WN_CONFIG = {
-  clientWeb: "",
   clientApp: "54060"
 };

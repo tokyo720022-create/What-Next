@@ -1,15 +1,44 @@
-/* js/core/auth.js: AniList login, deep link, back button, log out */
-// ---------- AniList login (implicit grant: token comes back in the URL hash) ----------
+/* js/core/auth.js: AniList requests, login (Android deep link), back button, log out */
+// ---------- AniList login (implicit grant: the token comes back through the whatnext://auth link) ----------
 const auth = { token: null };
 try{ auth.token = localStorage.getItem("wn_token"); }catch(_){}
 
+// Every AniList request goes through here: a time limit, a short wait-and-retry when AniList says "slow down" (429) or is briefly down,
+// and errors marked .net when AniList can't be reached, so the screens can fall back to saved data.
+const GQL_URL = "https://graphql.anilist.co", GQL_TIMEOUT = 25000, GQL_RETRY = [429, 502, 503, 504];
+function gqlOnce(body, headers){
+  return new Promise((ok, bad) => {
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = setTimeout(() => { try{ if(ctl) ctl.abort(); }catch(_){} const e = new Error("AniList took too long to answer. Check your connection and try again."); e.net = true; bad(e); }, GQL_TIMEOUT);
+    (async () => {
+      const res = await fetch(GQL_URL, { method: "POST", headers, body, signal: ctl ? ctl.signal : undefined });
+      let json = null; try{ json = await res.json(); }catch(_){}
+      return { res, json };
+    })().then(v => { clearTimeout(timer); ok(v); }, e => { clearTimeout(timer); if(e && !e.net) e.net = true; bad(e); });
+  });
+}
 async function gql(query, variables){
   const headers = { "Content-Type": "application/json", "Accept": "application/json" };
   if(auth.token) headers.Authorization = "Bearer " + auth.token;
-  const res = await fetch("https://graphql.anilist.co", { method: "POST", headers, body: JSON.stringify({ query, variables }) });
-  const json = await res.json();
+  const body = JSON.stringify({ query, variables });
+  let out;
+  for(let attempt = 0; ; attempt++){
+    out = await gqlOnce(body, headers);
+    if(GQL_RETRY.includes(out.res.status) && attempt < 2){
+      const ra = Number(out.res.headers && out.res.headers.get && out.res.headers.get("Retry-After"));
+      const wait = ra > 0 ? ra * 1000 : 1500 * (attempt + 1);
+      if(wait <= 10000){ await sleep(wait); continue; }
+    }
+    break;
+  }
+  const { res, json } = out;
+  if(!json){
+    const e = new Error(res.status === 429 ? "AniList is busy right now (too many requests). Wait a minute and try again." : res.ok ? "AniList sent an answer the app couldn't read. Try again." : "AniList is having trouble right now (" + res.status + "). Try again soon.");
+    e.net = true; throw e;
+  }
   const bad = (json.errors || []).some(x => /invalid token|unauthenticated|unauthorized/i.test(x.message || "") || x.status === 400 && /token/i.test(x.message || ""));
   if(auth.token && (res.status === 401 || bad)){ clearAuth(); throw new Error("AniList didn't accept your login. Log in again."); }
+  if(GQL_RETRY.includes(res.status)){ const e = new Error(res.status === 429 ? "AniList is busy right now (too many requests). Wait a minute and try again." : "AniList is having trouble right now (" + res.status + "). Try again soon."); e.net = true; throw e; }
   return { res, json };
 }
 
@@ -26,14 +55,6 @@ function clearAuth(){
   try{ localStorage.removeItem("wn_token"); }catch(_){}
   syncAuthUI();
 }
-function handleAuthRedirect(){
-  const t = new URLSearchParams(location.hash.replace(/^#/, "")).get("access_token");
-  if(!t) return;
-  auth.token = t;
-  try{ localStorage.setItem("wn_token", t); }catch(_){}
-  history.replaceState(null, "", location.pathname + location.search);
-}
-
 async function markDone(e, p, btn){
   btn.disabled = true; btn.textContent = "Saving…";
   const r = await track(e.media.id, p.isAnime ? "anime" : "manga", { progress: p.to }, { quiet: true });
@@ -49,15 +70,11 @@ async function markDone(e, p, btn){
 // ---------- Login: the client ID is built in, like other AniList apps ----------
 const APP = { version: "2.1.1", company: "Tokyo Brotherhood", creator: "Hariharasuthan Karunakaran", contributor: "Claude (AI)" };
 const CFG0 = window.WN_CONFIG || {};   // set in config.js
-const CLIENT_WEB = String(CFG0.clientWeb || "");
 const CLIENT_APP = String(CFG0.clientApp || "54060");   // built-in default, so login works even without config.js
 const APP_REDIRECT = "whatnext://auth";
 const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const nativePlugin = n => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[n];
-function clientId(){
-  let own = ""; try{ own = localStorage.getItem("wn_client") || ""; }catch(_){}
-  return (isNative ? CLIENT_APP : CLIENT_WEB) || own;
-}
+const clientId = () => CLIENT_APP;
 function loginErr(t){ $("#loginErr").textContent = t; }
 function openExternal(url){
   const B = isNative && nativePlugin("Browser");
@@ -66,12 +83,12 @@ function openExternal(url){
 }
 async function startLogin(){
   const id = clientId();
-  if(!id) return loginErr(isNative ? "Login isn't set up in this build yet. The developer needs to add the AniList Client ID." : "Login here needs a website client ID. Use the Android app to log in, or add a website client in config.js.");
-  let url = "https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token";
-  // No redirect_uri here: AniList uses the Redirect URL saved on the client, and sending one switches it to a different login type.
-  const B = isNative && nativePlugin("Browser");
+  if(!id) return loginErr("Login isn't set up in this build yet. The developer needs to add the AniList Client ID.");
+  const url = "https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token";
+  // No redirect_uri here: AniList uses the Redirect URL saved on the client (whatnext://auth), and sending one switches it to a different login type.
+  const B = nativePlugin("Browser");
   if(B && B.open){ try{ return await B.open({ url }); }catch(_){} }
-  location.href = url;
+  openExternal(url);
 }
 $("#loginBtn").onclick = startLogin;
 $("#registerBtn").onclick = () => openExternal("https://anilist.co/signup");
@@ -80,6 +97,8 @@ function handleAuthUrl(url){
   const t = new URLSearchParams(url.split("#")[1] || url.split("?")[1] || "").get("access_token");
   if(!t) return;
   try{ localStorage.setItem("wn_token", t); }catch(_){}
+  sessionTouch();   // a fresh login starts the 14-day clock again
+  try{ localStorage.removeItem("wn_name"); }catch(_){}   // whose saved list is this? start() finds out from AniList before showing any
   try{ const B = nativePlugin("Browser"); if(B && B.close) B.close(); }catch(_){}
   location.reload();
 }
@@ -87,6 +106,7 @@ if(isNative){
   const A = nativePlugin("App");
   if(A && A.addListener){
     A.addListener("appUrlOpen", ev => handleAuthUrl(ev.url));
+    A.addListener("appStateChange", st => { if(st && st.isActive) sessionResume(); else cacheFlushSoon(); });
     A.addListener("backButton", () => {
       const sheet = document.querySelector(".dsheet,.usheet");
       if(sheet) sheet.remove();
@@ -115,9 +135,5 @@ $("#logout").onclick = () => {
   const b = $("#logout");
   if(!logoutArmed){ logoutArmed = true; b.textContent = "Tap again to log out"; setTimeout(() => { logoutArmed = false; b.textContent = "Log out"; }, 3500); return; }
   logoutArmed = false; b.textContent = "Log out";
-  clearAuth();
-  state.items = []; state.user = ""; state.uid = 0; state.skipped.clear(); lists.anime = mkList(); lists.manga = mkList(); clearListCaches(); profLoaded = false;
-  try{ localStorage.removeItem("wn_cache"); localStorage.removeItem("wn_name"); localStorage.removeItem("wn_profile"); }catch(_){}
-  $("#result").replaceChildren(); $("#dlist").replaceChildren();
-  try{ userCloseAll(); affCache.clear(); asCache.clear(); profMe = null; }catch(_){}
+  wipeAccountData();
 };

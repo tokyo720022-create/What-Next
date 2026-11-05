@@ -1,5 +1,5 @@
 /* js/features/entity.js: character, staff, and studio pages. They open from the media page and share its back stack. */
-const ecache = new Map();
+const ecache = new Map(), efresh = new Set();
 const KIND = { c: "character", s: "staff", t: "studio" };
 const TOKEN = { character: "c", staff: "s", studio: "t" };   // never use the first letter: "staff" and "studio" both start with s
 const MEDIA_BITS = "id type format title{romaji english native} countryOfOrigin coverImage{large}";
@@ -15,21 +15,29 @@ function openEntity(kind, id){
 async function showEntity(tok){
   const box = $("#media"); box.hidden = false;
   const kind = KIND[tok[0]], id = Number(tok.slice(2));
+  const fetchEnt = async () => {
+    const { json } = await gql(kind === "character" ? CHAR_Q : kind === "staff" ? STAFF_Q : STUDIO_Q, kind === "studio" ? { id, p: 1 } : { id });
+    const d = json.data && (json.data.Character || json.data.Staff || json.data.Studio);
+    if(!d) throw new Error((json.errors && json.errors[0].message) || "Not found");
+    return d;
+  };
+  if(!ecache.has(tok)){ const c = cacheGet("card", "ent_" + tok); if(c){ ecache.set(tok, c); capMap(ecache, 150); } }
+  if(ecache.has(tok) && !efresh.has(tok)){   // a saved page (3 days) opens at once, then is refreshed quietly (favorites change)
+    efresh.add(tok);
+    fetchEnt().then(d => { const same = JSON.stringify(ecache.get(tok)) === JSON.stringify(d); ecache.set(tok, d); cacheSet("card", "ent_" + tok, d); if(!same && !box.hidden && mstack[mstack.length - 1] === tok) renderEntity(kind, d); }).catch(() => efresh.delete(tok));
+  }
   if(!ecache.has(tok)){
     const w = el("div", "mhead"); w.append(closeBar()); box.replaceChildren(w, el("div", "msg", "Loading…"));
     try{
-      const { json } = await gql(kind === "character" ? CHAR_Q : kind === "staff" ? STAFF_Q : STUDIO_Q, kind === "studio" ? { id, p: 1 } : { id });
-      const d = json.data && (json.data.Character || json.data.Staff || json.data.Studio);
-      if(!d) throw new Error((json.errors && json.errors[0].message) || "Not found");
-      ecache.set(tok, d);
+      const d = await fetchEnt();
+      ecache.set(tok, d); capMap(ecache, 150); efresh.add(tok); cacheSet("card", "ent_" + tok, d);
     }catch(err){
       const w2 = el("div", "mhead"); w2.append(closeBar());
-      box.replaceChildren(w2, el("div", "msg", err.message.includes("Failed to fetch") ? "No connection. Try again." : err.message)); return;
+      box.replaceChildren(w2, el("div", "msg", isNetErr(err) ? "No connection. Try again." : err.message)); return;
     }
   }
   if(mstack[mstack.length - 1] === tok) renderEntity(kind, ecache.get(tok));
 }
-const cleanBio = t => clean(String(t || "").replace(/~!([\s\S]*?)!~/g, "").replace(/__|\*\*/g, ""));
 
 function favButton(kind, d, countEl){
   const b = el("button", "favbtn"), paint = () => { b.textContent = d.isFavourite ? "✓ Favorite" : "Set as Favorite"; b.classList.toggle("on", !!d.isFavourite); };
@@ -76,9 +84,9 @@ function renderEntity(kind, d){
   if(total != null) st.append(cell(el("b", null, String(total)), "Media"));
   st.append(cell(favB, "Favorites"), favButton(kind, d, favB)); box.append(st);
   // about
-  const bio = cleanBio(d.description);
+  const bio = mdPrep(d.description);
   if(bio){
-    const c = el("div", "clamp", bio), t = el("button", null, "More");
+    const c = el("div", "clamp"), t = el("button", null, "More"); c.append(richText(d.description));   // spoilers stay hidden until tapped
     t.onclick = () => { c.classList.toggle("open"); t.textContent = c.classList.contains("open") ? "Less" : "More"; };
     box.append(msec("About", c, t));
   }

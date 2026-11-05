@@ -11,8 +11,8 @@ def a(page, out):
     print("A. logged-out:", vis)
     if vis["hidden"] or vis["w"] < 300 or not vis["tabs"]: note("BUG", "login overlay not shown correctly when logged out: %s" % vis)
     page.click("#loginBtn"); page.wait_for_timeout(300)
-    msg = page.inner_text("#loginErr"); print("A. web login message:", msg)
-    if "website client" not in msg: note("INFO", "web login did not show the expected message: %r" % msg)
+    msg = page.inner_text("#loginErr"); print("A. login message (should be empty, there is no web login any more):", repr(msg))
+    if msg: note("INFO", "tapping Log in showed a message: %r" % msg)
 run(a, anon=True)
 
 # ---------- B. native stub: login URL, deep link, back button ----------

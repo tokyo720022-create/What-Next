@@ -1,0 +1,10 @@
+/* css/markup.css: spoilers and formatted text inside descriptions and bios */
+.spl{background:var(--line);color:transparent;border-radius:4px;cursor:pointer;user-select:none;-webkit-user-select:none;box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 2px}
+.spl *{color:transparent!important;pointer-events:none}
+.spl.on{background:rgba(255,255,255,.08);color:inherit;user-select:text;-webkit-user-select:text}
+.spl.on *{color:inherit!important;pointer-events:auto}
+.splb{display:block;margin:8px 0;border:1px solid var(--line);border-radius:12px;background:var(--chip);overflow:hidden}
+.splhead{display:block;width:100%;padding:10px 12px;border:0;background:none;color:var(--ink);font:inherit;font-size:.88rem;font-weight:700;text-align:left;cursor:pointer}
+.splbody{display:block;padding:0 12px 12px;color:var(--ink);white-space:pre-line}
+.clamp a,.splbody a{color:var(--sakura);text-decoration:underline}
+.clamp code,.splbody code{padding:1px 5px;border-radius:5px;background:var(--chip);font-size:.92em}

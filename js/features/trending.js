@@ -10,17 +10,21 @@ function trendCard(m){
   const info = el("div", "tinfo"); info.append(el("b", "tt2", tt(m)), el("span", "tsub", sub), stats);
   top.append(bg, img, info);
   const body = el("div", "tbody"), g = el("div", "gtags"); (m.genres || []).slice(0, 3).forEach(x => g.append(gtag(x)));
-  body.append(g, el("p", "tdesc", clean(m.description)));
+  body.append(g, el("p", "tdesc", plainText(m.description)));
   c.append(top, body); c.onclick = () => openMedia(m.id); return c;
 }
 async function loadTrending(){
   if(!auth.token || Date.now() - trendAt < 600000) return;
   $("#trend").hidden = false;
   for(const [t, id] of [["ANIME", "#trendAnime"], ["MANGA", "#trendManga"]]){
+    const saved = cacheGet("card", "trend_" + t);   // saved for 3 days: shown at once, then replaced by the fresh list
+    if(saved && !$(id).children.length) $(id).replaceChildren(...saved.map(trendCard));
     try{
       const { json } = await gql(TREND_Q, { t });
-      $(id).replaceChildren(...((json.data && json.data.Page.media) || []).map(trendCard));
-    }catch(_){ $(id).replaceChildren(el("div", "msg", "Couldn't load trending. Check your connection.")); return; }
+      const list = (json.data && json.data.Page.media) || [];
+      $(id).replaceChildren(...list.map(trendCard));
+      if(list.length) cacheSet("card", "trend_" + t, list);
+    }catch(_){ if(!saved) $(id).replaceChildren(el("div", "msg", "Couldn't load trending. Check your connection.")); return; }
   }
   trendAt = Date.now();
 }

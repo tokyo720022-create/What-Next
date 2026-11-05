@@ -47,7 +47,13 @@ function szBar(){
 async function szLoad(){
   const key = sz.year + "-" + sz.season, token = ++sz.token; szBar();
   if(sz.cache.has(key)){ sz.items = sz.cache.get(key); sz.loading = false; szRender(); return; }
-  sz.items = []; sz.loading = true; szRender(); $("#szList").append(el("div", "msg", "Loading the chart…"));
+  // A saved chart (3 days) shows at once. If it is older than 10 minutes it is refreshed quietly, because "on your list" may have changed.
+  const saved = cacheMeta("card", "season_" + key); let quiet = false;
+  if(saved && Array.isArray(saved.d)){
+    sz.items = saved.d; sz.loading = false; szRender();
+    if(saved.age < 600000){ sz.cache.set(key, saved.d); capMap(sz.cache, 12); return; }
+    quiet = true;
+  }else{ sz.items = []; sz.loading = true; szRender(); $("#szList").append(el("div", "msg", "Loading the chart…")); }
   try{
     const all = [];
     for(let p = 1; p <= 8; p++){
@@ -55,13 +61,14 @@ async function szLoad(){
       if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
       if(token !== sz.token) return;
       all.push(...pg.media);
-      if(p === 1){ sz.items = all.slice(); sz.loading = true; szRender(); }
+      if(p === 1 && !quiet){ sz.items = all.slice(); sz.loading = true; szRender(); }
       if(!pg.pageInfo.hasNextPage) break;
     }
-    sz.cache.set(key, all); sz.items = all; sz.loading = false; szRender();
+    sz.cache.set(key, all); capMap(sz.cache, 12); cacheSet("card", "season_" + key, all); sz.items = all; sz.loading = false; szRender();
   }catch(err){
     if(token !== sz.token) return; sz.loading = false;
-    $("#szList").replaceChildren(dxEmpty(/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "Couldn't reach AniList. Check your connection." : err.message, szLoad)); $("#szCount").textContent = "";
+    if(quiet) return;   // keep the saved chart when the refresh fails
+    $("#szList").replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, szLoad)); $("#szCount").textContent = "";
   }
 }
 const szYears = () => { const y = new Date().getFullYear() + 1, out = []; for(let i = y; i >= 1970; i--) out.push([i, String(i)]); return out; };

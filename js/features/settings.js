@@ -27,7 +27,7 @@ async function loadAniSettings(quiet){
     $("#aniStatus").textContent = "These settings are saved on your AniList account."; $("#aniForm").hidden = false; aniRender();
   }catch(err){
     const retry = el("button", "go alt", "Try again"); retry.onclick = () => loadAniSettings(false);
-    $("#aniStatus").textContent = "Couldn't load: " + (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection." : err.message) + " "; $("#aniStatus").append(retry);
+    $("#aniStatus").textContent = "Couldn't load: " + (isNetErr(err) ? "no connection." : err.message) + " "; $("#aniStatus").append(retry);
   }
 }
 function aniRender(){
@@ -58,9 +58,9 @@ async function aniSave(){
   try{
     const { json } = await gql(ANI_SAVE_Q, vars); if(json.errors) throw new Error(json.errors[0].message);
     if("tl" in vars){ try{ localStorage.setItem("wn_tlang", String(ani.title).replace("_STYLISED", "")); }catch(_){} mcache.clear(); trendAt = 0; if(lists[curType] && lists[curType].entries) renderList(); }
-    if("about" in vars || "pc" in vars){ profLoaded = false; try{ localStorage.removeItem("wn_profile"); }catch(_){} }
+    if("about" in vars || "pc" in vars){ profLoaded = false; cacheDel("acct", "profile_" + acctUser()); }
     aniBusy = false; await loadAniSettings(true); toast("AniList settings saved");
-  }catch(err){ aniBusy = false; aniButtons(); $("#aniMsg").textContent = "Couldn't save: " + (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? "no connection." : err.message); }
+  }catch(err){ aniBusy = false; aniButtons(); $("#aniMsg").textContent = "Couldn't save: " + (isNetErr(err) ? "no connection." : err.message); }
 }
 $("#aniSave").onclick = aniSave;
 
@@ -79,9 +79,9 @@ $("#acDelete").onclick = () => {
 };
 $("#acSyncNow").onclick = () => { if(!pendingCount()){ $("#acMsg").textContent = "Nothing is waiting to sync."; return; } flushPending(); $("#acMsg").textContent = "Syncing…"; setTimeout(() => { renderPending(); $("#acMsg").textContent = pendingCount() ? "Still waiting. Check your connection." : "All synced."; }, 2500); };
 $("#clearCache").onclick = () => {
-  try{ for(const k of Object.keys(localStorage)) if(/^wn_(list_|cache$|tagcol$|profile$|actdays$)/.test(k)) localStorage.removeItem(k); }catch(_){}
-  mcache.clear(); ecache.clear(); asCache.clear(); affCache.clear(); profLoaded = false; trendAt = 0; if(typeof invalidateLists === "function") invalidateLists();
-  $("#acMsg").textContent = "Saved lists and pictures were cleared. They load again when you open them.";
+  const st = cacheStats(); cacheClear();   // only the cache: waiting changes, settings and your login are not touched
+  mcache.clear(); ecache.clear(); asCache.clear(); affCache.clear(); sz.cache.clear(); cz.cache = []; tz.cache = {}; pt.pools.clear(); profLoaded = false; trendAt = 0; if(typeof invalidateLists === "function") invalidateLists();
+  $("#acMsg").textContent = st.count ? "Cleared " + st.count + " saved item" + (st.count > 1 ? "s" : "") + " (about " + Math.max(1, Math.round(st.chars * 2 / 1024)) + " KB). They load again when you open them." : "The cache was already empty.";
 };
 $("#copyInfo").onclick = async () => {
   const text = "What Next? " + (window.__REV || "unknown") + " | AniList user: " + (state.user || savedName()) + (meId() ? " (id " + meId() + ")" : "") + " | " + navigator.userAgent;

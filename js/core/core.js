@@ -67,7 +67,7 @@ async function loadList(user){
   }catch(err){
     const painted = state.fromCache; state.fromCache = false;
     if(painted && state.items.length){ $("#whoName").textContent = isNetErr(err) ? "Offline" : user; return; }   // keep the saved pick, don't replace it with an error
-    const cached = cacheGet("acct", poolName(user));
+    const cached = cacheGetAs("acct", poolName(user), CACHE_OK.pool);
     if(cached && cached.length && isNetErr(err)){
       state.items = cached; state.user = user; buildGenres();
       $("#whoName").textContent = "Offline";

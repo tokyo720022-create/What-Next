@@ -157,7 +157,7 @@ function dxSelectRow(label, value, pairs, fn){
   s.value = value; s.onchange = () => fn(s.value); row.append(el("span", null, label), s); return row;
 }
 async function dxTagList(){
-  const saved = cacheGet("card", "tagcol"); if(Array.isArray(saved) && saved.length) return saved;
+  const saved = cacheGetAs("card", "tagcol", CACHE_OK.array); if(Array.isArray(saved) && saved.length) return saved;
   const { json } = await gql("query{MediaTagCollection{name category isAdult}}", {});
   const tags = (json.data && json.data.MediaTagCollection) || []; if(!tags.length) throw new Error("No tags");
   cacheSet("card", "tagcol", tags);

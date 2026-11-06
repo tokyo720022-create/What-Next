@@ -379,13 +379,14 @@ def handle(route, request):
             return ok({"Page": {"pageInfo": {"hasNextPage": p == 1 and v.get("y") != 2020}, "media": items}})
         if "airingSchedules(airingAt_greater" in q:
             CZREQ.append(dict(v)); p = v.get("p") or 1; day0 = v["from"] + 1; ndays = max(1, round((v["to"] - day0) / 86400)); items = []
-            for di in range(ndays):
-                n = 2 + di % 5; ep = di % 12 + 1
+            off = round((day0 - (CZREQ[0]["from"] + 1)) / 86400)   # the grid is loaded week by week: number its days from the first week asked for
+            for di0 in range(ndays):
+                di = di0 + off; n = 2 + di % 5; ep = di % 12 + 1
                 for k in range(n):
                     media = {"id": 9000 + di * 10 + k, "type": "ANIME", "format": "TV", "episodes": ep if k == 1 else 12, "isAdult": k == 3, "season": "WINTER" if k == 2 else "FALL", "seasonYear": 2020 if k == 2 else 2026,
                              "title": {"romaji": "Airing %d-%d" % (di, k), "english": None, "native": None}, "countryOfOrigin": "JP", "coverImage": {"medium": "https://img.test/c%d.jpg" % ((di + k) % 9), "large": "https://img.test/c%d.jpg" % ((di + k) % 9)}, "bannerImage": "https://img.test/c8.jpg" if k == 0 else None,
                              "mediaListEntry": {"status": "CURRENT", "progress": ep - 1} if k == 0 else {"status": "PLANNING", "progress": 0} if k == 1 else None}
-                    items.append({"id": di * 10 + k, "airingAt": day0 + di * 86400 + (17 + k) * 3600, "episode": ep, "media": media})
+                    items.append({"id": di * 10 + k, "airingAt": day0 + di0 * 86400 + (17 + k) * 3600, "episode": ep, "media": media})
             chunk = items[(p - 1) * 50: p * 50]
             return ok({"Page": {"pageInfo": {"hasNextPage": len(items) > p * 50}, "airingSchedules": chunk}})
         if "staffNameLanguage" in q and "mutation" not in q:

@@ -7,7 +7,7 @@
    Nothing in here needs the screen, so it can be tested on its own. */
 const CACHE_DAY = 86400000;
 const CACHE_TTL = { card: 3 * CACHE_DAY, cal: 7 * CACHE_DAY, acct: 14 * CACHE_DAY };
-const CACHE_MAX = { card: 80, cal: 8, acct: 60 };           // most entries kept per class
+const CACHE_MAX = { card: 80, cal: 12, acct: 60 };           // most entries kept per class
 const CACHE_ORDER = ["card", "cal", "acct"];                 // cheapest to lose first
 const CACHE_PFX = "wn_c_";
 const SESSION_MAX = 14 * CACHE_DAY, SESSION_KEY = "wn_last";
@@ -41,6 +41,31 @@ function cacheMeta(cls, name){
   return { d: r.d, at: r.at, age: Date.now() - r.at };
 }
 const cacheGet = (cls, name) => { const m = cacheMeta(cls, name); return m ? m.d : null; };
+
+// Saved data is never trusted blindly: an item from an older version of the app, or one that got damaged, must not crash the app on every start.
+// cacheGetAs / cacheMetaAs hand the data back only if it has the shape the screen needs; otherwise the item is deleted and counts as "not saved".
+const isObj = x => !!x && typeof x === "object" && !Array.isArray(x);
+const okMedia = m => isObj(m) && typeof m.id === "number" && isObj(m.title);
+const okEntry = e => isObj(e) && okMedia(e.media);                  // an entry of the Pick pool
+const okListEntry = e => isObj(e) && typeof e.id === "number" && okMedia(e.m);   // an entry of a saved list (the title is kept under "m")
+const CACHE_OK = {
+  pool: d => Array.isArray(d) && d.every(okEntry),                                   // the Pick pool: list entries
+  list: d => isObj(d) && Array.isArray(d.entries) && d.entries.every(okListEntry),   // a whole list
+  medias: d => Array.isArray(d) && d.every(m => okMedia(m) && isObj(m.coverImage)),  // trending, the seasonal chart
+  media: okMedia,                                                                    // a title's page
+  entity: d => isObj(d) && typeof d.id === "number",                                 // a character, staff or studio page
+  airing: d => Array.isArray(d) && d.every(x => isObj(x) && typeof x.airingAt === "number" && okMedia(x.media)),   // a week of the calendar
+  actdays: d => isObj(d) && isObj(d.days),
+  array: Array.isArray,
+  object: isObj
+};
+function cacheMetaAs(cls, name, ok){
+  const m = cacheMeta(cls, name); if(!m) return null;
+  let good = false; try{ good = !!ok(m.d); }catch(_){}
+  if(!good){ cacheDel(cls, name); return null; }
+  return m;
+}
+const cacheGetAs = (cls, name, ok) => { const m = cacheMetaAs(cls, name, ok); return m ? m.d : null; };
 
 function cachePut(k, s){ try{ localStorage.setItem(k, s); return true; }catch(_){ return false; } }
 // Remove the oldest entry of a class (never the one being written). Returns false when there is nothing left to remove.

@@ -29,7 +29,7 @@ async function loadAniStats(force, uid){
     if(!uid) cacheSet("acct", "stats_me_" + acctUser(), st);   // your own statistics are saved for 14 days
     return st;
   }catch(err){
-    const saved = !uid && isNetErr(err) ? cacheGet("acct", "stats_me_" + acctUser()) : null;
+    const saved = !uid && isNetErr(err) ? cacheGetAs("acct", "stats_me_" + acctUser(), CACHE_OK.object) : null;
     if(saved){ asCache.set(key, { st: saved, at: Date.now() - 540000 }); return saved; }   // offline: show the saved statistics, ask again in a minute
     throw err;
   }

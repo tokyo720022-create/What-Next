@@ -115,26 +115,43 @@ function czRender(){
   const body = $("#czBody"); body.replaceChildren(cz.view === "month" ? czMonthView(r, byDay) : czWeekView(r, byDay)); czHeader();
   if(cz.view === "list"){ const sec = body.querySelector('.czsec[data-day="' + dayKey(cz.sel) + '"]'); if(sec) requestAnimationFrame(() => window.scrollTo({ top: Math.max(0, sec.getBoundingClientRect().top + window.scrollY - 160) })); }
 }
+// The schedule is saved week by week (Monday to Sunday, 7 days). A saved week is not asked for again until it is stale: a week that is over never,
+// this week and next week after 10 minutes, any other week after an hour. So opening the calendar costs a few requests at most, not a whole month,
+// and the month view, the week view and the neighbouring months all share the same saved weeks.
+const czWeekKey = w => "w" + czTs(w);
+function czWeeks(){ const r = czRange(), out = []; for(let w = r.start; w < r.end; w = czAdd(w, 7)) out.push(w); return out; }
+function czForget(){ czWeeks().forEach(w => cacheDel("cal", czWeekKey(w))); cz.cache = []; }
+function czStaleAfter(w){ const now = new Date(); if(czAdd(w, 7) <= now) return Infinity; return w <= czAdd(czMon(now), 7) ? 600000 : 3600000; }
+async function czFetchWeek(w, token){
+  const from = czTs(w) - 1, to = czTs(czAdd(w, 7)), all = [];
+  for(let p = 1; p <= 8; p++){
+    const { json } = await gql(CZ_Q, { p, from, to }), pg = json.data && json.data.Page;
+    if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
+    if(token !== cz.token) return null; all.push(...pg.airingSchedules); if(!pg.pageInfo.hasNextPage) break;
+  }
+  return all.filter(x => x.airingAt > from && x.airingAt < to);   // only this week's airings, whatever the server sent
+}
 async function czLoad(){
-  const r = czRange(), from = czTs(r.start) - 1, to = czTs(r.end), token = ++cz.token; czHeader();
-  const hit = cz.cache.find(c => c.from <= from && c.to >= to && Date.now() - c.at < 300000);
-  if(hit){ cz.items = hit.items.filter(x => x.airingAt > from && x.airingAt < to); czRender(); return; }
-  // The saved schedule (7 days) shows at once. If it is older than 5 minutes it is refreshed quietly: air times and your list status change.
-  const ckey = from + "_" + to, saved = cacheMeta("cal", ckey); let quiet = false;
-  if(saved && Array.isArray(saved.d)){
-    cz.items = saved.d; czRender();
-    if(saved.age < 300000){ cz.cache.push({ from, to, at: saved.at, items: saved.d }); return; }
-    quiet = true;
-  }else $("#czBody").replaceChildren(el("div", "msg", "Loading the schedule…"));
-  try{
-    const all = [];
-    for(let p = 1; p <= 14; p++){
-      const { json } = await gql(CZ_Q, { p, from, to }), pg = json.data && json.data.Page;
-      if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
-      if(token !== cz.token) return; all.push(...pg.airingSchedules); if(!pg.pageInfo.hasNextPage) break;
+  const token = ++cz.token, weeks = czWeeks(), parts = new Map(), missing = [], stale = []; czHeader();
+  for(const w of weeks){
+    const k = czWeekKey(w), m = cacheMetaAs("cal", k, CACHE_OK.airing);
+    if(m){ parts.set(k, m.d); if(m.age >= czStaleAfter(w)) stale.push(w); } else missing.push(w);
+  }
+  const draw = () => { cz.items = weeks.flatMap(w => parts.get(czWeekKey(w)) || []); czRender(); };
+  if(parts.size) draw(); else $("#czBody").replaceChildren(el("div", "msg", "Loading the schedule…"));
+  for(const w of [...missing, ...stale]){   // missing weeks first, each one drawn as soon as it arrives
+    if(token !== cz.token) return;
+    try{
+      const arr = await czFetchWeek(w, token);
+      if(arr === null || token !== cz.token) return;
+      parts.set(czWeekKey(w), arr); cacheSet("cal", czWeekKey(w), arr); draw();
+    }catch(err){
+      if(token !== cz.token) return;
+      if(!parts.size) $("#czBody").replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, czLoad));
+      else if(missing.includes(w)) toast("Some days couldn't load. Pull down to try again.");   // the weeks that did load stay on screen
+      return;
     }
-    cz.cache = cz.cache.filter(c => Date.now() - c.at < 300000).slice(-3); cz.cache.push({ from, to, at: Date.now(), items: all }); cacheSet("cal", ckey, all); cz.items = all; czRender();
-  }catch(err){ if(token !== cz.token || quiet) return; $("#czBody").replaceChildren(dxEmpty(isNetErr(err) ? "Couldn't reach AniList. Check your connection." : err.message, czLoad)); }
+  }
 }
 
 // ----- controls -----

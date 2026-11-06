@@ -20,7 +20,8 @@ def main(page, out):
         n = 2 + di % 5; vis = n - (1 if n > 3 else 0)   # the adult airing (4th) is hidden by default
         if c["p"] != min(4, vis) or c["more"] != ("+%d" % (vis - 4) if vis > 4 else ""): ok_cells = False; print("   cell", di, c, "expected", min(4, vis), vis - 4)
     check("each day shows up to 4 posters and +N for the rest", ok_cells)
-    check("one request covers the whole grid and loads every page", harness.CZREQ[0]["to"] - harness.CZREQ[0]["from"] in range(rows * 7 * 86400 - 5, rows * 7 * 86400 + 5) and all(r["from"] == harness.CZREQ[0]["from"] for r in harness.CZREQ), harness.CZREQ[:2])
+    wk = 7 * 86400; frm = sorted({r["from"] for r in harness.CZREQ})
+    check("the grid is loaded week by week: one window per week of the grid, each exactly 7 days, in order", len(frm) == rows and all(b - a == wk for a, b in zip(frm, frm[1:])) and all(r["to"] - r["from"] in (wk + 1, wk) for r in harness.CZREQ), (rows, frm, harness.CZREQ[:2]))
     # ---- filters
     page.click('#calendar .czchips [data-c="premiere"]'); page.wait_for_timeout(200)
     eps1 = [di for di in range(rows * 7) if di % 12 == 0]

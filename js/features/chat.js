@@ -8,7 +8,7 @@ async function myId(){
   state.uid = json.data && json.data.Viewer && json.data.Viewer.id;
   return state.uid;
 }
-function recentChats(){ try{ return JSON.parse(localStorage.getItem("wn_chats") || "[]"); }catch(_){ return []; } }
+function recentChats(){ try{ const a = JSON.parse(localStorage.getItem("wn_chats") || "[]"); return Array.isArray(a) ? a.filter(x => typeof x === "string") : []; }catch(_){ return []; } }   // a damaged list is just empty
 function renderRecent(){
   $("#chatRecent").replaceChildren(...recentChats().map(n => { const b = el("button", "chip", n); b.style.flex = "0 0 auto"; b.onclick = () => openChat(n); return b; }));
 }

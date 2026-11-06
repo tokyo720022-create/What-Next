@@ -48,9 +48,12 @@ async function szLoad(){
   const key = sz.year + "-" + sz.season, token = ++sz.token; szBar();
   if(sz.cache.has(key)){ sz.items = sz.cache.get(key); sz.loading = false; szRender(); return; }
   // A saved chart (3 days) shows at once. If it is older than 10 minutes it is refreshed quietly, because "on your list" may have changed.
-  const saved = cacheMeta("card", "season_" + key); let quiet = false;
-  if(saved && Array.isArray(saved.d)){
-    sz.items = saved.d; sz.loading = false; szRender();
+  let saved = cacheMetaAs("card", "season_" + key, CACHE_OK.medias), quiet = false;
+  if(saved){
+    sz.items = saved.d; sz.loading = false;
+    try{ szRender(); }catch(_){ cacheDel("card", "season_" + key); saved = null; }   // a damaged saved chart is thrown away and loaded again
+  }
+  if(saved){
     if(saved.age < 600000){ sz.cache.set(key, saved.d); capMap(sz.cache, 12); return; }
     quiet = true;
   }else{ sz.items = []; sz.loading = true; szRender(); $("#szList").append(el("div", "msg", "Loading the chart…")); }

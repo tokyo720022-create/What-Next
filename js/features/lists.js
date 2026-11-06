@@ -40,7 +40,7 @@ const SORTS = {
 
 // Saved copy of each list (account cache, 14 days). Written a moment after the last change, so tapping +1 many times saves once.
 const lcacheName = type => "list_" + type + "_" + acctUser();
-function readListCache(type){ const m = cacheMeta("acct", lcacheName(type)); return m && m.d && Array.isArray(m.d.entries) ? { at: m.at, entries: m.d.entries } : null; }
+function readListCache(type){ const m = cacheMetaAs("acct", lcacheName(type), CACHE_OK.list); return m ? { at: m.at, entries: m.d.entries } : null; }
 function writeListCache(type, entries){ cacheSetSoon("acct", lcacheName(type), { entries }, 800); }
 function clearListCaches(){ cacheDelPrefix("acct", "list_"); }
 function setListNote(t){ const n = $("#listNote"); n.hidden = !t; n.textContent = t || ""; n.classList.remove("warn"); n.onclick = null; }

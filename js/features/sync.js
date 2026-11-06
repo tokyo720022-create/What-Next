@@ -4,7 +4,7 @@
 const TS_KEY = "wn_ts", TS_AL_PIN = "https://anilist.co/api/v2/oauth/pin";
 const TS_KINDS = { anime: { type: "ANIME", label: "Anime", mal: "anime" }, manga: { type: "MANGA", label: "Manga", mal: "manga" } };
 // One place for the defaults, so the screen and the engine always agree.
-const TS_DEF = { sendAl: true, sendMal: true, add: true, protect: true, remove: false, skipAdultMal: false, auto: false, autoHours: 3, dcOn: true, dcQuiet: true, dcTitles: false, dcUrl: "", dcAnime: "", dcManga: "", dcLists: TS_DC_LISTS, source: "" };
+const TS_DEF = { sendAl: true, sendMal: true, add: true, protect: true, remove: false, skipAdultMal: false, auto: false, autoHours: 3, dcOn: true, dcQuiet: true, dcTitles: false, dcThemes: true, dcAdaptive: true, dcUrl: "", dcAnime: "", dcManga: "", dcLists: TS_DC_LISTS, source: "" };
 // What to read from the source. The extra fields (custom lists, cover, totals, tags) are only asked for when a Discord card webhook needs them.
 const tsFields = dc => "mediaId status progress progressVolumes repeat private notes score(format:POINT_100) startedAt{year month day} completedAt{year month day} updatedAt" + (dc ? " customLists(asArray:true)" : "")
   + " media{id idMal isAdult title{romaji english}" + (dc ? " format genres tags{name} episodes chapters coverImage{extraLarge color}" : "") + "}";
@@ -324,7 +324,7 @@ async function tsRun(k, modeForFirst, opts = {}){
       for(let n = 0; n < queue.length; n++){
         const e = queue[n];
         if(tsStopFlag){ stopped = true; for(const x of queue.slice(n)) unsettled.add(String(x.mediaId)); break; }
-        try{ const cat = tsCategory(e, k, c.dcLists); tsNote(K.label + ": posting card " + (n + 1) + " of " + queue.length + "…"); await tsPostCard(hook, k, cat, tsCard(e, k, cat)); st.cards++; await tsGap(1500); }
+        try{ const cat = tsCategory(e, k, c.dcLists); tsNote(K.label + ": posting card " + (n + 1) + " of " + queue.length + "…"); await tsPostCard(hook, k, cat, tsCard(e, k, cat, { themes: c.dcThemes !== false, adaptive: c.dcAdaptive !== false })); st.cards++; await tsGap(1500); }
         catch(err){
           st.cardFails++;
           if(err.outage){   // Discord is having a problem: stop now and keep the cards for the next sync
@@ -430,7 +430,7 @@ function tsFill(){
   $("#tsSource").value = c.source || ""; $("#tsSource").placeholder = state.user || "your AniList username";
   $("#tsAlId").value = al.clientId || ""; $("#tsAlSecret").value = al.clientSecret || "";
   $("#tsMalId").value = mal.clientId || ""; $("#tsMalSecret").value = mal.clientSecret || ""; $("#tsMalRedirect").value = mal.redirect || "http://localhost";
-  $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcAnime").value = c.dcAnime || ""; $("#tsDcManga").value = c.dcManga || ""; $("#tsDcLists").value = c.dcLists; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles;
+  $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcAnime").value = c.dcAnime || ""; $("#tsDcManga").value = c.dcManga || ""; $("#tsDcLists").value = c.dcLists; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles; $("#tsDcThemes").checked = c.dcThemes !== false; $("#tsDcAdaptive").checked = c.dcAdaptive !== false;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) $(id).checked = !!c[key];
   $("#tsAutoHours").value = String(c.autoHours);
 }
@@ -445,7 +445,7 @@ function tsSaveForm(){
     if(!url || tsWebhookOk(url)) c[key] = url; else tsLog("That isn't a Discord webhook link, so the " + label + " webhook was not saved.");
   }
   c.dcLists = $("#tsDcLists").value.trim();
-  c.dcOn = $("#tsDcOn").checked; c.dcQuiet = $("#tsDcQuiet").checked; c.dcTitles = $("#tsDcTitles").checked;
+  c.dcOn = $("#tsDcOn").checked; c.dcQuiet = $("#tsDcQuiet").checked; c.dcTitles = $("#tsDcTitles").checked; c.dcThemes = $("#tsDcThemes").checked; c.dcAdaptive = $("#tsDcAdaptive").checked;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) c[key] = $(id).checked;
   c.autoHours = Number($("#tsAutoHours").value) || 3;
   LSset(TS_KEY, c);
@@ -520,7 +520,7 @@ async function tsTestCard(k){
   if(info && !info.ok){ tsLog("Discord says that webhook doesn't exist (" + info.status + "). It was deleted, or the link is wrong. " + TS_DC_HINTS[10015]); return; }
   if(info && info.ok) tsLog("Webhook found" + (info.name ? ": " + info.name : "") + ".");
   const e = { mediaId: 0, status: "CURRENT", progress: 3, customLists: [], media: { title: { english: "Test card", romaji: "Tesuto kaado" }, format: "TV", genres: [], tags: [], episodes: 12, chapters: 80, coverImage: { extraLarge: "", color: "#43a1d4" } } };
-  try{ const cat = { name: "General Updates", own: false }, embed = tsCard(e, k, cat); embed.title = "TEST: this is how an update card looks"; await tsPostCard(url, k, cat, embed); tsLog("Test card sent to the " + k + " channel, in the thread " + tsThreadName(cat, k) + "."); }
+  try{ const cat = { name: "General Updates", own: false }, embed = tsCard(e, k, cat, { force: $("#tsDcPreview").value, adaptive: $("#tsDcAdaptive").checked }); embed.title = "TEST: this is how an update card looks" + ($("#tsDcPreview").value ? " (" + $("#tsDcPreview").selectedOptions[0].textContent + " look)" : ""); await tsPostCard(url, k, cat, embed); tsLog("Test card sent to the " + k + " channel, in the thread " + tsThreadName(cat, k) + "."); }
   catch(err){ tsLog("Couldn't post to Discord. " + err.message); }
 }
 $("#tsDcAnimeTest").onclick = () => tsTestCard("anime");

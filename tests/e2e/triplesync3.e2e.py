@@ -76,10 +76,16 @@ def main(page, out):
     go()
     for i in range(5): bump(i)
     src()[5]["progress"] = 12; src()[5]["status"] = "COMPLETED"
-    log = go(); by = {c["embed"]["title"].replace("UPDATE: Source Title ", ""): c["thread"] for c in cards()}
+    log = go(); by = {c["embed"]["title"].replace("UPDATE: Source Title ", "").replace("⚔️ Source Title ", ""): c["thread"] for c in cards()}
     check("every title goes to the right thread: its custom list, a guess from its tags or format, else General Updates", by == {"2001": "[ANIME] General Updates", "2002": "[ANIME] Iseki", "2003": "[ANIME] General Updates", "2004": "[ANIME] Iseki", "2005": "[ANIME] Anime Movies", "2006": "[ANIME] General Updates"}, by)
+    iseki = [c for c in cards() if c["thread"] == "[ANIME] Iseki"]; plain = [c for c in cards() if c["thread"] == "[ANIME] General Updates"]
+    check("themed cards: Iseki cards have the Isekai look (poster-coloured border, Isekai heading), other threads keep the standard card", len(iseki) == 2 and all(c["embed"]["color"] == page.evaluate("tsAdaptColor('#43a1d4', 0)") and c["embed"]["author"]["name"].startswith("🌀 ISEKAI GATE") and c["embed"]["title"].startswith("⚔️ ") for c in iseki) and all(c["embed"]["title"].startswith("UPDATE: ") for c in plain), [(c["thread"], c["embed"]["title"]) for c in cards()])
+    page.select_option("#tsDcPreview", "romcom"); page.press("#tsDcPreview", "Tab"); n0 = len(cards()); page.click("#tsDcAnimeTest"); page.wait_for_function("document.querySelectorAll('#syncLog').length && document.querySelector('#syncLog').textContent.includes('look)') || true"); page.wait_for_timeout(900)
+    last = cards()[-1] if len(cards()) > n0 else None
+    check("the preview select makes the test button send the Rom Com look, into General Updates", bool(last) and last["embed"]["color"] == page.evaluate("tsAdaptColor('#43a1d4', 0)") and "Rom Com look" in last["embed"]["title"] and last["thread"] == "[ANIME] General Updates", last and (last["thread"], last["embed"]["title"]))
+    page.select_option("#tsDcPreview", "")
     check("one thread per name, with the list in its starter message", sorted(v["name"] for v in TS["threads"].values()) == ["[ANIME] Anime Movies", "[ANIME] General Updates", "[ANIME] Iseki"] and any(v["starter"] == "📡 **Iseki** | ANIME Telemetry Dashboard" for v in TS["threads"].values()), TS["threads"])
-    check("the card footer names the list", [c["embed"]["footer"]["text"] for c in cards() if c["embed"]["title"].endswith("2002")] == ["Iseki"] and [c["embed"]["footer"]["text"] for c in cards() if c["embed"]["title"].endswith("2001")] == ["General Updates"])
+    check("the card footer names the list (the Isekai look has its own footer, standard cards name the list)", [c["embed"]["footer"]["text"] for c in cards() if c["embed"]["title"].endswith("2002")] == ["🌀 Isekai · Tokyo Brotherhood"] and [c["embed"]["footer"]["text"] for c in cards() if c["embed"]["title"].endswith("2001")] == ["General Updates"])
     done = [c for c in cards() if c["embed"]["title"].endswith("2006")][0]["embed"]
     check("a completed series is marked, and left is 0", done.get("author") == {"name": "🏆 SERIES COMPLETED"} and [f["value"] for f in done["fields"] if "Left" in f["name"]] == ["0"], done)
     nthreads = len(TS["threads"]); bump(1); go()

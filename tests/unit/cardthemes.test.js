@@ -1,0 +1,57 @@
+// Unit tests for the Discord card themes in js/features/triple-math.js. Run: node tests/unit/cardthemes.test.js
+const fs = require("fs"), vm = require("vm"), path = require("path");
+const ctx = { console }; vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../../js/features/triple-math.js"), "utf8"), ctx);
+const g = n => vm.runInContext(n, ctx);
+let pass = 0, fail = 0;
+const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); ok ? pass++ : fail++; console.log((ok ? "PASS " : "FAIL ") + name + (ok ? "" : "\n   got  " + JSON.stringify(got) + "\n   want " + JSON.stringify(want))); };
+const entry = (o = {}) => Object.assign({ mediaId: 5, status: "CURRENT", progress: 23, customLists: [], media: { title: { english: "Farming Life in Another World", romaji: "Isekai Nonbiri Nouka" }, format: "MANGA", genres: [], tags: [], episodes: 12, chapters: 100, coverImage: { extraLarge: "https://s4.anilist.co/cover.jpg", color: "#43a1d4" } } }, o);
+const tf = g("tsThemeFor"), card = g("tsCard");
+const own = name => ({ name, own: true });
+
+eq("Iseki, Isekai and Tensei lists get the Isekai theme", ["Iseki", "isekai", "Tensei", "Isekai 2"].map(n => tf(own(n))), ["isekai", "isekai", "isekai", "isekai"]);
+eq("Rom Com in any spelling gets the Rom-Com theme", ["Rom Com", "rom-com", "RomCom", "Romantic Comedy"].map(n => tf(own(n))), ["romcom", "romcom", "romcom", "romcom"]);
+eq("other lists have no theme yet", ["Favourite", "Milf", "Anime movies", "Plan to continue"].map(n => tf(own(n))), ["", "", "", ""]);
+eq("General Updates (a list with no thread of its own) is never themed", [tf({ name: "Iseki", own: false }), tf({ name: "General Updates", own: false })], ["", ""]);
+eq("no theme, or no list, is safe", [tf(null), tf({ own: true })], ["", ""]);
+
+const std = card(entry(), "manga", own("Iseki"));
+eq("without options the standard card is used (nothing changes for old callers)", [std.title, std.fields[0].name, std.color], ["UPDATE: Farming Life in Another World", "🇯🇵 Romaji", 0x43a1d4]);
+eq("themes switched off: standard card", card(entry(), "manga", own("Iseki"), { themes: false }).title, "UPDATE: Farming Life in Another World");
+const iso = card(entry(), "manga", own("Iseki"), { themes: true });
+eq("Isekai card: colour, author, title", [iso.color, iso.author.name, iso.title], [0x8E5CFF, "🌀 ISEKAI GATE · CHAPTER LOG", "⚔️ Farming Life in Another World"]);
+eq("Isekai card: progress bar and flavour text", iso.description, "**Chapter 23** of 100\n🟪🟪⬛⬛⬛⬛⬛⬛⬛⬛ 23%\n*The journey in another world continues…*");
+eq("Isekai card keeps Romaji, Status, Chapter and Left, with the poster", [iso.fields.map(f => f.name), iso.fields.map(f => f.value), iso.image.url], [["🌀 Romaji", "🗺️ Quest status", "📜 Chapter", "⏳ Left"], ["Isekai Nonbiri Nouka", "**CURRENT** · on the journey", "23", "77"], "https://s4.anilist.co/cover.jpg"]);
+eq("Isekai footer", iso.footer.text, "🌀 Isekai · Tokyo Brotherhood");
+const rc = card(entry({ status: "PLANNING", progress: 0 }), "anime", own("Rom Com"), { themes: true });
+eq("Rom-Com card for anime: colour, author, hearts, Episode wording", [rc.color, rc.author.name, rc.description, rc.fields[2].name], [0xFF6FA3, "💕 ROM-COM DIARY · NEW EPISODE", "**Episode 0** of 12\n🤍🤍🤍🤍🤍🤍🤍🤍🤍🤍 0%\n*Saved for a rainy day with someone special.*", "💖 Episode"]);
+const fin = card(entry({ status: "COMPLETED", progress: 12 }), "anime", own("Rom Com"), { themes: true });
+eq("a completed series has its own heading, a full bar and 0 left", [fin.author.name, fin.description.includes("💗".repeat(10) + " 100%"), fin.fields[3].value], ["💍 HAPPILY EVER AFTER", true, "0"]);
+const fin2 = card(entry({ status: "COMPLETED", progress: 100 }), "manga", own("Iseki"), { themes: true });
+eq("Isekai completed heading", fin2.author.name, "🏆 QUEST COMPLETE · BACK FROM ANOTHER WORLD");
+const unk = entry(); unk.media.chapters = null; unk.media.coverImage = null;
+const iu = card(unk, "manga", own("Iseki"), { themes: true });
+eq("unknown total: no bar, Left is ?, and no poster is fine", [iu.description, iu.fields[3].value, iu.image], ["**Chapter 23**\n*The journey in another world continues…*", "?", undefined]);
+eq("a status AniList adds later does not break the card", card(entry({ status: "SOMETHING_NEW" }), "manga", own("Iseki"), { themes: true }).fields[1].value, "**SOMETHING_NEW**");
+eq("the test buttons can force a look, or the standard card", [card(entry(), "anime", { name: "General Updates", own: false }, { force: "romcom" }).color, card(entry(), "anime", own("Iseki"), { force: "" }).title], [0xFF6FA3, "UPDATE: Farming Life in Another World"]);
+const long = entry(); long.media.title.english = "x".repeat(400);
+eq("a very long title stays inside Discord's 256 character limit", card(long, "manga", own("Iseki"), { themes: true }).title.length <= 256, true);
+// adaptive border
+const ad = g("tsAdaptColor"), hsl = n => { const r = (n >> 16 & 255) / 255, gg = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn, l = (mx + mn) / 2, s = d / (1 - Math.abs(2 * l - 1)); let h = mx === r ? ((gg - b) / d) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; return { h: Math.round((h * 60 + 360) % 360), s, l }; };
+const blue = hsl(ad("#43a1d4", 1));
+eq("a good poster colour keeps its hue and stays within a visible range", [Math.abs(blue.h - 201) <= 2, blue.l >= 0.49 && blue.l <= 0.67, blue.s >= 0.44], [true, true, true]);
+const dark = hsl(ad("#101a2e", 1));
+eq("a very dark poster colour is lifted so the border is visible", [Math.abs(dark.h - 219) <= 3, dark.l >= 0.49], [true, true]);
+const pale = hsl(ad("#ffe0e0", 1));
+eq("a washed-out colour gets its strength back", [pale.l <= 0.67, pale.s >= 0.44, pale.h <= 2 || pale.h >= 358], [true, true, true]);
+eq("a grey or black-and-white poster keeps the theme colour", [ad("#c8c8c8", 777), ad("#000000", 777), ad("#ffffff", 777), ad("#333333", 777)], [777, 777, 777, 777]);
+eq("missing or broken colours keep the theme colour", [ad(null, 5), ad("", 5), ad("blue", 5), ad("#12345", 5), ad(undefined, 5)], [5, 5, 5, 5, 5]);
+eq("the same poster always gives the same border", ad("#e4a15d", 1) === ad("e4a15d", 1), true);
+const poster = entry(); poster.media.coverImage.color = "#7bb36a";
+eq("adaptive on: the themed card takes the poster's colour", [card(poster, "manga", own("Iseki"), { themes: true, adaptive: true }).color === ad("#7bb36a", 1), card(poster, "manga", own("Iseki"), { themes: true, adaptive: true }).color !== 0x8E5CFF], [true, true]);
+eq("adaptive off: the theme colour", [card(poster, "manga", own("Iseki"), { themes: true, adaptive: false }).color, card(poster, "anime", own("Rom Com"), { themes: true }).color], [0x8E5CFF, 0xFF6FA3]);
+const gray = entry(); gray.media.coverImage.color = "#b0b0b0";
+eq("adaptive on with a grey poster: the theme colour", card(gray, "manga", own("Iseki"), { themes: true, adaptive: true }).color, 0x8E5CFF);
+const nocol = entry(); nocol.media.coverImage = null;
+eq("adaptive on with no poster at all: the theme colour", card(nocol, "manga", own("Rom Com"), { themes: true, adaptive: true }).color, 0xFF6FA3);
+console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

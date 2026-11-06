@@ -197,7 +197,11 @@ function tsCategory(e, kind, own){
 }
 const tsThreadName = (cat, kind) => "[" + kind.toUpperCase() + "] " + (cat.own ? tsPyTitle(cat.name) : "General Updates");
 const tsHexInt = h => /^#?[0-9a-f]{6}$/i.test(String(h || "")) ? parseInt(String(h).replace("#", ""), 16) : 3447003;
-function tsCard(e, kind, cat){
+// opt.themes: give lists that have a theme (Isekai, Rom Com) their own look. opt.force: use this theme (or "" for the standard look), used by the test buttons.
+// opt.adaptive: the themed border takes its colour from the poster (see tsAdaptColor).
+function tsCard(e, kind, cat, opt){
+  const th = opt ? (opt.force !== undefined ? opt.force : opt.themes ? tsThemeFor(cat) : "") : "";
+  if(th && TS_THEMES[th]) return tsThemedCard(e, kind, th, opt);
   const m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId, total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0;
   const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, done = e.status === "COMPLETED";
   const embed = { title: ("UPDATE: " + title).slice(0, 256), color: tsHexInt(m.coverImage && m.coverImage.color),
@@ -205,6 +209,72 @@ function tsCard(e, kind, cat){
     footer: { text: cat.own ? tsPyTitle(cat.name) : "General Updates" } };
   if(cover) embed.image = { url: cover };
   if(done) embed.author = { name: "🏆 SERIES COMPLETED" };
+  return embed;
+}
+// ----- Card themes: a list can have its own look. A list with no theme uses the standard card above. -----
+// To add a theme, add an entry here and its list names to "match" (names are compared without spaces or punctuation, so "Rom-Com" and "romcom" are the same).
+const TS_THEMES = {
+  isekai: {
+    match: ["iseki", "isekai", "tensei"], color: 0x8E5CFF, icon: "⚔️", full: "🟪", empty: "⬛", footer: "🌀 Isekai · Tokyo Brotherhood",
+    author: kind => "🌀 ISEKAI GATE · " + (kind === "manga" ? "CHAPTER LOG" : "EPISODE LOG"), done: "🏆 QUEST COMPLETE · BACK FROM ANOTHER WORLD",
+    names: { romaji: "🌀 Romaji", status: "🗺️ Quest status", left: "⏳ Left", manga: "📜 Chapter", anime: "📺 Episode" },
+    status: { CURRENT: "on the journey", PLANNING: "at the summoning circle", COMPLETED: "quest complete", PAUSED: "resting at the inn", DROPPED: "left the party", REPEATING: "new game+" },
+    line: { CURRENT: "The journey in another world continues…", PLANNING: "Waiting at the summoning circle.", COMPLETED: "The Demon King has fallen. The tale is complete.", PAUSED: "Resting at the inn.", DROPPED: "The hero left the party.", REPEATING: "New Game+ has begun." }
+  },
+  romcom: {
+    match: ["romcom", "romanticcomedy"], color: 0xFF6FA3, icon: "💘", full: "💗", empty: "🤍", footer: "💕 Rom Com · Tokyo Brotherhood",
+    author: kind => "💕 ROM-COM DIARY · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "💍 HAPPILY EVER AFTER",
+    names: { romaji: "🌸 Romaji", status: "💌 Status", left: "⏳ Left", manga: "💖 Chapter", anime: "💖 Episode" },
+    status: { CURRENT: "falling for it", PLANNING: "crush pending", COMPLETED: "happily ever after", PAUSED: "on a break", DROPPED: "friend-zoned", REPEATING: "rereading the love story" },
+    line: { CURRENT: "One step closer to the confession…", PLANNING: "Saved for a rainy day with someone special.", COMPLETED: "They finally got together. Happily ever after!", PAUSED: "Taking a break from the drama.", DROPPED: "Friend-zoned. It happens.", REPEATING: "Reading the love story all over again." }
+  }
+};
+const tsSimple = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+// Which theme a list has: the one whose names appear in the list's name ("Isekai", "Rom Com", "Rom-Com 2" ...). "" = standard look.
+function tsThemeFor(cat){
+  const n = tsSimple(cat && cat.name);
+  if(!n || !(cat && cat.own)) return "";   // only lists that have their own thread are themed; General Updates stays standard
+  for(const id of Object.keys(TS_THEMES)) if(TS_THEMES[id].match.some(w => n.includes(w))) return id;
+  return "";
+}
+function tsBar(p, total, full, empty){
+  if(!(total > 0)) return "";
+  const n = 10, f = Math.max(0, Math.min(n, Math.round(p / total * n)));
+  return full.repeat(f) + empty.repeat(n - f) + " " + Math.min(100, Math.round(p / total * 100)) + "%";
+}
+// The border colour that follows the poster. AniList gives each poster's main colour; it is nudged so it always shows well on Discord's dark
+// background (not too dark, not washed out). A grey or black-and-white poster has no real colour, so it keeps the theme's own colour.
+function tsAdaptColor(hex, fallback){
+  if(!/^#?[0-9a-f]{6}$/i.test(String(hex || ""))) return fallback;
+  const n = parseInt(String(hex).replace("#", ""), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  if(d < 0.001) return fallback;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  if(!(s >= 0.12)) return fallback;
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360;
+  const S = Math.min(0.9, Math.max(0.45, s)), L = Math.min(0.66, Math.max(0.5, l));
+  const c = (1 - Math.abs(2 * L - 1)) * S, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = L - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  const to = v => Math.round((v + m) * 255);
+  return (to(r1) << 16) | (to(g1) << 8) | to(b1);
+}
+function tsThemedCard(e, kind, id, opt){
+  const T = TS_THEMES[id], m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId;
+  const total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0, st = e.status || "UNKNOWN", done = st === "COMPLETED";
+  const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, unit = kind === "manga" ? "Chapter" : "Episode", bar = tsBar(p, total, T.full, T.empty);
+  const embed = {
+    author: { name: done ? T.done : T.author(kind) },
+    title: (T.icon + " " + title).slice(0, 256),
+    description: ("**" + unit + " " + p + "**" + (total ? " of " + total : "") + (bar ? "\n" + bar : "") + "\n*" + (T.line[st] || "") + "*").slice(0, 4000),
+    color: opt && opt.adaptive ? tsAdaptColor(m.coverImage && m.coverImage.color, T.color) : T.color,
+    fields: [
+      { name: T.names.romaji, value: t.romaji || "N/A", inline: false },
+      { name: T.names.status, value: "**" + st + "**" + (T.status[st] ? " · " + T.status[st] : ""), inline: false },
+      { name: T.names[kind === "manga" ? "manga" : "anime"], value: String(p), inline: true },
+      { name: T.names.left, value: String(left), inline: true }],
+    footer: { text: T.footer }
+  };
+  if(cover) embed.image = { url: cover };
   return embed;
 }
 // Which titles get a card. The very first run only remembers progress; a title new to the list, or one whose progress went down, is remembered quietly.

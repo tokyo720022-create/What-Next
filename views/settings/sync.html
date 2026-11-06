@@ -85,6 +85,11 @@
     <label for="tsDcLists">Lists that get their own thread (comma separated)</label>
     <input id="tsDcLists" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. iseki, favourite, anime movies">
     <p class="sub" style="margin-top:8px">A title goes to the thread of its first custom list if that list is named here (for example [ANIME] Iseki). Everything else goes to [ANIME] General Updates.</p>
+    <label class="chk"><input type="checkbox" id="tsDcThemes"> Themed cards: Isekai and Rom Com lists get their own look</label>
+    <label class="chk"><input type="checkbox" id="tsDcAdaptive"> Border follows the poster's colour (otherwise each theme keeps its own colour)</label>
+    <label for="tsDcPreview">Look used by the test buttons</label>
+    <select id="tsDcPreview"><option value="">Standard</option><option value="isekai">Isekai</option><option value="romcom">Rom Com</option></select>
+    <p class="sub" style="margin-top:8px">A list is themed when its name contains Isekai, Iseki, Tensei, Rom Com or Romantic Comedy (and it has its own thread above). Test cards go to General Updates, so your list threads stay clean.</p>
   </div>
 
   <div class="q tsq">Options</div>

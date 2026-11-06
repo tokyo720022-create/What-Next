@@ -36,4 +36,22 @@ eq("a status AniList adds later does not break the card", card(entry({ status: "
 eq("the test buttons can force a look, or the standard card", [card(entry(), "anime", { name: "General Updates", own: false }, { force: "romcom" }).color, card(entry(), "anime", own("Iseki"), { force: "" }).title], [0xFF6FA3, "UPDATE: Farming Life in Another World"]);
 const long = entry(); long.media.title.english = "x".repeat(400);
 eq("a very long title stays inside Discord's 256 character limit", card(long, "manga", own("Iseki"), { themes: true }).title.length <= 256, true);
+// adaptive border
+const ad = g("tsAdaptColor"), hsl = n => { const r = (n >> 16 & 255) / 255, gg = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn, l = (mx + mn) / 2, s = d / (1 - Math.abs(2 * l - 1)); let h = mx === r ? ((gg - b) / d) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; return { h: Math.round((h * 60 + 360) % 360), s, l }; };
+const blue = hsl(ad("#43a1d4", 1));
+eq("a good poster colour keeps its hue and stays within a visible range", [Math.abs(blue.h - 201) <= 2, blue.l >= 0.49 && blue.l <= 0.67, blue.s >= 0.44], [true, true, true]);
+const dark = hsl(ad("#101a2e", 1));
+eq("a very dark poster colour is lifted so the border is visible", [Math.abs(dark.h - 219) <= 3, dark.l >= 0.49], [true, true]);
+const pale = hsl(ad("#ffe0e0", 1));
+eq("a washed-out colour gets its strength back", [pale.l <= 0.67, pale.s >= 0.44, pale.h <= 2 || pale.h >= 358], [true, true, true]);
+eq("a grey or black-and-white poster keeps the theme colour", [ad("#c8c8c8", 777), ad("#000000", 777), ad("#ffffff", 777), ad("#333333", 777)], [777, 777, 777, 777]);
+eq("missing or broken colours keep the theme colour", [ad(null, 5), ad("", 5), ad("blue", 5), ad("#12345", 5), ad(undefined, 5)], [5, 5, 5, 5, 5]);
+eq("the same poster always gives the same border", ad("#e4a15d", 1) === ad("e4a15d", 1), true);
+const poster = entry(); poster.media.coverImage.color = "#7bb36a";
+eq("adaptive on: the themed card takes the poster's colour", [card(poster, "manga", own("Iseki"), { themes: true, adaptive: true }).color === ad("#7bb36a", 1), card(poster, "manga", own("Iseki"), { themes: true, adaptive: true }).color !== 0x8E5CFF], [true, true]);
+eq("adaptive off: the theme colour", [card(poster, "manga", own("Iseki"), { themes: true, adaptive: false }).color, card(poster, "anime", own("Rom Com"), { themes: true }).color], [0x8E5CFF, 0xFF6FA3]);
+const gray = entry(); gray.media.coverImage.color = "#b0b0b0";
+eq("adaptive on with a grey poster: the theme colour", card(gray, "manga", own("Iseki"), { themes: true, adaptive: true }).color, 0x8E5CFF);
+const nocol = entry(); nocol.media.coverImage = null;
+eq("adaptive on with no poster at all: the theme colour", card(nocol, "manga", own("Rom Com"), { themes: true, adaptive: true }).color, 0xFF6FA3);
 console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

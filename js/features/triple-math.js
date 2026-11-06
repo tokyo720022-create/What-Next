@@ -198,9 +198,10 @@ function tsCategory(e, kind, own){
 const tsThreadName = (cat, kind) => "[" + kind.toUpperCase() + "] " + (cat.own ? tsPyTitle(cat.name) : "General Updates");
 const tsHexInt = h => /^#?[0-9a-f]{6}$/i.test(String(h || "")) ? parseInt(String(h).replace("#", ""), 16) : 3447003;
 // opt.themes: give lists that have a theme (Isekai, Rom Com) their own look. opt.force: use this theme (or "" for the standard look), used by the test buttons.
+// opt.adaptive: the themed border takes its colour from the poster (see tsAdaptColor).
 function tsCard(e, kind, cat, opt){
   const th = opt ? (opt.force !== undefined ? opt.force : opt.themes ? tsThemeFor(cat) : "") : "";
-  if(th && TS_THEMES[th]) return tsThemedCard(e, kind, th);
+  if(th && TS_THEMES[th]) return tsThemedCard(e, kind, th, opt);
   const m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId, total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0;
   const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, done = e.status === "COMPLETED";
   const embed = { title: ("UPDATE: " + title).slice(0, 256), color: tsHexInt(m.coverImage && m.coverImage.color),
@@ -241,7 +242,23 @@ function tsBar(p, total, full, empty){
   const n = 10, f = Math.max(0, Math.min(n, Math.round(p / total * n)));
   return full.repeat(f) + empty.repeat(n - f) + " " + Math.min(100, Math.round(p / total * 100)) + "%";
 }
-function tsThemedCard(e, kind, id){
+// The border colour that follows the poster. AniList gives each poster's main colour; it is nudged so it always shows well on Discord's dark
+// background (not too dark, not washed out). A grey or black-and-white poster has no real colour, so it keeps the theme's own colour.
+function tsAdaptColor(hex, fallback){
+  if(!/^#?[0-9a-f]{6}$/i.test(String(hex || ""))) return fallback;
+  const n = parseInt(String(hex).replace("#", ""), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  if(d < 0.001) return fallback;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  if(!(s >= 0.12)) return fallback;
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360;
+  const S = Math.min(0.9, Math.max(0.45, s)), L = Math.min(0.66, Math.max(0.5, l));
+  const c = (1 - Math.abs(2 * L - 1)) * S, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = L - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  const to = v => Math.round((v + m) * 255);
+  return (to(r1) << 16) | (to(g1) << 8) | to(b1);
+}
+function tsThemedCard(e, kind, id, opt){
   const T = TS_THEMES[id], m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId;
   const total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0, st = e.status || "UNKNOWN", done = st === "COMPLETED";
   const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, unit = kind === "manga" ? "Chapter" : "Episode", bar = tsBar(p, total, T.full, T.empty);
@@ -249,7 +266,7 @@ function tsThemedCard(e, kind, id){
     author: { name: done ? T.done : T.author(kind) },
     title: (T.icon + " " + title).slice(0, 256),
     description: ("**" + unit + " " + p + "**" + (total ? " of " + total : "") + (bar ? "\n" + bar : "") + "\n*" + (T.line[st] || "") + "*").slice(0, 4000),
-    color: T.color,
+    color: opt && opt.adaptive ? tsAdaptColor(m.coverImage && m.coverImage.color, T.color) : T.color,
     fields: [
       { name: T.names.romaji, value: t.romaji || "N/A", inline: false },
       { name: T.names.status, value: "**" + st + "**" + (T.status[st] ? " · " + T.status[st] : ""), inline: false },

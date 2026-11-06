@@ -49,9 +49,9 @@ async function renderProfile(){
   $("#profName").textContent = state.user || savedName();
   if(typeof profExtras === "function") profExtras();
   if(profLoaded) return;
-  const pname = "profile_" + acctUser(), cached = cacheGet("acct", pname);
+  const pname = "profile_" + acctUser(), cached = cacheGetAs("acct", pname, CACHE_OK.object);
   const mine = cached && cached.v && String(cached.v.name || "").toLowerCase() === String(state.user || savedName()).toLowerCase();
-  if(mine) paintProfile(cached);   // show the saved copy right away
+  if(mine){ try{ paintProfile(cached); }catch(_){ cacheDel("acct", pname); } }   // show the saved copy right away; a damaged one is thrown away
   $("#profErr").hidden = true;
   try{
     const { json } = await gql(PROFILE_Q, {});

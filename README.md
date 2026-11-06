@@ -68,7 +68,7 @@ There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover*
 ## Setup
 
 ### 1. Build the app
-Push the files to your GitHub repo (from a phone, see *Getting the files into your repo from a phone* below). The **Build APK** workflow then builds the app and publishes it as a new release.
+Push the files to your GitHub repo (from a phone, see *Getting the files into your repo from a phone* below). The **Build APK** workflow first runs the quick tests (an APK is only built if they pass), then builds the app and publishes it as a new release. The first build saves `package-lock.json`, and every later build uses those exact dependency versions.
 
 ### 2. AniList login (one time, for the developer)
 Login works like other AniList apps: the Client ID is built in, so people just tap **Login**, AniList opens in the browser, and they come back to the app signed in. Create a client at [anilist.co/settings/developer](https://anilist.co/settings/developer) with the Redirect URL `whatnext://auth`, and put its Client ID in `config.js` (`clientApp`). Client IDs are public, not secrets. Without `config.js` the app uses a built-in default.
@@ -99,6 +99,8 @@ The app keeps copies of what it loads so screens open at once and still work off
 | Account | 14 days | your lists, your Pick pool, your profile, your statistics, your activity days |
 
 Old items are swept when the app opens, when you come back to it, and every hour. Saved pages are shown first and refreshed quietly (your list status and scores can change). Changes that are waiting to sync, your settings and your daily goal are never cleared by the cache. **Settings > Account > Clear saved lists and pictures** clears the cache by hand.
+
+Saved data is never trusted blindly: each kind is checked for the shape its screen needs when it is read (`CACHE_OK` in `js/core/cache.js`). A damaged item, or one written by an older version, is deleted and loaded again instead of crashing the app. If you change what a screen saves, update its check. The calendar is saved **week by week**: a week that is over is never asked for again, this week and next are refreshed after 10 minutes, and other weeks after an hour, so opening the calendar costs a few requests at most.
 
 **14 days unused = signed out.** The app remembers when it was last used. If that was more than 14 days ago, it tries once to send any changes that were waiting, signs you out, and removes your saved data from the phone; you log in again. Logging out by hand removes the same things (the login, saved data, waiting changes, Triple Sync keys and chats). If a different AniList account logs in on the same phone, the old account's data is removed first.
 

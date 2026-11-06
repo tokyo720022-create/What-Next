@@ -17,8 +17,8 @@ async function loadTrending(){
   if(!auth.token || Date.now() - trendAt < 600000) return;
   $("#trend").hidden = false;
   for(const [t, id] of [["ANIME", "#trendAnime"], ["MANGA", "#trendManga"]]){
-    const saved = cacheGet("card", "trend_" + t);   // saved for 3 days: shown at once, then replaced by the fresh list
-    if(saved && !$(id).children.length) $(id).replaceChildren(...saved.map(trendCard));
+    let saved = cacheGetAs("card", "trend_" + t, CACHE_OK.medias);   // saved for 3 days: shown at once, then replaced by the fresh list
+    if(saved && !$(id).children.length){ try{ $(id).replaceChildren(...saved.map(trendCard)); }catch(_){ cacheDel("card", "trend_" + t); saved = null; } }
     try{
       const { json } = await gql(TREND_Q, { t });
       const list = (json.data && json.data.Page.media) || [];

@@ -17,8 +17,11 @@ legacyCleanup();
   let sn = ""; try{ sn = localStorage.getItem("wn_name") || ""; }catch(_){}
   if(sn){
     $("#whoName").textContent = sn;                          // show your name while AniList answers
-    const pool = cacheGet("acct", poolName(sn));
-    if(Array.isArray(pool) && pool.length){ paintFromCache(sn, pool); readyNow(); }   // and your saved Pick, so the screen is never empty after the logo
+    const pool = cacheGetAs("acct", poolName(sn), CACHE_OK.pool);
+    if(pool && pool.length){
+      try{ paintFromCache(sn, pool); readyNow(); }   // and your saved Pick, so the screen is never empty after the logo
+      catch(_){ cacheDel("acct", poolName(sn)); state.items = []; state.fromCache = false; try{ $("#result").replaceChildren(); }catch(__){} }   // a damaged saved Pick is thrown away, not shown again on every start
+    }
   }
   try{
     const { json } = await gql("query{Viewer{id name}}", {});

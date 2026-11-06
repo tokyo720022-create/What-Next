@@ -8,7 +8,7 @@ const tzKind = () => tz.type === "manga" ? "manga" : "anime";
 
 // The "average fan" sample: the most popular titles on AniList. Saved on this device with the 3-day card cache.
 async function tzRef(type){
-  const key = "tref_" + type, saved = cacheGet("card", key);
+  const key = "tref_" + type, saved = cacheGetAs("card", key, CACHE_OK.array);
   if(Array.isArray(saved) && saved.length) return saved;
   const items = [];
   for(let p = 1; p <= TZ_REF_PAGES; p++){

@@ -21,7 +21,7 @@ async function showEntity(tok){
     if(!d) throw new Error((json.errors && json.errors[0].message) || "Not found");
     return d;
   };
-  if(!ecache.has(tok)){ const c = cacheGet("card", "ent_" + tok); if(c){ ecache.set(tok, c); capMap(ecache, 150); } }
+  if(!ecache.has(tok)){ const c = cacheGetAs("card", "ent_" + tok, CACHE_OK.entity); if(c){ ecache.set(tok, c); capMap(ecache, 150); } }
   if(ecache.has(tok) && !efresh.has(tok)){   // a saved page (3 days) opens at once, then is refreshed quietly (favorites change)
     efresh.add(tok);
     fetchEnt().then(d => { const same = JSON.stringify(ecache.get(tok)) === JSON.stringify(d); ecache.set(tok, d); cacheSet("card", "ent_" + tok, d); if(!same && !box.hidden && mstack[mstack.length - 1] === tok) renderEntity(kind, d); }).catch(() => efresh.delete(tok));

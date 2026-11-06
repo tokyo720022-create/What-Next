@@ -94,7 +94,7 @@ $("#aniSave").onclick = aniSave;
 // ---------- Account Settings ----------
 function fillAccount(){
   renderPending();
-  const p = cacheGet("acct", "profile_" + acctUser());
+  const p = cacheGetAs("acct", "profile_" + acctUser(), CACHE_OK.object);
   $("#acName").textContent = state.user || savedName(); const av = safeUrl(p && p.v && p.v.avatar && p.v.avatar.large); $("#acAvatar").hidden = !av; if(av) $("#acAvatar").src = av;
 }
 document.querySelectorAll("#setAccount [data-url]").forEach(b => { b.onclick = () => openExternal(b.dataset.url); });

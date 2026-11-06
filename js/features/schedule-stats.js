@@ -6,7 +6,7 @@ function days(){ try{ return JSON.parse(localStorage.getItem("wn_days") || "{}")
 function goal(){ return Number(localStorage.getItem("wn_goal")) || 1; }
 // Counts come from two places: what you mark in this app, and your AniList activity (so updates made on AniList or other apps count too).
 const actName = () => "actdays_" + acctUser();   // account cache, 14 days; the time inside is when the counts were last loaded
-function actDays(){ const o = cacheGet("acct", actName()); return o && o.days ? o : { at: 0, days: {}, since: {} }; }
+function actDays(){ const o = cacheGetAs("acct", actName(), CACHE_OK.actdays); return o && o.days ? o : { at: 0, days: {}, since: {} }; }
 function dayCount(k, d, a){ d = d || days(); a = a || actDays(); return Math.max(d[k] || 0, ((a.days || {})[k] || 0) + ((a.since || {})[k] || 0)); }
 function bumpDay(n, key){
   const k = key || dayKey(), d = days(), a = actDays(); a.since = a.since || {};

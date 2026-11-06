@@ -10,7 +10,20 @@ concurrency:
   group: build-apk
   cancel-in-progress: false
 jobs:
+  checks:
+    # The quick tests run first. If one fails, no APK is built or published, so a broken change never reaches your phone.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Quick checks
+        run: |
+          node tests/check-structure.js
+          for t in tests/unit/*.test.js; do echo "== $t"; node "$t" || exit 1; done
   build:
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,11 +38,21 @@ jobs:
         run: |
           grep -q '"@capacitor/app"' package.json || { echo "package.json is missing @capacitor/app. Upload the new package.json."; exit 1; }
           grep -q '"@capacitor/browser"' package.json || { echo "package.json is missing @capacitor/browser. Upload the new package.json."; exit 1; }
-      - run: npm install
+      - name: Install dependencies (the exact versions in package-lock.json, once that file exists)
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Save package-lock.json the first time, so every later build uses the same versions
+        run: |
+          if ! git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json && git commit -m "Add package-lock.json (exact dependency versions)" && git push || echo "::warning::Could not save package-lock.json. Add the file to the repo by hand so builds use fixed versions."
+          fi
+      - name: Show the versions this build uses
+        run: npm ls --depth=0 || true
       - run: mkdir -p www && cp -r index.html boot.js css js views assets www/ && (cp config.js www/ || true)
       - run: npx cap add android
       - name: Generate app icon and splash screen
-        run: npx --yes @capacitor/assets generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#0A0714' --splashBackgroundColorDark '#0A0714' || echo "Icon generation failed. The build continues with the default icon."
+        run: npx --yes @capacitor/assets@3 generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#0A0714' --splashBackgroundColorDark '#0A0714' || echo "Icon generation failed. The build continues with the default icon."
       - name: Work out the version of this build
         id: ver
         run: |

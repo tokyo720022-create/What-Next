@@ -15,7 +15,7 @@ function makeStore(limit){
 function load(limit){
   const ls = makeStore(limit), ctx = { localStorage: ls, Date: { now: () => T }, state: { user: "Ann" }, console, setTimeout, clearTimeout };
   vm.createContext(ctx);
-  const src = fs.readFileSync(path.join(__dirname, "../../js/core/cache.js"), "utf8") + "\n;this.api = { cacheGet, cacheMeta, cacheSet, cacheSetSoon, cacheFlushSoon, cacheDel, cacheDelPrefix, cacheClear, cacheSweep, cacheStats, cacheKeys, sessionTouch, sessionExpired, sessionLast, acctUser, CACHE_TTL, SESSION_MAX };";
+  const src = fs.readFileSync(path.join(__dirname, "../../js/core/cache.js"), "utf8") + "\n;this.api = { cacheGet, cacheMeta, cacheSet, cacheSetSoon, cacheFlushSoon, cacheDel, cacheDelPrefix, cacheClear, cacheSweep, cacheStats, cacheKeys, cacheGetAs, cacheMetaAs, CACHE_OK, sessionTouch, sessionExpired, sessionLast, acctUser, CACHE_TTL, SESSION_MAX };";
   vm.runInContext(src, ctx);
   return { ls, api: ctx.api };
 }
@@ -58,8 +58,8 @@ const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.string
   eq("clear removes one class and reports the count", [api.cacheClear("card"), api.cacheGet("card", "m"), api.cacheGet("acct", "profile_ann")], [1, null, 3]);
   eq("clear with no class removes everything", [api.cacheClear(), api.cacheKeys().length], [1, 0]); }
 // ---- entry limits ----
-{ const { api } = load(); for(let i = 0; i < 11; i++){ T += 1000; api.cacheSet("cal", "k" + i, i); }
-  eq("the calendar keeps only 8 entries, newest first", [api.cacheKeys("cal").length, api.cacheGet("cal", "k0"), api.cacheGet("cal", "k10")], [8, null, 10]); }
+{ const { api } = load(); for(let i = 0; i < 15; i++){ T += 1000; api.cacheSet("cal", "k" + i, i); }
+  eq("the calendar keeps only 12 weeks, newest first", [api.cacheKeys("cal").length, api.cacheGet("cal", "k0"), api.cacheGet("cal", "k14")], [12, null, 14]); }
 // ---- full storage ----
 { const { api } = load(900);
   for(let i = 0; i < 6; i++){ T += 1000; api.cacheSet("card", "c" + i, "x".repeat(60)); }
@@ -71,6 +71,23 @@ const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.string
 // ---- stats ----
 { const { api } = load(); api.cacheSet("card", "a", 1); api.cacheSet("acct", "b", 2); const s = api.cacheStats();
   eq("stats count items per class", [s.count, s.byClass.card, s.byClass.cal, s.byClass.acct, s.chars > 0], [2, 1, 0, 1, true]); }
+// ---- saved data in the wrong shape is thrown away, never handed to a screen ----
+{ const { api, ls } = load(); const ok = api.CACHE_OK;
+  const entry = { id: 1, status: "CURRENT", media: { id: 5, title: { romaji: "x" } } };
+  api.cacheSet("acct", "pool_a", [entry]);
+  eq("a good saved Pick is handed back", api.cacheGetAs("acct", "pool_a", ok.pool), [entry]);
+  for(const [name, bad] of [["junk items", [{ x: 1 }, 5]], ["a number", 5], ["an object", { a: 1 }], ["no title", [{ media: { id: 1 } }]], ["null", null]]){
+    api.cacheSet("acct", "pool_b", bad);
+    eq("a damaged saved Pick (" + name + ") is refused and deleted", [api.cacheGetAs("acct", "pool_b", ok.pool), ls.getItem("wn_c_acct_pool_b")], [null, null]);
+  }
+  const le = { id: 7, status: "CURRENT", m: { id: 5, title: { romaji: "x" } } };
+  api.cacheSet("acct", "list_a", { entries: [le] }); api.cacheSet("acct", "list_b", { entries: [1] }); api.cacheSet("acct", "list_c", [le]); api.cacheSet("acct", "list_d", { entries: [entry] });
+  eq("saved lists must be { entries: [...] } of real entries", [api.cacheMetaAs("acct", "list_a", ok.list) !== null, api.cacheMetaAs("acct", "list_b", ok.list), api.cacheMetaAs("acct", "list_c", ok.list), api.cacheMetaAs("acct", "list_d", ok.list)], [true, null, null, null]);
+  const media = { id: 1, title: { romaji: "t" }, coverImage: { large: "u" } };
+  eq("trending and chart items need a title and a poster", [ok.medias([media]), ok.medias([{ id: 1 }]), ok.medias({}), ok.medias([])], [true, false, false, true]);
+  eq("a calendar week needs numeric air times and real titles", [ok.airing([{ airingAt: 5, media }]), ok.airing([{ airingAt: "x", media }]), ok.airing([{ airingAt: 5 }]), ok.airing([])], [true, false, false, true]);
+  eq("a validator that itself throws counts as damaged", [api.cacheSet("acct", "z", 1), api.cacheGetAs("acct", "z", () => { throw new Error("x"); }), ls.getItem("wn_c_acct_z")], [true, null, null]);
+  eq("pages, entities, activity, objects and arrays", [ok.media(media), ok.media({}), ok.entity({ id: 3 }), ok.entity([]), ok.actdays({ days: {} }), ok.actdays({}), ok.object({}), ok.object([]), ok.array([]), ok.array({})], [true, false, true, false, true, false, true, false, true, false]); }
 // ---- names ----
 { const { api, ls } = load(); eq("the account name comes from state and is lower case", api.acctUser(), "ann"); }
 // ---- 14-day session ----

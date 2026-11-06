@@ -8,7 +8,7 @@ const PTR_ACTIONS = {
   "#lists": () => refreshList(curType),
   "#discover": async () => { $("#dlist").replaceChildren(); discoverOpen(); },
   "#seasonal": async () => { sz.cache.clear(); cacheDelPrefix("card", "season_"); await szLoad(); },
-  "#calendar": async () => { cz.cache = []; cacheDelPrefix("cal"); await czLoad(); },
+  "#calendar": async () => { czForget(); await czLoad(); },
   "#schedule": async () => { renderSchedule(); },
   "#profile": async () => { await profRefresh(); },
   "#stats": async () => { asCache.clear(); showStats(); },

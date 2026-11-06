@@ -48,9 +48,10 @@ async function refreshMedia(id){
 }
 async function showMedia(id){
   const box = $("#media"); box.hidden = false;
-  if(!mcache.has(id)){ const c = cacheGet("card", "media_" + id); if(c){ mcache.set(id, c); capMap(mcache, 150); } }
+  if(!mcache.has(id)){ const c = cacheGetAs("card", "media_" + id, CACHE_OK.media); if(c){ mcache.set(id, c); capMap(mcache, 150); } }
   if(mcache.has(id)){
-    if(mstack[mstack.length - 1] === id) renderMedia(mcache.get(id));
+    try{ if(mstack[mstack.length - 1] === id) renderMedia(mcache.get(id)); }
+    catch(_){ mcache.delete(id); mfresh.delete(id); cacheDel("card", "media_" + id); return showMedia(id); }   // a damaged saved page is thrown away and loaded again
     if(!mfresh.has(id)) refreshMedia(id);
     return;
   }

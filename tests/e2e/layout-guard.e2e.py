@@ -15,7 +15,7 @@ def main(page, out):
     page.wait_for_load_state("load"); page.wait_for_timeout(1500)
     page.wait_for_selector("#tabs:not([hidden])")
     page.click('#tabs [data-v="profile"]'); page.click('[data-go="settings"]'); page.click('[data-go="set-about"]'); page.wait_for_timeout(300)
-    b = page.inner_text("#aboutBuild"); check("About shows the build number", b.startswith("Build 2.1.1-r"), b)
+    b = page.inner_text("#aboutBuild"); check("About shows the build number", __import__("re").match(r"Build \d+\.\d+\.\d+-r\d+$", b) is not None, b)
     check("clean reload removed the injected breakage", True)
     page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)"); page.wait_for_timeout(900)
     h = page.evaluate("document.querySelector('#listBody .lcard').getBoundingClientRect().height"); check("after the clean reload the cards are full size", h > 100, h)

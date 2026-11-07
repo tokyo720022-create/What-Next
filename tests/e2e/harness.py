@@ -240,7 +240,10 @@ def handle(route, request):
                 return {"count": 467, "meanScore": 80.5, "statuses": [{"status": "COMPLETED", "count": 300}, {"status": "CURRENT", "count": 20}, {"status": "PAUSED", "count": 13}, {"status": "DROPPED", "count": 6}, {"status": "PLANNING", "count": 128}],
                         "genres": gens, "tags": [{"tag": {"name": "Male Protagonist", "category": "Cast"}, "count": 300, "meanScore": 80}, {"tag": {"name": "Heterosexual", "category": "Cast"}, "count": 200, "meanScore": 80}, {"tag": {"name": "Female Protagonist", "category": "Cast"}, "count": 150, "meanScore": 80}, {"tag": {"name": "Rare", "category": "x"}, "count": 1, "meanScore": 80}],
                         "releaseYears": [{"releaseYear": 2023, "count": 60, "meanScore": 80}, {"releaseYear": 2026, "count": 70, "meanScore": 80}, {"releaseYear": 2024, "count": 50, "meanScore": 80}, {"releaseYear": 2010, "count": 5, "meanScore": 80}],
-                        "startYears": [{"startYear": 2010, "count": 12}, {"startYear": 2015, "count": 30}, {"startYear": 2023, "count": 100}]}
+                        "startYears": [{"startYear": 2010, "count": 12}, {"startYear": 2015, "count": 30}, {"startYear": 2023, "count": 100}],
+                        "minutesWatched": 62000, "episodesWatched": 2500, "chaptersRead": 8400, "volumesRead": 300,
+                        "formats": [{"format": "TV", "count": 300}, {"format": "MOVIE", "count": 100}, {"format": "OVA", "count": 40}], "countries": [{"country": "JP", "count": 420}, {"country": "KR", "count": 47}],
+                        "studios": [{"studio": {"name": "MAPPA"}, "count": 12, "meanScore": 85}, {"studio": {"name": "Madhouse"}, "count": 9, "meanScore": 84}, {"studio": {"name": "Bones"}, "count": 1, "meanScore": 80}]}
             return ok({"Viewer": {"statistics": {"anime": tstat(True), "manga": {**tstat(False), "count": 336, "statuses": [{"status": "COMPLETED", "count": 100}, {"status": "CURRENT", "count": 100}]}}}})
         if "Viewer{favourites{" in q:   # Profile > Favourites
             kind = re.search(r"favourites\{(\w+)\(", q).group(1); PROFREQ.append("fav:%s:%s" % (kind, v.get("p")))
@@ -248,9 +251,9 @@ def handle(route, request):
                 if kind in ("anime", "manga"): return {"id": 6000 + i, "title": {"romaji": "Fav %s %d" % (kind, i), "english": "Fav %s %d" % (kind, i), "native": None}, "countryOfOrigin": "JP", "coverImage": {"large": "https://img.test/c%d.jpg" % (i % 9)}}
                 if kind == "studios": return {"id": 6100 + i, "name": "Fav Studio %d" % i}
                 return {"id": 6200 + i, "name": {"full": "Fav %s %d" % (kind, i), "native": None}, "image": {"large": "https://img.test/c%d.jpg" % (i % 9)}}
-            total = {"anime": 30, "manga": 2, "characters": 3, "staff": 0, "studios": 4}[kind]; p = v.get("p") or 1
-            ids = list(range((p - 1) * 24, min(total, p * 24)))
-            return ok({"Viewer": {"favourites": {kind: {"pageInfo": {"hasNextPage": p * 24 < total}, "nodes": [fav(i) for i in ids]}}}})
+            total = {"anime": 30, "manga": 2, "characters": 3, "staff": 0, "studios": 4}[kind]; p = v.get("p") or 1; pp = int(re.search(r"perPage:(\d+)", q).group(1))
+            ids = list(range((p - 1) * pp, min(total, p * pp)))
+            return ok({"Viewer": {"favourites": {kind: {"pageInfo": {"hasNextPage": p * pp < total}, "nodes": [fav(i) for i in ids]}}}})
         if "PickTaste" in q:   # the "Something new for my taste" pick: candidates that are not on the list
             PICKREQ.append({**v, "_q": q}); t = v.get("t", "ANIME"); anime = t == "ANIME"
             def cand(i, **o):

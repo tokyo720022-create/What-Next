@@ -195,24 +195,59 @@ function tzShareText(rep){
 }
 
 // ---------- Profile tendencies, worked out from your AniList statistics ----------
-// Each line is [text before, highlighted part, text after]. A line is left out when the stats do not support it.
+// Each line is { group, icon, parts: [text before, highlighted part, text after] }. A line is left out when the stats do not support it.
+// group "taste" = what you like, group "habits" = how you watch or read.
+const TZ_COUNTRIES = { JP: "Japan", KR: "Korea", CN: "China", TW: "Taiwan", US: "USA", FR: "France" };
+const tzFormatName = f => String(f || "").split("_").map(w => w[0] + w.slice(1).toLowerCase()).join(" ").replace(/^Tv\b/, "TV").replace(/^Ova$/, "OVA").replace(/^Ona$/, "ONA").replace(/^One Shot$/, "One-shot");
+const tzScore10 = s => (Math.round(s) / 10).toFixed(1);                 // AniList gives mean scores out of 100
+const tzPct = (n, total) => total > 0 ? Math.round(n / total * 100) : 0;
+const tzNum = n => Number(n).toLocaleString("en-US");
+
+// The top genres as bars: the share of your titles that have the genre, and your average score for it.
+function tzTopGenres(stat, n){
+  if(!stat || !(stat.count > 0)) return [];
+  return ((stat.genres) || []).filter(g => g.count > 0).slice().sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre)).slice(0, n || 5)
+    .map(g => ({ name: g.genre, pct: Math.min(100, tzPct(g.count, stat.count)), count: g.count, mean: g.meanScore > 0 ? tzScore10(g.meanScore) : "" }));
+}
 function tzTendencies(stat, kind){
   if(!stat || !stat.count) return [];
   const manga = kind === "manga", verb = manga ? "reading" : "watching", noun = manga ? "Manga" : "Anime", out = [];
+  const add = (group, icon, a, hl, b) => out.push({ group, icon, parts: [a, hl, b || ""] });
   const genres = (stat.genres || []).filter(g => g.count > 0), total = genres.reduce((a, g) => a + g.count, 0);
   const top = genres.slice().sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre)).slice(0, 3);
-  if(top.length) out.push(["Seems to love ", top.map(g => g.genre).join("/"), ""]);
-  const floor = Math.max(3, Math.round(total * 0.015));   // only genres you have tried a fair bit of can be hated
+  if(top.length) add("taste", "❤️", "Seems to love ", top.map(g => g.genre).join("/"));
+  const floor = Math.max(3, Math.round(total * 0.015));   // only genres you have tried a fair bit of can be hated or rated highest
   const worst = genres.filter(g => g.count >= floor && g.meanScore > 0).sort((a, b) => a.meanScore - b.meanScore || b.count - a.count)[0];
-  if(worst && !top.some(g => g.genre === worst.genre) && (!(stat.meanScore > 0) || worst.meanScore <= stat.meanScore - 3)) out.push(["Seems to hate ", worst.genre, ""]);
+  const hated = worst && !top.some(g => g.genre === worst.genre) && (!(stat.meanScore > 0) || worst.meanScore <= stat.meanScore - 3);
+  if(hated) add("taste", "💔", "Seems to hate ", worst.genre);
+  const best = genres.filter(g => g.count >= floor && g.meanScore > 0).sort((a, b) => b.meanScore - a.meanScore || b.count - a.count)[0];
+  if(best && !top.some(g => g.genre === best.genre) && !(hated && worst.genre === best.genre)) add("taste", "⭐", "Rates ", best.genre, " highest (" + tzScore10(best.meanScore) + ")");
   const tags = (stat.tags || []).filter(t => t.count >= 3 && t.tag).sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name)).slice(0, 3);
-  if(tags.length) out.push(["Tends to like ", tags.map(t => t.tag.name).join("/"), ""]);
-  const years = (stat.releaseYears || []).filter(y => y.count > 0 && y.releaseYear).sort((a, b) => b.count - a.count || b.releaseYear - a.releaseYear).slice(0, 3);
-  if(years.length) out.push(["Love ", years.map(y => y.releaseYear).join("/"), " series"]);
-  const starts = (stat.startYears || []).filter(y => y.count > 0 && y.startYear > 1900).map(y => y.startYear);
-  if(starts.length) out.push(["First recorded " + verb + " " + noun + " in ", String(Math.min(...starts)), ""]);
+  if(tags.length) add("taste", "🏷️", "Tends to like ", tags.map(t => t.tag.name).join("/"));
+  const fm = (stat.formats || []).filter(f => f.count > 0 && f.format).sort((a, b) => b.count - a.count), ftotal = fm.reduce((a, f) => a + f.count, 0);
+  if(fm.length) add("taste", "🎞️", "Mostly ", fm.slice(0, 3).map(f => tzFormatName(f.format) + " " + tzPct(f.count, ftotal) + "%").join("/"));
+  const dec = {}; let rtotal = 0;
+  for(const y of stat.releaseYears || []) if(y.count > 0 && y.releaseYear > 1900){ const d = Math.floor(y.releaseYear / 10) * 10; dec[d] = (dec[d] || 0) + y.count; rtotal += y.count; }
+  const era = Object.keys(dec).map(Number).sort((a, b) => dec[b] - dec[a] || b - a)[0];
+  if(era !== undefined && tzPct(dec[era], rtotal) >= 25) add("taste", "📅", "Favourite era is the ", era + "s", " (" + tzPct(dec[era], rtotal) + "% of titles)");
+  const studios = (stat.studios || []).filter(x => x.count >= 2 && x.studio && x.studio.name).sort((a, b) => b.count - a.count || a.studio.name.localeCompare(b.studio.name)).slice(0, 3);
+  if(!manga && studios.length) add("taste", "🏢", "Keeps coming back to ", studios.map(x => x.studio.name).join("/"));
+  const ct = (stat.countries || []).filter(c => c.count > 0 && c.country).sort((a, b) => b.count - a.count), ctotal = ct.reduce((a, c) => a + c.count, 0);
+  const foreign = ct.filter(c => c.country !== "JP").reduce((a, c) => a + c.count, 0);
+  if(ct.length && (manga || tzPct(foreign, ctotal) >= 10) && ct.length > 1) add("taste", "🌏", "Mostly from ", ct.slice(0, 2).map(c => (TZ_COUNTRIES[c.country] || c.country) + " " + tzPct(c.count, ctotal) + "%").join("/"));
+  if(!manga && stat.minutesWatched > 0){
+    const d = Math.floor(stat.minutesWatched / 1440), h = Math.floor(stat.minutesWatched % 1440 / 60);
+    add("habits", "⏱️", "Has spent ", (d ? d + "d " : "") + h + "h", " watching" + (stat.episodesWatched > 0 ? " (" + tzNum(stat.episodesWatched) + " episodes)" : ""));
+  }
+  if(manga && stat.chaptersRead > 0) add("habits", "📖", "Has read ", tzNum(stat.chaptersRead) + " chapters", stat.volumesRead > 0 ? " and " + tzNum(stat.volumesRead) + " volumes" : "");
+  const starts = (stat.startYears || []).filter(y => y.count > 0 && y.startYear > 1900);
+  const busy = starts.slice().sort((a, b) => b.count - a.count || b.startYear - a.startYear)[0];
+  if(busy && busy.count >= 5) add("habits", "📆", "Busiest year: ", String(busy.startYear), " (" + busy.count + " started)");
+  if(starts.length) add("habits", "🕰️", "First recorded " + verb + " " + noun + " in ", String(Math.min(...starts.map(y => y.startYear))));
   const st = {}; for(const s of stat.statuses || []) st[s.status] = s.count;
   const started = (st.COMPLETED || 0) + (st.CURRENT || 0) + (st.PAUSED || 0) + (st.DROPPED || 0) + (st.REPEATING || 0);
-  if(started > 0) out.push(["Ends up completing ", (Math.round((st.COMPLETED || 0) / started * 10000) / 100).toFixed(2) + "%", " of " + noun + " started"]);
+  if(started > 0) add("habits", "✅", "Ends up completing ", (Math.round((st.COMPLETED || 0) / started * 10000) / 100).toFixed(2) + "%", " of " + noun + " started");
+  if(started > 0 && st.DROPPED > 0) add("habits", "🚪", "Drops ", (Math.round(st.DROPPED / started * 1000) / 10).toFixed(1) + "%", " of what gets started");
+  if(st.PLANNING > 0) add("habits", "📚", "Has ", String(st.PLANNING), " " + (st.PLANNING === 1 ? "title" : "titles") + " waiting in Planning");
   return out;
 }

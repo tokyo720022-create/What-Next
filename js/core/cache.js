@@ -56,6 +56,8 @@ const CACHE_OK = {
   entity: d => isObj(d) && typeof d.id === "number",                                 // a character, staff or studio page
   airing: d => Array.isArray(d) && d.every(x => isObj(x) && typeof x.airingAt === "number" && okMedia(x.media)),   // a week of the calendar
   actdays: d => isObj(d) && isObj(d.days),
+  stats: d => isObj(d) && (d.anime == null || isObj(d.anime)) && (d.manga == null || isObj(d.manga)),   // your Tendencies statistics
+  fav: d => isObj(d) && Array.isArray(d.nodes) && d.nodes.every(n => isObj(n) && typeof n.id === "number"),   // a page of your favourites
   array: Array.isArray,
   object: isObj
 };

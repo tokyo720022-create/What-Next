@@ -44,7 +44,7 @@ def real(page, out):
     page.evaluate("showMedia(1000)"); page.wait_for_timeout(1500)
     page.wait_for_timeout(1500)   # delayed writes
     res = page.evaluate("""() => {
-      const rules = [['acct_pool_', CACHE_OK.pool], ['acct_list_', CACHE_OK.list], ['acct_profile_', CACHE_OK.object], ['acct_actdays_', CACHE_OK.actdays], ['acct_stats_me_', CACHE_OK.object],
+      const rules = [['acct_pool_', CACHE_OK.pool], ['acct_list_', CACHE_OK.list], ['acct_profile_', CACHE_OK.object], ['acct_actdays_', CACHE_OK.actdays], ['acct_tend_', CACHE_OK.stats], ['acct_fav_', CACHE_OK.fav], ['acct_stats_me_', CACHE_OK.object],
                      ['card_trend_', CACHE_OK.medias], ['card_season_', CACHE_OK.medias], ['card_media_', CACHE_OK.media], ['card_ent_', CACHE_OK.entity], ['card_tagcol', CACHE_OK.array], ['card_tref_', CACHE_OK.array], ['cal_w', CACHE_OK.airing]];
       const out = { seen: [], bad: [], unknown: [] };
       for(const k of cacheKeys()){ const n = k.replace('wn_c_', ''), r = rules.find(x => n.startsWith(x[0])); if(!r){ out.unknown.push(n); continue; }

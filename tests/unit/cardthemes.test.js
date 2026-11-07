@@ -11,7 +11,11 @@ const own = name => ({ name, own: true });
 
 eq("Iseki, Isekai and Tensei lists get the Isekai theme", ["Iseki", "isekai", "Tensei", "Isekai 2"].map(n => tf(own(n))), ["isekai", "isekai", "isekai", "isekai"]);
 eq("Rom Com in any spelling gets the Rom-Com theme", ["Rom Com", "rom-com", "RomCom", "Romantic Comedy"].map(n => tf(own(n))), ["romcom", "romcom", "romcom", "romcom"]);
-eq("other lists have no theme yet", ["Favourite", "Milf", "Anime movies", "Plan to continue"].map(n => tf(own(n))), ["", "", "", ""]);
+eq("every other list of yours gets its theme", [["Anime Movies", "movies"], ["Favourite", "favourite"], ["Fav", "favourite"], ["Favorite", "favourite"], ["Planning", "planning"], ["Plan to continue", "continue"], ["Fantasy", "fantasy"], ["Hentai", "hentai"], ["Milf", "milf"]].map(([n, id]) => tf(own(n)) === id), Array(9).fill(true));
+eq("the loli list has no theme: it keeps the standard card", [tf(own("loli")), tf(own("Loli")), tf(own("lolis"))], ["", "", ""]);
+eq("Planning and Plan to continue are told apart", [tf(own("Planning")), tf(own("Plan to continue")), tf(own("plan to watch"))], ["planning", "continue", ""]);
+eq("when a list name fits two themes the earlier one wins (Isekai and Rom Com first)", [tf(own("Isekai Fantasy")), tf(own("Rom Com Favourite")), tf(own("Fantasy Favourite"))], ["isekai", "romcom", "fantasy"]);
+eq("unknown lists have no theme", ["Action", "Sports", "Mecha"].map(n => tf(own(n))), ["", "", ""]);
 eq("General Updates (a list with no thread of its own) is never themed", [tf({ name: "Iseki", own: false }), tf({ name: "General Updates", own: false })], ["", ""]);
 eq("no theme, or no list, is safe", [tf(null), tf({ own: true })], ["", ""]);
 
@@ -54,4 +58,17 @@ const gray = entry(); gray.media.coverImage.color = "#b0b0b0";
 eq("adaptive on with a grey poster: the theme colour", card(gray, "manga", own("Iseki"), { themes: true, adaptive: true }).color, 0x8E5CFF);
 const nocol = entry(); nocol.media.coverImage = null;
 eq("adaptive on with no poster at all: the theme colour", card(nocol, "manga", own("Rom Com"), { themes: true, adaptive: true }).color, 0xFF6FA3);
+// every theme, every status, both kinds: a complete card that fits Discord's limits
+{ const T = g("TS_THEMES"), ids = Object.keys(T); let allOk = true, bad = "";
+  for(const id of ids) for(const kind of ["anime", "manga"]) for(const st of ["CURRENT", "PLANNING", "COMPLETED", "PAUSED", "DROPPED", "REPEATING"]){
+    const c = card(entry({ status: st, progress: st === "COMPLETED" ? 100 : 23 }), kind, { name: id, own: true }, { force: id, adaptive: true });
+    const len = (c.title || "").length + (c.description || "").length + (c.author.name || "").length + (c.footer.text || "").length + c.fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
+    const ok = c.title && c.title.length <= 256 && c.description && c.description.length <= 4096 && c.author.name.length <= 256 && c.footer.text.length <= 2048 && c.fields.length === 4 && c.fields.every(f => f.name && f.value && f.name.length <= 256 && f.value.length <= 1024) && len <= 6000 && Number.isInteger(c.color) && c.color >= 0 && c.color <= 0xFFFFFF && c.description.includes("%") && T[id].status[st] && T[id].line[st];
+    if(!ok){ allOk = false; bad = id + " " + kind + " " + st; }
+  }
+  eq("all " + ids.length + " themes build a complete card for every status and kind, inside Discord's limits", [allOk, bad], [true, ""]);
+  eq("every theme has a label and a list-name match", ids.every(id => T[id].label && T[id].match.length), true);
+  eq("the movies theme says Part, not Chapter or Episode, and has its own heading", [card(entry({ status: "CURRENT", progress: 0 }), "anime", own("Anime Movies"), { themes: true }).description.startsWith("**Part 0** of 12"), card(entry(), "anime", own("Anime Movies"), { themes: true }).author.name], [true, "🎬 MOVIE NIGHT · NOW SHOWING"]);
+  eq("planning heading depends on anime or manga", [card(entry(), "anime", own("Planning"), { themes: true }).author.name, card(entry(), "manga", own("Planning"), { themes: true }).author.name], ["🗓️ ON THE RADAR · WATCHLIST", "🗓️ ON THE RADAR · READING LIST"]);
+  eq("the adult themes keep their wording plain (no explicit words) and say 18+", ["hentai", "milf"].map(id => { const t = T[id]; const all = JSON.stringify([t.author("manga"), t.done, t.footer, t.names, t.status, t.line]); return all.includes("18+") && !/sex|nsfw|porn|cum|xxx/i.test(all); }), [true, true]); }
 console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

@@ -430,6 +430,7 @@ function tsFill(){
   $("#tsSource").value = c.source || ""; $("#tsSource").placeholder = state.user || "your AniList username";
   $("#tsAlId").value = al.clientId || ""; $("#tsAlSecret").value = al.clientSecret || "";
   $("#tsMalId").value = mal.clientId || ""; $("#tsMalSecret").value = mal.clientSecret || ""; $("#tsMalRedirect").value = mal.redirect || "http://localhost";
+  { const sel = $("#tsDcPreview"); if(sel.options.length < 2) for(const id of Object.keys(TS_THEMES)){ const o = document.createElement("option"); o.value = id; o.textContent = TS_THEMES[id].label || id; sel.append(o); } }   // one entry per theme
   $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcAnime").value = c.dcAnime || ""; $("#tsDcManga").value = c.dcManga || ""; $("#tsDcLists").value = c.dcLists; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles; $("#tsDcThemes").checked = c.dcThemes !== false; $("#tsDcAdaptive").checked = c.dcAdaptive !== false;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) $(id).checked = !!c[key];
   $("#tsAutoHours").value = String(c.autoHours);

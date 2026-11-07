@@ -171,7 +171,7 @@ function tsReport(r){
 
 // ----- Discord update cards (the anime and manga webhooks): one card per title whose progress went up -----
 // Which lists get their own thread. Anything else goes to "General Updates". (Same defaults as the Python engines.)
-const TS_DC_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning, tensei";
+const TS_DC_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning, tensei, fantasy";
 const tsPyTitle = s => String(s).toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());   // like Python's str.title()
 const tsActiveLists = e => {
   const c = e && e.customLists;
@@ -212,21 +212,70 @@ function tsCard(e, kind, cat, opt){
   return embed;
 }
 // ----- Card themes: a list can have its own look. A list with no theme uses the standard card above. -----
-// To add a theme, add an entry here and its list names to "match" (names are compared without spaces or punctuation, so "Rom-Com" and "romcom" are the same).
+// To add a theme, add an entry here (with a label, its colours, icons and wording) and its list names to "match" (names are compared without spaces or punctuation, so "Rom-Com" and "romcom" are the same).
 const TS_THEMES = {
   isekai: {
-    match: ["iseki", "isekai", "tensei"], color: 0x8E5CFF, icon: "⚔️", full: "🟪", empty: "⬛", footer: "🌀 Isekai · Tokyo Brotherhood",
+    label: "Isekai", match: ["iseki", "isekai", "tensei"], color: 0x8E5CFF, icon: "⚔️", full: "🟪", empty: "⬛", footer: "🌀 Isekai · Tokyo Brotherhood",
     author: kind => "🌀 ISEKAI GATE · " + (kind === "manga" ? "CHAPTER LOG" : "EPISODE LOG"), done: "🏆 QUEST COMPLETE · BACK FROM ANOTHER WORLD",
     names: { romaji: "🌀 Romaji", status: "🗺️ Quest status", left: "⏳ Left", manga: "📜 Chapter", anime: "📺 Episode" },
     status: { CURRENT: "on the journey", PLANNING: "at the summoning circle", COMPLETED: "quest complete", PAUSED: "resting at the inn", DROPPED: "left the party", REPEATING: "new game+" },
     line: { CURRENT: "The journey in another world continues…", PLANNING: "Waiting at the summoning circle.", COMPLETED: "The Demon King has fallen. The tale is complete.", PAUSED: "Resting at the inn.", DROPPED: "The hero left the party.", REPEATING: "New Game+ has begun." }
   },
   romcom: {
-    match: ["romcom", "romanticcomedy"], color: 0xFF6FA3, icon: "💘", full: "💗", empty: "🤍", footer: "💕 Rom Com · Tokyo Brotherhood",
+    label: "Rom Com", match: ["romcom", "romanticcomedy"], color: 0xFF6FA3, icon: "💘", full: "💗", empty: "🤍", footer: "💕 Rom Com · Tokyo Brotherhood",
     author: kind => "💕 ROM-COM DIARY · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "💍 HAPPILY EVER AFTER",
     names: { romaji: "🌸 Romaji", status: "💌 Status", left: "⏳ Left", manga: "💖 Chapter", anime: "💖 Episode" },
     status: { CURRENT: "falling for it", PLANNING: "crush pending", COMPLETED: "happily ever after", PAUSED: "on a break", DROPPED: "friend-zoned", REPEATING: "rereading the love story" },
     line: { CURRENT: "One step closer to the confession…", PLANNING: "Saved for a rainy day with someone special.", COMPLETED: "They finally got together. Happily ever after!", PAUSED: "Taking a break from the drama.", DROPPED: "Friend-zoned. It happens.", REPEATING: "Reading the love story all over again." }
+  },
+  hentai: {
+    label: "Hentai (18+)", match: ["hentai"], color: 0xB3123C, icon: "🔞", full: "🟥", empty: "⬛", footer: "🔞 18+ · Tokyo Brotherhood",
+    author: kind => "🌙 AFTER DARK · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "🌙 AFTER DARK · FINISHED",
+    names: { romaji: "🔞 Romaji", status: "🌙 Status", left: "⏳ Left", manga: "📖 Chapter", anime: "📺 Episode" },
+    status: { CURRENT: "after dark", PLANNING: "saved for later", COMPLETED: "finished", PAUSED: "paused for now", DROPPED: "dropped", REPEATING: "again" },
+    line: { CURRENT: "Continuing after dark. 18+ only.", PLANNING: "Saved for later. 18+ only.", COMPLETED: "Finished. 18+ only.", PAUSED: "Paused for now.", DROPPED: "Dropped.", REPEATING: "Going through it again." }
+  },
+  milf: {
+    label: "Mature (18+)", match: ["milf"], color: 0xC65D7B, icon: "🍷", full: "🟥", empty: "⬛", footer: "🍷 Mature shelf · Tokyo Brotherhood",
+    author: kind => "🍷 MATURE SHELF · 18+ · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "🍷 MATURE SHELF · FINISHED",
+    names: { romaji: "🍷 Romaji", status: "🕯️ Status", left: "⏳ Left", manga: "📖 Chapter", anime: "📺 Episode" },
+    status: { CURRENT: "in progress", PLANNING: "saved for later", COMPLETED: "finished", PAUSED: "paused for now", DROPPED: "dropped", REPEATING: "again" },
+    line: { CURRENT: "Another one from the mature shelf. 18+ only.", PLANNING: "Saved for later. 18+ only.", COMPLETED: "Finished. 18+ only.", PAUSED: "Paused for now.", DROPPED: "Dropped.", REPEATING: "Going through it again." }
+  },
+  movies: {
+    label: "Anime Movies", match: ["animemovie", "movie"], color: 0xF5A623, icon: "🎬", full: "🟨", empty: "⬛", footer: "🎬 Anime Movies · Tokyo Brotherhood", unit: "Part",
+    author: kind => "🎬 MOVIE NIGHT · NOW SHOWING", done: "🍿 THE CREDITS ROLLED",
+    names: { romaji: "🎞️ Romaji", status: "🎟️ Ticket", left: "⏳ Left", manga: "🎞️ Part", anime: "🎞️ Part" },
+    status: { CURRENT: "now showing", PLANNING: "tickets booked", COMPLETED: "credits rolled", PAUSED: "intermission", DROPPED: "left the cinema", REPEATING: "second screening" },
+    line: { CURRENT: "The film is rolling…", PLANNING: "Popcorn is ready. Just pick a night.", COMPLETED: "The credits rolled. Movie night complete!", PAUSED: "Intermission.", DROPPED: "Walked out of the cinema.", REPEATING: "Second screening, same seat." }
+  },
+  fantasy: {
+    label: "Fantasy", match: ["fantasy"], color: 0x2DBE8A, icon: "🐉", full: "🟩", empty: "⬛", footer: "🐉 Fantasy · Tokyo Brotherhood",
+    author: kind => "🐉 REALM CHRONICLE · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "👑 LEGEND COMPLETE",
+    names: { romaji: "🧙 Romaji", status: "🗡️ Quest", left: "⏳ Left", manga: "📜 Chapter", anime: "📺 Episode" },
+    status: { CURRENT: "adventure ongoing", PLANNING: "map unrolled", COMPLETED: "legend complete", PAUSED: "camping for the night", DROPPED: "turned back at the gates", REPEATING: "a new campaign" },
+    line: { CURRENT: "The adventure goes on…", PLANNING: "The map is unrolled. The journey waits.", COMPLETED: "The legend is complete. Songs will be sung.", PAUSED: "Camping for the night.", DROPPED: "Turned back at the gates.", REPEATING: "A new campaign begins." }
+  },
+  favourite: {
+    label: "Favourite", match: ["fav"], color: 0xFFC83D, icon: "⭐", full: "🟨", empty: "⬛", footer: "⭐ Favourites · Tokyo Brotherhood",
+    author: kind => "⭐ HALL OF FAME · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "🏆 ADDED TO THE HALL OF FAME",
+    names: { romaji: "✨ Romaji", status: "🏅 Status", left: "⏳ Left", manga: "💛 Chapter", anime: "💛 Episode" },
+    status: { CURRENT: "a favourite in progress", PLANNING: "a future favourite?", COMPLETED: "hall of fame", PAUSED: "waiting for more", DROPPED: "fell out of favour", REPEATING: "revisiting a classic" },
+    line: { CURRENT: "A favourite, one step further.", PLANNING: "Could this be the next favourite?", COMPLETED: "Finished, and it stays in the hall of fame.", PAUSED: "Waiting for more of a favourite.", DROPPED: "Even favourites fall out of favour.", REPEATING: "Revisiting a classic." }
+  },
+  continue: {
+    label: "Plan to Continue", match: ["plantocontinue", "continue"], color: 0x2EC4B6, icon: "▶️", full: "🟦", empty: "⬜", footer: "⏯️ Plan to continue · Tokyo Brotherhood",
+    author: kind => "⏯️ UP NEXT · PICK UP WHERE YOU LEFT OFF", done: "✅ ALL CAUGHT UP",
+    names: { romaji: "🔖 Romaji", status: "📌 Status", left: "⏳ Left", manga: "⏯️ Stopped at chapter", anime: "⏯️ Stopped at episode" },
+    status: { CURRENT: "back in the groove", PLANNING: "bookmarked", COMPLETED: "all caught up", PAUSED: "waiting to resume", DROPPED: "not continuing", REPEATING: "from the start again" },
+    line: { CURRENT: "Back in the groove.", PLANNING: "Bookmarked. Ready when you are.", COMPLETED: "All caught up!", PAUSED: "Waiting to be picked back up.", DROPPED: "Not continuing this one.", REPEATING: "Starting over from the beginning." }
+  },
+  planning: {
+    label: "Planning", match: ["planning"], color: 0x6C8CFF, icon: "📝", full: "🟦", empty: "⬜", footer: "🗓️ Planning · Tokyo Brotherhood",
+    author: kind => "🗓️ ON THE RADAR · " + (kind === "manga" ? "READING LIST" : "WATCHLIST"), done: "✅ OFF THE LIST",
+    names: { romaji: "📝 Romaji", status: "🗓️ Status", left: "⏳ Left", manga: "📖 Chapter", anime: "📺 Episode" },
+    status: { CURRENT: "finally started", PLANNING: "on the radar", COMPLETED: "off the list", PAUSED: "back on hold", DROPPED: "taken off the list", REPEATING: "again" },
+    line: { CURRENT: "Finally started it!", PLANNING: "Added to the list. Someday soon.", COMPLETED: "Crossed off the list!", PAUSED: "Back on hold.", DROPPED: "Taken off the list.", REPEATING: "Going again." }
   }
 };
 const tsSimple = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -261,7 +310,7 @@ function tsAdaptColor(hex, fallback){
 function tsThemedCard(e, kind, id, opt){
   const T = TS_THEMES[id], m = e.media || {}, t = m.title || {}, title = t.english || t.romaji || "#" + e.mediaId;
   const total = kind === "manga" ? m.chapters : m.episodes, p = e.progress || 0, st = e.status || "UNKNOWN", done = st === "COMPLETED";
-  const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, unit = kind === "manga" ? "Chapter" : "Episode", bar = tsBar(p, total, T.full, T.empty);
+  const left = total ? Math.max(0, total - p) : "?", cover = m.coverImage && m.coverImage.extraLarge, unit = T.unit || (kind === "manga" ? "Chapter" : "Episode"), bar = tsBar(p, total, T.full, T.empty);
   const embed = {
     author: { name: done ? T.done : T.author(kind) },
     title: (T.icon + " " + title).slice(0, 256),

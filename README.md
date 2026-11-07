@@ -82,7 +82,21 @@ AniList limits how many requests an app may send per minute (its docs say 90, an
 
 ## Discord card themes
 
-Update cards for lists that have their own thread can have their own look (`TS_THEMES` in `js/features/triple-math.js`). So far: **Isekai** (lists named Isekai, Iseki or Tensei: violet, gem progress bar, quest wording) and **Rom Com** (lists named Rom Com or Romantic Comedy: pink, heart progress bar, love-story wording). Other lists keep the standard card. The border colour follows the poster (AniList gives each poster's main colour; it is adjusted so it always shows well on Discord's dark background, and a grey or black-and-white poster keeps the theme colour). Turn it off with **Border follows the poster's colour**. Turn themes off with **Themed cards** under Settings > Triple Sync > Discord; the **Look used by the test buttons** select previews a look in General Updates without touching your list threads. To add a theme, add an entry to `TS_THEMES` with the list names it matches.
+Update cards for lists that have their own thread can have their own look (`TS_THEMES` in `js/features/triple-math.js`). Themes so far (the list name only has to contain the word):
+
+| Theme | List names | Look |
+|---|---|---|
+| Isekai | Isekai, Iseki, Tensei | violet, gem bar, quest wording |
+| Rom Com | Rom Com, Romantic Comedy | pink, heart bar, love-story wording |
+| Hentai (18+) | Hentai | crimson, plain "after dark" wording |
+| Mature (18+) | Milf | rose, plain "mature shelf" wording |
+| Anime Movies | Anime Movies, Movie | amber, cinema wording, "Part" instead of Episode |
+| Fantasy | Fantasy | green, dragon and quest wording |
+| Favourite | Fav, Favourite, Favorite | gold, hall-of-fame wording |
+| Plan to Continue | Plan to continue | teal, "pick up where you left off" |
+| Planning | Planning | blue, watchlist / reading list wording |
+
+If a list name fits two themes, the one higher in this table wins. Lists without a theme (for example any list not named above) keep the standard card. Add the list name to "Lists that get their own thread" too, or its titles go to General Updates. The border colour follows the poster (AniList gives each poster's main colour; it is adjusted so it always shows well on Discord's dark background, and a grey or black-and-white poster keeps the theme colour). Turn it off with **Border follows the poster's colour**. Turn themes off with **Themed cards** under Settings > Triple Sync > Discord; the **Look used by the test buttons** select previews a look in General Updates without touching your list threads. To add a theme, add an entry to `TS_THEMES` with the list names it matches.
 
 ## About screen
 

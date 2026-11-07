@@ -33,6 +33,8 @@ def main(page, out):
 
     # ---------- settings ----------
     fresh({"dcAnime": "", "dcManga": ""})
+    check("the test-look choices list every theme, built from the theme list", page.evaluate("[...document.querySelectorAll('#tsDcPreview option')].map(o => o.value)") == [""] + page.evaluate("Object.keys(TS_THEMES)") and page.evaluate("Object.keys(TS_THEMES).length") >= 9, page.evaluate("[...document.querySelectorAll('#tsDcPreview option')].map(o => o.value)"))
+    check("the default own-thread lists include Fantasy and every list that has a theme", all(w in page.evaluate("TS_DC_LISTS") for w in ("fantasy", "anime movies", "plan to continue", "planning", "favourite", "fav", "hentai", "milf", "isekai", "rom com")))
     check("the page has the anime and manga webhooks and the own-thread lists", all(page.locator(i).count() == 1 for i in ("#tsDcAnime", "#tsDcManga", "#tsDcLists", "#tsDcAnimeTest", "#tsDcMangaTest", "#tsDcUrl")))
     check("the own-thread lists start with the usual ones", "iseki" in page.input_value("#tsDcLists") and "anime movies" in page.input_value("#tsDcLists") and cfg()["dcLists"] == page.input_value("#tsDcLists"))
     page.fill("#tsDcAnime", "https://example.com/nope"); page.press("#tsDcAnime", "Tab")
@@ -76,7 +78,7 @@ def main(page, out):
     go()
     for i in range(5): bump(i)
     src()[5]["progress"] = 12; src()[5]["status"] = "COMPLETED"
-    log = go(); by = {c["embed"]["title"].replace("UPDATE: Source Title ", "").replace("⚔️ Source Title ", ""): c["thread"] for c in cards()}
+    log = go(); by = {__import__("re").sub(r"^.*?Source Title ", "", c["embed"]["title"]): c["thread"] for c in cards()}   # standard or themed title
     check("every title goes to the right thread: its custom list, a guess from its tags or format, else General Updates", by == {"2001": "[ANIME] General Updates", "2002": "[ANIME] Iseki", "2003": "[ANIME] General Updates", "2004": "[ANIME] Iseki", "2005": "[ANIME] Anime Movies", "2006": "[ANIME] General Updates"}, by)
     iseki = [c for c in cards() if c["thread"] == "[ANIME] Iseki"]; plain = [c for c in cards() if c["thread"] == "[ANIME] General Updates"]
     check("themed cards: Iseki cards have the Isekai look (poster-coloured border, Isekai heading), other threads keep the standard card", len(iseki) == 2 and all(c["embed"]["color"] == page.evaluate("tsAdaptColor('#43a1d4', 0)") and c["embed"]["author"]["name"].startswith("🌀 ISEKAI GATE") and c["embed"]["title"].startswith("⚔️ ") for c in iseki) and all(c["embed"]["title"].startswith("UPDATE: ") for c in plain), [(c["thread"], c["embed"]["title"]) for c in cards()])

@@ -171,7 +171,7 @@ function tsReport(r){
 
 // ----- Discord update cards (the anime and manga webhooks): one card per title whose progress went up -----
 // Which lists get their own thread. Anything else goes to "General Updates". (Same defaults as the Python engines.)
-const TS_DC_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning, tensei, fantasy";
+const TS_DC_LISTS = "anime movies, iseki, isekai, milf, loli, rom com, plan to continue, hentai, favourite, fav, planning, tensei, fantasy, fanatsy";
 const tsPyTitle = s => String(s).toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());   // like Python's str.title()
 const tsActiveLists = e => {
   const c = e && e.customLists;
@@ -250,7 +250,7 @@ const TS_THEMES = {
     line: { CURRENT: "The film is rolling…", PLANNING: "Popcorn is ready. Just pick a night.", COMPLETED: "The credits rolled. Movie night complete!", PAUSED: "Intermission.", DROPPED: "Walked out of the cinema.", REPEATING: "Second screening, same seat." }
   },
   fantasy: {
-    label: "Fantasy", match: ["fantasy"], color: 0x2DBE8A, icon: "🐉", full: "🟩", empty: "⬛", footer: "🐉 Fantasy · Tokyo Brotherhood",
+    label: "Fantasy", match: ["fantasy", "fanatsy"], color: 0x2DBE8A, icon: "🐉", full: "🟩", empty: "⬛", footer: "🐉 Fantasy · Tokyo Brotherhood",
     author: kind => "🐉 REALM CHRONICLE · " + (kind === "manga" ? "NEW CHAPTER" : "NEW EPISODE"), done: "👑 LEGEND COMPLETE",
     names: { romaji: "🧙 Romaji", status: "🗡️ Quest", left: "⏳ Left", manga: "📜 Chapter", anime: "📺 Episode" },
     status: { CURRENT: "adventure ongoing", PLANNING: "map unrolled", COMPLETED: "legend complete", PAUSED: "camping for the night", DROPPED: "turned back at the gates", REPEATING: "a new campaign" },

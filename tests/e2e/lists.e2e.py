@@ -17,7 +17,7 @@ def main(page, out):
     # ---- anime
     go(page, "anime")
     c = cards(page); total = harness.N
-    check("anime: first batch renders", len(c) == 48, len(c))
+    check("anime: first batch renders (24 at a time)", len(c) == 24, len(c))
     check("anime: every card visible (non-zero size)", all(x["vis"] for x in c))
     check("anime: card shows cover, title, status, progress, score", all(x["img"] and x["title"] and x["s"] and x["prog"] and x["sc"] for x in c))
     bm = page.evaluate("(() => { const r = document.querySelector('#listBody').getBoundingClientRect(); return [r.width, r.height]; })()")
@@ -95,7 +95,7 @@ def main(page, out):
     # ---- manga
     go(page, "manga")
     c = cards(page); mt = harness.N // 2
-    check("manga: renders cards", len(c) == min(48, mt) and all(x["vis"] for x in c), len(c))
+    check("manga: renders cards", len(c) == min(24, mt) and all(x["vis"] for x in c), len(c))
     labels = [x["t"].rsplit(" ", 1)[0] for x in chips(page)]
     check("manga: status tabs use Reading/Rereading", labels == ["All", "Reading", "Rereading", "Planning", "Paused", "Completed", "Dropped"], labels)
     show_all(page); check("manga: show more reaches every entry", len(cards(page)) == mt, (len(cards(page)), mt))

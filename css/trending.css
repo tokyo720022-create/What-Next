@@ -5,6 +5,8 @@ input[type=range]{padding:0;border:0;background:none;accent-color:var(--sakura)}
 .tcard{flex:0 0 86%;scroll-snap-align:start;border:0;padding:0;text-align:left;background:var(--card);border-radius:26px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;color:var(--ink);font:inherit}
 .ttop{position:relative;display:flex;gap:14px;padding:18px;min-height:210px;color:#fff;align-items:flex-end;overflow:hidden}
 .tbg,.mbg{position:absolute;inset:-24px;background-size:cover;background-position:center;filter:blur(18px) brightness(.5) saturate(1.2)}
+.mbg.banner{inset:0;filter:none}
+.mbg.banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.5) 0%,rgba(0,0,0,.18) 38%,rgba(0,0,0,.6) 78%,var(--bg) 100%)}
 .tposter{position:relative;width:104px;aspect-ratio:2/3;object-fit:cover;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.5);flex:none;background:#222}
 .tinfo{position:relative;display:flex;flex-direction:column;gap:4px;min-width:0}
 .tt2{font-size:1.1rem;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

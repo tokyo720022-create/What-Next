@@ -89,9 +89,11 @@ function renderMedia(m){
   const total = type === "anime" ? m.episodes : m.chapters;
   box.replaceChildren(); box.scrollTop = 0;
   // header
-  const head = el("div", "mhead"), bg = el("div", "mbg");
-  bg.style.backgroundImage = "url(" + JSON.stringify(m.bannerImage || m.coverImage.extraLarge) + ")";
-  const row = el("div", "mrow"), poster = new Image(); poster.alt = ""; poster.className = "tposter"; poster.src = m.coverImage.extraLarge;
+  // A title with a banner shows it sharp across the top (like AniList). One without shows its cover, blurred.
+  const banner = /^https:\/\//.test(m.bannerImage || "") ? m.bannerImage : "";
+  const head = el("div", "mhead" + (banner ? " hasbanner" : "")), bg = el("div", banner ? "mbg banner" : "mbg");
+  bg.style.backgroundImage = "url(" + JSON.stringify(banner || m.coverImage.extraLarge) + ")";
+  const row = el("div", "mrow"), poster = new Image(); poster.alt = ""; poster.className = "tposter mposter"; poster.src = m.coverImage.extraLarge;
   const info = el("div"); info.style.minWidth = "0";
   info.append(el("h1", null, tt(m)), el("p", null, m.seasonYear || (m.startDate && m.startDate.year) || ""), el("p", null, [norm(m.format), total ? total + (type === "anime" ? " episodes" : " chapters") : ""].filter(Boolean).join(" • ")));
   if(m.nextAiringEpisode){

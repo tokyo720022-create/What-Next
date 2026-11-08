@@ -19,7 +19,7 @@ async function openEditor(m){
   const base = JSON.stringify(d), initial = JSON.parse(base), dirty = () => JSON.stringify(d) !== base;
   let fav = !!m.isFavourite, armed = false, discardArmed = false;
   const box = $("#editor"); box.replaceChildren(); box.hidden = false; box.scrollTop = 0;
-  const head = el("div", "sheethead"), back = el("button", "mini", "← Back"), heart = el("button", "mini", fav ? "♥ Favourite" : "♡ Favourite");
+  const head = el("div", "sheethead ehead"), back = el("button", "mini", "← Back"), heart = el("button", "mini heart", fav ? "♥ Favourite" : "♡ Favourite");
   editorBack = () => {
     if(box.hidden) return;
     if(dirty() && !discardArmed){ discardArmed = true; back.textContent = "Discard changes?"; setTimeout(() => { discardArmed = false; back.textContent = "← Back"; }, 3500); return; }
@@ -37,25 +37,31 @@ async function openEditor(m){
     heart.disabled = false;
   };
   head.append(back, el("b", null, "List editor"), heart);
-  const title = el("h2", "ph", tt(m)); title.style.margin = "16px 0 0";
-  box.append(head, title);
-  const sec = t => { box.append(el("div", "q", t)); };
+  // the title with its cover, over a blurred copy of the cover
+  const cover = (m.coverImage && (m.coverImage.large || m.coverImage.extraLarge)) || "", hero = el("div", "ehero"), thumb = new Image(), einfo = el("div", "einfo"), title = el("h2", "ph", tt(m));
+  thumb.alt = ""; if(cover){ thumb.src = cover; hero.style.setProperty("--cv", "url(" + JSON.stringify(cover) + ")"); }
+  const airSt = (m.status || "").replace(/_/g, " ").toLowerCase(), sub = [(m.format || "").replace(/_/g, " "), total ? total + (type === "anime" ? " episodes" : " chapters") : "", airSt ? airSt[0].toUpperCase() + airSt.slice(1) : ""].filter(Boolean).join(" · ");
+  einfo.append(title, el("p", "esub", sub)); hero.append(thumb, einfo);
+  box.append(head, hero);
+  let host = box;   // each group of controls sits in its own card
+  const sec = t => { host = el("section", "esec"); host.append(el("div", "q", t)); box.append(host); };
   // status
   sec("Status");
   const seg = el("div", "seg"), segBtns = {};
-  ["CURRENT", "PLANNING", "COMPLETED", "REPEATING", "PAUSED", "DROPPED"].forEach(s => { const b = el("button", "chip", lab[s]); b.onclick = () => setStatus(s); segBtns[s] = b; seg.append(b); });
-  box.append(seg);
+  ["CURRENT", "PLANNING", "COMPLETED", "REPEATING", "PAUSED", "DROPPED"].forEach(s => { const b = el("button", "chip", lab[s]); b.dataset.s = s; b.onclick = () => setStatus(s); segBtns[s] = b; seg.append(b); });
+  host.append(seg);
   // progress
   sec(type === "anime" ? "Episodes" : "Chapters");
   const stp = el("div", "stepper"), minus = el("button", "chip", "−"), plus = el("button", "chip", "+"), pin = el("input"), of = el("span", "sub", total ? "of " + total : "");
   pin.type = "number"; pin.min = "0"; pin.inputMode = "numeric";
   const ptrack = el("div", "ptrack"), pfill = el("i"); ptrack.append(pfill);
-  stp.append(minus, pin, plus, of); box.append(stp, ptrack);
+  const fin = total ? el("button", "chip efin", "All") : null, pline = el("p", "esub");   // fin: jump to the last episode or chapter
+  stp.append(minus, pin, plus, of); if(fin) stp.append(fin); host.append(stp, ptrack, pline);
   // score (in the format you chose on AniList)
   sec("Score");
   const sv = el("div", "bigscore"), sl = el("input"), srow = el("div", "stepper"), sm = el("button", "chip", "−"), sp = el("button", "chip", "+"), sn = el("button", "mini", "No score");
   sl.type = "range"; sl.min = String(spec.min); sl.max = String(spec.max); sl.step = String(spec.step); sn.style.margin = "0";
-  srow.append(sm, sp, sn); box.append(sv, sl, srow);
+  srow.append(sm, sp, sn); host.append(sv, sl, srow);
   // dates
   sec("Dates");
   const dates = el("div", "two"), mkDate = (label, key) => {
@@ -64,32 +70,33 @@ async function openEditor(m){
     c.append(l, i, t, x); dates.append(c); return i;
   };
   const startIn = mkDate("Started", "start"), endIn = mkDate("Finished", "end");
-  box.append(dates);
+  host.append(dates);
   // rewatches, priority, private
   sec(type === "anime" ? "Total rewatches" : "Total rereads");
   const rs = el("div", "stepper"), rm = el("button", "chip", "−"), rp = el("button", "chip", "+"), rv = el("b", null, "0");
   rm.onclick = () => { d.repeat = Math.max(0, d.repeat - 1); sync(); }; rp.onclick = () => { d.repeat++; sync(); };
-  rs.append(rm, rv, rp); box.append(rs);
+  rs.append(rm, rv, rp); host.append(rs);
   sec("Priority");
-  const pr = el("div", "seg"), prBtns = [];
+  const pr = el("div", "seg seg4"), prBtns = [];
   [["None", 0], ["Low", 1], ["Medium", 3], ["High", 5]].forEach(([n, v]) => { const b = el("button", "chip", n); b.onclick = () => { d.priority = v; sync(); }; prBtns.push([b, v]); pr.append(b); });
-  box.append(pr);
-  const pv = el("label", "chk"), pvi = el("input"); pvi.type = "checkbox"; pvi.onchange = () => { d.priv = pvi.checked; };
-  pv.style.marginTop = "18px"; pv.append(pvi, " Private (hide from my public profile)"); box.append(pv);
+  host.append(pr);
+  host = el("section", "esec"); box.append(host);
+  const pv = el("label", "chk sw"), pvi = el("input"); pvi.type = "checkbox"; pvi.onchange = () => { d.priv = pvi.checked; };
+  pv.append(pvi, " Private (hide from my public profile)"); host.append(pv);
   // custom lists
   if(opts.length){
     sec("Custom lists");
     const cl = el("div", "seg");
     opts.forEach(n => { const b = el("button", "chip", n); b.dataset.n = n; b.onclick = () => { const i = d.lists.indexOf(n); if(i >= 0) d.lists.splice(i, 1); else d.lists.push(n); sync(); }; cl.append(b); });
-    box.append(cl);
+    host.append(cl);
   }
   // notes
   sec("Notes");
   const notes = el("textarea"); notes.rows = 3; notes.placeholder = "Write a note"; notes.oninput = () => { d.notes = notes.value; };
-  box.append(notes);
+  host.append(notes);
   // bar
   const bar = el("div", "sheetbar"), save = el("button", "go", e ? "Save" : "Add to list");
-  let rmv = null; if(e && e.id){ rmv = el("button", "go alt", "Remove"); bar.append(rmv); }
+  let rmv = null; if(e && e.id){ rmv = el("button", "go alt danger", "Remove"); bar.append(rmv); }
   bar.append(save); box.append(bar);
 
   const scoreVal = () => spec.fromRaw(d.score);
@@ -97,7 +104,10 @@ async function openEditor(m){
   function sync(){
     for(const s in segBtns) segBtns[s].setAttribute("aria-pressed", String(d.status === s));
     pin.value = d.progress; pfill.style.width = total ? Math.min(100, Math.round(d.progress / total * 100)) + "%" : "0%";
+    of.textContent = total ? "/ " + total : "";
+    pline.textContent = total ? Math.min(100, Math.round(d.progress / total * 100)) + "% " + (type === "anime" ? "watched" : "read") + " · " + Math.max(0, total - d.progress) + " left" : "";
     sv.textContent = d.score ? "★ " + spec.text(scoreVal()) : "No score"; sl.value = d.score ? scoreVal() : 0;
+    sl.style.setProperty("--p", d.score ? Math.round((scoreVal() - spec.min) / (spec.max - spec.min) * 100) + "%" : "0%");
     startIn.value = d.start; endIn.value = d.end; rv.textContent = d.repeat;
     prBtns.forEach(([b, v]) => b.setAttribute("aria-pressed", String(d.priority === v)));
     pvi.checked = d.priv; if(notes.value !== d.notes) notes.value = d.notes;
@@ -108,7 +118,7 @@ async function openEditor(m){
   const apply = p => { if(p.status) d.status = p.status; if(p.progress != null) d.progress = p.progress; if(p.repeat != null) d.repeat = p.repeat; if(p.startedAt) d.start = dIn(p.startedAt); if(p.completedAt) d.end = dIn(p.completedAt); };
   function setStatus(s){ apply(trackRules(cur(), total, { status: s })); sync(); }
   function setProg(n){ apply(trackRules(cur(), total, { progress: n })); sync(); }
-  minus.onclick = () => setProg(d.progress - 1); plus.onclick = () => setProg(d.progress + 1);
+  minus.onclick = () => setProg(d.progress - 1); plus.onclick = () => setProg(d.progress + 1); if(fin) fin.onclick = () => setProg(total);
   pin.onchange = () => setProg(+pin.value);
   sl.oninput = () => setScore(+sl.value);
   sm.onclick = () => setScore((scoreVal() || 0) - spec.step); sp.onclick = () => setScore((scoreVal() || 0) + spec.step);

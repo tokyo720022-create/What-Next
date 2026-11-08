@@ -11,7 +11,7 @@ const own = name => ({ name, own: true });
 
 eq("Iseki, Isekai and Tensei lists get the Isekai theme", ["Iseki", "isekai", "Tensei", "Isekai 2"].map(n => tf(own(n))), ["isekai", "isekai", "isekai", "isekai"]);
 eq("Rom Com in any spelling gets the Rom-Com theme", ["Rom Com", "rom-com", "RomCom", "Romantic Comedy"].map(n => tf(own(n))), ["romcom", "romcom", "romcom", "romcom"]);
-eq("every other list of yours gets its theme", [["Anime Movies", "movies"], ["Favourite", "favourite"], ["Fav", "favourite"], ["Favorite", "favourite"], ["Planning", "planning"], ["Plan to continue", "continue"], ["Fantasy", "fantasy"], ["Hentai", "hentai"], ["Milf", "milf"]].map(([n, id]) => tf(own(n)) === id), Array(9).fill(true));
+eq("every other list of yours gets its theme", [["Anime Movies", "movies"], ["Favourite", "favourite"], ["Fav", "favourite"], ["Favorite", "favourite"], ["Planning", "planning"], ["Plan to continue", "continue"], ["Fantasy", "fantasy"], ["Fanatsy", "fantasy"], ["Hentai", "hentai"], ["Milf", "milf"]].map(([n, id]) => tf(own(n)) === id), Array(10).fill(true));
 eq("the loli list has no theme: it keeps the standard card", [tf(own("loli")), tf(own("Loli")), tf(own("lolis"))], ["", "", ""]);
 eq("Planning and Plan to continue are told apart", [tf(own("Planning")), tf(own("Plan to continue")), tf(own("plan to watch"))], ["planning", "continue", ""]);
 eq("when a list name fits two themes the earlier one wins (Isekai and Rom Com first)", [tf(own("Isekai Fantasy")), tf(own("Rom Com Favourite")), tf(own("Fantasy Favourite"))], ["isekai", "romcom", "fantasy"]);

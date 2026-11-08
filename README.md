@@ -80,6 +80,13 @@ Tap **Log in with AniList** and approve. The browser returns you to the app sign
 
 AniList limits how many requests an app may send per minute (its docs say 90, and 30 while the API is degraded) and answers "too many requests" with a one-minute timeout. `js/core/pacer.js` reads the real limit from AniList's answers and spaces requests so the limit is not hit. Reading screens keep a few requests in reserve, so saving your change never waits behind a big load. If AniList does say "slow down", everything waits for the time it asks for, and a clear message shows when the wait would be long.
 
+## Screens (v3 look)
+
+- **Lists (Anime, Manga):** 24 titles are drawn at a time (**Show more** adds 24). The toolbar (Search, Filter, Customise, Custom lists) is four equal tiles with icons, the status row stays at the top while you scroll and shows a colour dot and count per status, and each card has a gradient **+1**, a status badge, the score, progress, and for airing anime a badge: **"3 new"** when episodes are out that you have not watched, otherwise **"Ep 8 · 2d"** until the next one airs.
+- **Pick:** a clear order: filters, the big **Pick for me**, then **Surprise me** and **Build a lineup**, then **Something new for my taste**. The result card shows score, format and genres as chips and an **Up next** tile (what to watch or read, time, and where you are, with a progress bar).
+- **Title page:** a title's banner is shown sharp across the top with a fade into the page (a title without a banner shows its cover, blurred).
+- **List editor:** a cover header, then card sections (Status, Progress with an **All** button, Score, Dates, Rewatches, Priority as one connected control, Private as a switch, Custom lists, Notes) and the Remove / Save bar.
+
 ## Discord card themes
 
 Update cards for lists that have their own thread can have their own look (`TS_THEMES` in `js/features/triple-math.js`). Themes so far (the list name only has to contain the word):

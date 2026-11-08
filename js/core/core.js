@@ -156,16 +156,21 @@ function show({e,p}){
   const inn = el("div", "in");
   const img = new Image(); img.alt = ""; img.className = "poster"; img.src = m.coverImage.extraLarge || m.coverImage.large;
   const info = el("div", "hinfo");
-  const meta = [(m.format || "").replace(/_/g, " "), m.averageScore ? "★ " + m.averageScore + "%" : "", (m.genres || []).slice(0, 2).join(", ")].filter(Boolean).join(" · ");
+  const chips = el("div", "hchips");   // score, format and up to three genres as little chips
+  if(m.averageScore) chips.append(el("span", "hchip sc", "★ " + m.averageScore + "%"));
+  if(m.format) chips.append(el("span", "hchip", m.format.replace(/_/g, " ")));
+  (m.genres || []).slice(0, 3).forEach(g => chips.append(el("span", "hchip", g)));
   const a = el("button", "hlink", "Details ›"); a.onclick = () => openMedia(m.id);
-  info.append(el("span", "tag", (p.isAnime ? "Anime" : "Manga") + (e.status === "PLANNING" ? " · Planning" : e.status === "NEW" ? " · New for you" : "")), el("h2", null, title), el("p", "hmeta", meta), a);
+  const tag = el("span", "tag", (p.isAnime ? "Anime" : "Manga") + (e.status === "PLANNING" ? " · Planning" : e.status === "NEW" ? " · New for you" : "")); tag.dataset.k = p.isAnime ? "anime" : "manga";
+  info.append(tag, el("h2", null, title), chips, a);
   inn.append(img, info);
-  const act = el("div", "act");
-  act.append(el("div", "actmain", p.action), el("div", "actsub", "About " + p.minutes + " min"));
+  const act = el("div", "act"), arow = el("div", "actrow");
+  arow.append(el("span", null, "⏱ About " + p.minutes + " min"));
+  act.append(el("div", "actlab", "Up next"), el("div", "actmain", p.action), arow);
   if(p.total && e.status !== "NEW"){
     const tr = el("div", "track"), f = el("i"); f.style.width = Math.min(100, Math.round(p.progress / p.total * 100)) + "%"; tr.append(f);
-    act.append(tr, el("div", "actsub", "You're at " + p.progress + " of " + p.total));
-  }else if(e.status !== "PLANNING" && e.status !== "NEW"){ act.append(el("div", "actsub", "You're at " + p.progress)); }
+    arow.append(el("span", null, "📍 You're at " + p.progress + " of " + p.total)); act.append(tr);
+  }else if(e.status !== "PLANNING" && e.status !== "NEW"){ arow.append(el("span", null, "📍 You're at " + p.progress)); }
   hero.append(bg, inn, act);
   const bar = el("div", "btns");
   const fresh = e.status === "NEW", next = () => fresh ? tastePick() : pick(wildMode);   // "NEW" = suggested from your taste, not on your lists

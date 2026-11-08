@@ -33,7 +33,11 @@ a.link{display:inline-block;margin-top:14px;color:var(--sakura);font-weight:700;
 .bar span{width:110px;flex:none}
 .bar i{display:block;height:12px;border-radius:6px;background:var(--grad)}
 .filt{background:var(--card);border-radius:20px;padding:14px 18px;margin-top:6px;box-shadow:var(--shadow)}
-.filt summary{font-weight:700;cursor:pointer}
+.filt summary{display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer;list-style:none}
+.filt summary::-webkit-details-marker{display:none}
+.filt summary::before{content:"🎚️"}
+.filt summary::after{content:"⌄";margin-left:auto;font-size:1.3rem;line-height:1;opacity:.6;transition:transform .15s}
+.filt[open] summary::after{transform:rotate(180deg)}
 .mini{padding:8px 14px;border:0;border-radius:999px;background:var(--chip);color:var(--ink);font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;margin:10px 8px 0 0}
 .mini:disabled{opacity:.6}
 .mini[aria-pressed="true"]{background:var(--grad);color:var(--sakura-ink)}

@@ -26,7 +26,7 @@ const defFilter = () => ({ sort: "UPDATED", format: "", mstatus: "", country: ""
 const ly = LS("wn_ly", { layout: "grid", cols: 3, hideUnscored: false, hideProgress: false });
 const fstore = LS("wn_lf", { persist: false, anime: null, manga: null });
 const lf = { anime: (fstore.persist && fstore.anime) || defFilter(), manga: (fstore.persist && fstore.manga) || defFilter() };
-const LIST_BATCH = 48;
+const LIST_BATCH = 24;   // titles drawn at a time; "Show more" adds the next 24
 const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, refreshErr: "", cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
 const lists = { anime: mkList(), manga: mkList() };
 let curType = "anime";
@@ -151,7 +151,8 @@ function renderList(opts){
   const order = ["ALL", ...STATUS_ORDER.filter(x => all[x] || x === L.status)]; if(appCfg().allpos[type] === "bottom") order.push(order.shift());
   for(const s of order){
     const n = s === "ALL" ? rows.length : (counts[s] || 0);
-    const b = el("button", "chip" + (n ? "" : " dim"), (s === "ALL" ? "All" : lab[s]) + " " + n);
+    const b = el("button", "chip" + (n ? "" : " dim")); b.dataset.s = s;   // data-s colours the little dot in front of the name
+    b.append((s === "ALL" ? "All" : lab[s]) + " ", el("span", "cnt", String(n)));
     b.setAttribute("aria-pressed", String(L.status === s));
     b.onclick = () => { L.status = s; L.shown = LIST_BATCH; renderList(); };
     chips.append(b);
@@ -176,6 +177,16 @@ function renderList(opts){
   guardListLayout();
   if(opts && opts.keepScroll) window.scrollTo(0, y);
 }
+// Airing anime: "3 new" when episodes are out that you have not watched, otherwise when the next one airs.
+function airIn(secs){ return secs <= 0 ? "now" : secs < 3600 ? Math.max(1, Math.round(secs / 60)) + "m" : secs < 86400 ? Math.round(secs / 3600) + "h" : Math.round(secs / 86400) + "d"; }
+function airBadge(e, type){
+  const a = e.m.nextAiringEpisode;
+  if(type !== "anime" || !a || !a.airingAt || !a.episode || ["COMPLETED", "DROPPED"].includes(e.status)) return null;
+  const behind = a.episode - 1 - e.progress, watching = ["CURRENT", "REPEATING"].includes(e.status);
+  const b = el("span", "lair" + (watching && behind >= 1 ? " new" : ""), watching && behind >= 1 ? behind + " new" : "Ep " + a.episode + " · " + airIn(a.airingAt - Date.now() / 1000));
+  b.title = "Episode " + a.episode + " airs " + new Date(a.airingAt * 1000).toLocaleString();
+  return b;
+}
 function lcard(e, type){
   const m = e.m, total = type === "anime" ? m.episodes : m.chapters, lab = STATUS_LABEL(type)[e.status] || e.status;
   const card = el("div", "lcard"); card.dataset.s = e.status;
@@ -184,6 +195,7 @@ function lcard(e, type){
   const cover = el("div", "lcover"), img = new Image(); img.alt = ""; img.loading = "lazy"; img.decoding = "async";
   if(m.coverImage && m.coverImage.large) img.src = m.coverImage.large;
   cover.append(img, el("span", "sb", lab));
+  const air = airBadge(e, type); if(air) cover.append(air);
   const info = el("div", "li"), meta = el("div", "lm");
   info.append(el("div", "lt", tt(m)), el("div", "ls", lab));
   if(!(ly.hideUnscored && !e.score)) meta.append(el("span", "sc", "★ " + scoreText(e.score)));

@@ -74,7 +74,7 @@ run(t3)
 def t4(page, out):
     t0 = time.time(); page.click('#tabs [data-v="anime"]'); page.wait_for_selector("#listBody .lcard:not(.skel)", timeout=15000); dt = time.time() - t0
     nodes = page.evaluate("document.querySelectorAll('*').length"); cards = page.locator("#listBody .lcard").count()
-    (ok if dt < 3 and cards <= 48 else lambda m: note("BUG", m))("1200-entry list: first batch in %.2fs, %d cards in DOM, %d nodes total" % (dt, cards, nodes))
+    (ok if dt < 3 and cards <= 24 else lambda m: note("BUG", m))("1200-entry list: first batch in %.2fs, %d cards in DOM, %d nodes total" % (dt, cards, nodes))
 harness.N = 1200
 harness.DATA["ANIME"] = [harness.entry(i, "ANIME") for i in range(1200)]
 run(t4)

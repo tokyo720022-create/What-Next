@@ -34,7 +34,7 @@
 .tgval{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 .tgnote{margin:8px 0 0}
 .pfnote,.pfmuted{margin:12px 0 0;color:var(--muted);font-size:.84rem}
-.pffavkinds{padding-top:0}
+.pffavkinds{position:static;margin:0 -16px 4px;padding:0 16px 8px;background:none;-webkit-backdrop-filter:none;backdrop-filter:none}   /* this row reuses .srow, which is a sticky, tinted, blurred bar made for the list screens: here it just sits inside the card */
 .favgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
 .favt{padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
 .favt img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:14px;background:var(--chip)}

@@ -2,7 +2,11 @@ import sys
 from harness import *
 R = []
 def check(n, c, d=""): R.append(bool(c)); print(("PASS " if c else "FAIL ") + n + ((" :: " + str(d)) if d and not c else ""))
-IDS = ["sakuraflowers", "onepiece", "naruto", "gintama", "dragonball", "bleach", "rentagirlfriend", "aot"]
+IDS = ["sakuraflowers", "onepiece", "naruto", "gintama", "dragonball", "bleach", "rentagirlfriend", "aot", "konosuba", "shieldhero", "magicalexplorer", "blackclover", "sao", "mashle", "ikenie"]
+PATTERNS = {"sakuraflowers": "petals", "gintama": "waves", "konosuba": "stars", "shieldhero": "scales", "magicalexplorer": "runes", "blackclover": "clover", "sao": "hex", "mashle": "bolts", "ikenie": "embers"}
+LIGHT = ("sakuraflowers", "rentagirlfriend", "mashle")
+def pick(page, tid):
+    page.click('#themeGroups .chip[data-v="%s"]' % page.evaluate("THEMES.find(t => t.id === '%s').group" % tid)); page.click('#themeGrid .thm[data-id="%s"]' % tid)
 def lum(c):
     import re
     r, g, b = [int(x) for x in re.findall(r"\d+", c)[:3]]
@@ -13,12 +17,21 @@ def main(page, out):
     t = lambda sel: page.inner_text(sel)
     check("default theme is One Piece", page.evaluate("document.documentElement.dataset.theme") == "onepiece" and page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(5, 11, 26)")
     page.evaluate("showTab('set-app')"); page.wait_for_selector("#themeGrid .thm")
-    check("eight theme cards", page.locator("#themeGrid .thm").count() == 8)
+    page.evaluate("setApp({adultThemes: true}); fillApp()")
+    check("fifteen themes in eight groups, one chip per group", page.evaluate("THEMES.length") == 15 and page.locator("#themeGroups .chip").count() == 8)
+    check("the picker opens on the group of the current theme", page.get_attribute('#themeGroups .chip[data-v="onepiece"]', "aria-pressed") == "true" and page.locator("#themeGrid .thm").count() == 1)
+    page.click('#themeGroups .chip[data-v="comedy"]')
     check("only Gintama is marked Special", page.locator("#themeGrid .thsp").count() == 1 and "Special" in t('#themeGrid .thm:has-text("Gintama")'))
-    check("each card shows a swatch, name and one-line note", all(page.locator("#themeGrid .thm:nth-child(%d) .thsw" % i).count() == 1 and page.locator("#themeGrid .thm:nth-child(%d) .thnote" % i).inner_text().strip() for i in range(1, 9)))
+    page.click('#themeGroups .chip[data-v="isekai"]')
+    check("Isekai holds KonoSuba, Shield Hero and Magical Explorer", page.locator("#themeGrid .thm").count() == 3)
+    check("each card shows a swatch, name and one-line note", all(page.locator("#themeGrid .thm:nth-child(%d) .thsw" % i).count() == 1 and page.locator("#themeGrid .thm:nth-child(%d) .thnote" % i).inner_text().strip() for i in range(1, 4)))
+    page.evaluate("setApp({adultThemes: false}); fillApp()")
+    check("the 18+ group is hidden until Show 18+ themes is on", page.locator('#themeGroups .chip[data-v="hentai"]').count() == 0 and page.locator("#themeGroups .chip").count() == 7)
+    page.click("#setApp label:has-text('Show 18+ themes')")
+    check("turning it on shows the group", page.locator('#themeGroups .chip[data-v="hentai"]').count() == 1)
     check("current theme is marked", page.get_attribute('#themeGrid .thm[data-id="onepiece"]', "aria-pressed") == "true" and page.locator('#themeGrid .thm[aria-pressed="true"]').count() == 1)
     for tid in IDS:
-        page.click('#themeGrid .thm[data-id="%s"]' % tid); page.wait_for_timeout(80)
+        pick(page, tid); page.wait_for_timeout(80)
         m = page.evaluate("""(() => { const cs = getComputedStyle(document.documentElement), card = getComputedStyle(document.querySelector('#themeGrid .thm')), g = cs.getPropertyValue('--grad');
             const probe = document.createElement('button'); probe.className = 'go'; document.body.append(probe); const pc = getComputedStyle(probe); const o = { bg: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(document.body).color, cardbg: cs.getPropertyValue('--card').trim(), muted: cs.getPropertyValue('--muted').trim(), sak: cs.getPropertyValue('--sakura').trim(), on: cs.getPropertyValue('--sakura-ink').trim(), btn: pc.color, grad: g.trim(), pattern: document.documentElement.dataset.pattern, theme: document.documentElement.dataset.theme, scheme: document.documentElement.style.colorScheme, meta: document.querySelector('meta[name=theme-color]').content, saved: JSON.parse(localStorage.getItem('wn_theme')).id }; probe.remove(); return o; })()""")
         hexrgb = lambda h: "rgb(%d, %d, %d)" % tuple(int(h.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
@@ -26,10 +39,10 @@ def main(page, out):
         check("%s: text readable on the page and cards (>= 4.5:1)" % tid, ratio(m["ink"], m["bg"]) >= 4.5 and ratio(hexrgb(m["muted"]), hexrgb(m["cardbg"])) >= 4.5 and ratio(m["ink"], hexrgb(m["cardbg"])) >= 4.5, (ratio(m["ink"], m["bg"]), m))
         check("%s: button text readable on the accent (>= 4.5:1)" % tid, ratio(m["btn"], hexrgb(m["sak"])) >= 4.5 or ratio(m["btn"], hexrgb(m["on"])) >= 4.5 and m["btn"] == hexrgb(m["on"]), m)
         check("%s: status bar colour follows the page" % tid, m["meta"].lower() == "#%02x%02x%02x" % tuple(int(x) for x in __import__("re").findall(r"\d+", m["bg"])[:3]), (m["meta"], m["bg"]))
-        want = {"sakuraflowers": "petals", "gintama": "waves"}.get(tid, "")
+        want = PATTERNS.get(tid, "")
         check("%s: pattern %s" % (tid, want or "none"), m["pattern"] == want, m["pattern"])
-        check("%s: native controls use the %s scheme" % (tid, "light" if tid in ("sakuraflowers", "rentagirlfriend") else "dark"), m["scheme"] == ("light" if tid in ("sakuraflowers", "rentagirlfriend") else "dark"), m["scheme"])
-    page.click('#themeGrid .thm[data-id="gintama"]'); page.reload(); page.wait_for_selector("#tabs:not([hidden])")
+        check("%s: native controls use the %s scheme" % (tid, "light" if tid in LIGHT else "dark"), m["scheme"] == ("light" if tid in LIGHT else "dark"), m["scheme"])
+    pick(page, "gintama"); page.reload(); page.wait_for_selector("#tabs:not([hidden])")
     check("the choice survives a reload", page.evaluate("document.documentElement.dataset.theme") == "gintama")
     page.evaluate("localStorage.setItem('wn_theme', JSON.stringify({mode:'light', a:'#2d9cff', b:'#4fe0ff'}))"); page.reload(); page.wait_for_selector("#tabs:not([hidden])")
     check("an old 'light' setting becomes Sakura Flowers", page.evaluate("document.documentElement.dataset.theme") == "sakuraflowers")

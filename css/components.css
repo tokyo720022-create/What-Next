@@ -19,7 +19,6 @@
 .pick .body{padding:0 20px 20px;margin-top:-46px;position:relative}
 .kind{color:var(--muted);font-size:.85rem;margin:0}
 .pick h2{margin:2px 0 10px;font-size:1.55rem;line-height:1.12;letter-spacing:-.02em}
-.todo{font-size:1.2rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;margin:0}
 .meta{color:var(--muted);margin:4px 0 0;font-size:.92rem}
 a.link{display:inline-block;margin-top:14px;color:var(--sakura);font-weight:700;text-decoration:none}
 .msg{padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:var(--shadow)}

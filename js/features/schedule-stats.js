@@ -93,7 +93,9 @@ function renderSchedule(){
         info.append(el("div", "schprog", "Watched " + Math.min(e.progress, aired) + " of " + aired + " aired"), tr);
       }
       const pills = el("div", "schpills");
-      pills.append(el("span", "schpill when" + (secs <= 0 ? " now" : secs < 10800 ? " soon" : ""), appCfg().relative ? fmtIn(secs) : at.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })));
+      const out = secs <= 0;   // already aired: say how long ago instead of an old countdown
+      pills.append(el("span", "schpill when" + (out ? " now" : secs < 10800 ? " soon" : ""), out ? (secs > -60 ? "Aired just now" : "Aired " + fmtIn(-secs) + " ago") : appCfg().relative ? fmtIn(secs) : at.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })));
+      if(secs < -86400) pills.append(el("span", "schpill", "Pull down to refresh"));   // the next episode date on file is old
       if(waiting > 0) pills.append(el("span", "schpill", waiting + " waiting for you"));
       if(e.status === "PLANNING") pills.append(el("span", "schpill plan", "Planning"));
       info.append(pills); card.append(poster, info);

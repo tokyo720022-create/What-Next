@@ -21,7 +21,8 @@ const STATUS_ORDER = ["CURRENT", "REPEATING", "PLANNING", "PAUSED", "COMPLETED",
 const LIST_F = "mediaId status progress repeat customLists(asArray:true) startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt notes priority media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
 const FORMATS = { anime: ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"], manga: ["MANGA", "NOVEL", "ONE_SHOT"] };
 const LS = (k, d) => { try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k) || "{}")); }catch(_){ return Object.assign({}, d); } };
-const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} };
+let lsWarnAt = 0;   // when storage is full the settings can't be kept: tell the person, but not more than once a minute
+const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(_){ if(Date.now() - lsWarnAt > 60000 && typeof toast === "function"){ lsWarnAt = Date.now(); toast("The phone has no room left to save settings."); } return false; } };
 const defFilter = () => ({ sort: "UPDATED", format: "", mstatus: "", country: "", yFrom: "", yTo: "", cMin: "", cMax: "", score: "", gi: [], ge: [] });
 const LY_TYPES = ["linear", "grid", "simplified", "album"];   // List type: Linear = cover and details in a row, Grid = covers, Simplified = text only, Album = big covers with the title on top
 const ly = LS("wn_ly", { layout: "grid", cols: 3, hideUnscored: false, hideProgress: false, quick: true, hideAir: false, showNotes: false, showPriority: false });
@@ -230,6 +231,13 @@ function drawQuick(){
   const step = d => { minus.disabled = plus.disabled = true; track(e.id, type, { progress: e.progress + d }).then(r => { if(!r.ok && !r.queued) toast("Couldn't save progress: " + ((r.error && r.error.message) || "unknown error")); drawQuick(); }); };
   minus.onclick = () => step(-1); plus.onclick = () => step(1);
   row.append(minus, num, plus); box.append(row);
+  const stat = el("div", "row qvstat");
+  for(const [k, name] of Object.entries(STATUS_LABEL(type))){
+    const c = el("button", "chip", name); c.type = "button"; c.setAttribute("aria-pressed", String(e.status === k)); c.disabled = !auth.token;
+    c.onclick = () => { if(e.status === k) return; track(e.id, type, { status: k }).then(r => { if(!r.ok && !r.queued) toast("Couldn't change the status: " + ((r.error && r.error.message) || "unknown error")); drawQuick(); }); };
+    stat.append(c);
+  }
+  box.append(stat);
   const bits = [];
   if(e.priority > 0) bits.push("Priority: " + (e.priority >= 5 ? "High" : e.priority >= 3 ? "Medium" : "Low"));
   if(e.repeat) bits.push((type === "anime" ? "Rewatched " : "Reread ") + e.repeat + "×");
@@ -249,7 +257,7 @@ function lcard(e, type){
   cover.append(img, el("span", "sb", lab));
   const air = ly.hideAir ? null : airBadge(e, type); if(air) cover.append(air);
   const info = el("div", "li"), meta = el("div", "lm");
-  info.append(el("div", "lt", tt(m)), el("div", "ls", lab));
+  info.append(el("div", "lt", tt(m)), el("div", "ls", lab + (air && ly.layout === "simplified" ? " · " + air.textContent : "")));   // Simplified has no cover to carry the airing badge
   const flags = lflags(e); if(flags.length){ const fr = el("div", "lflags"); fr.append(...flags); info.append(fr); }
   if(!(ly.hideUnscored && !e.score)) meta.append(el("span", "sc", "★ " + scoreText(e.score)));
   if(!ly.hideProgress) meta.append(el("span", "lp", e.progress + " / " + (total || "?")));
@@ -318,7 +326,7 @@ function drawBgState(){
   $("#csBgPrev").style.backgroundImage = has ? 'url("' + lyBg + '")' : ""; $("#csBgPrev").hidden = !has;
   $("#csBgNote").textContent = has ? "Image set. It shows behind your Anime and Manga lists." : "No image selected"; $("#csBgClear").hidden = !has;
 }
-function applyListBg(){ const b = $("#listBg"); b.style.backgroundImage = lyBg ? 'url("' + lyBg + '")' : ""; b.hidden = !lyBg; }
+function applyListBg(){ const b = $("#listBg"); b.style.backgroundImage = lyBg ? 'url("' + lyBg + '")' : ""; b.hidden = !lyBg; $("#lists").classList.toggle("hasbg", !!lyBg); }   // "hasbg" lets the status bar match the dimmed picture instead of showing as a dark stripe
 // A phone photo is too big to keep as it is: it is shrunk to at most 1600 px on the long side and saved as a JPEG.
 function readBgFile(file){
   return new Promise((res, rej) => {
@@ -352,6 +360,10 @@ $("#csBgFile").onchange = async ev => {
     try{ localStorage.setItem(LYBG_KEY, data); }catch(_){ toast("Couldn't save the picture: the phone has no room left for it."); return; }
     lyBg = data; applyListBg(); drawBgState();
   }catch(err){ toast(err.message || "Couldn't use that picture."); }
+};
+$("#csReset").onclick = () => {
+  Object.assign(ly, { layout: "grid", cols: 3, hideUnscored: false, hideProgress: false, quick: true, hideAir: false, showNotes: false, showPriority: false });
+  lyBg = ""; try{ localStorage.removeItem(LYBG_KEY); }catch(_){} applyListBg(); LSset("wn_ly", ly); renderList(); openCust();
 };
 $("#csBgClear").onclick = () => { lyBg = ""; try{ localStorage.removeItem(LYBG_KEY); }catch(_){} applyListBg(); drawBgState(); };
 applyListBg();

@@ -10,10 +10,10 @@ def main(page, out):
     body = t("#setApp").lower()
     check("App Settings has Theme, Appearance, Lists, Titles and Privacy", all(x in body for x in ("theme", "appearance", "lists", "titles", "privacy")))
     check("no push notification or memory saver clutter", "push" not in body and "memory saver" not in body)
-    names = [x.strip().split("\n")[0] for x in page.locator("#themeGrid .thm .thn").all_inner_texts()]
-    check("eight anime themes, in order", names == ["Sakura Flowers", "One Piece", "Naruto", "Gintama", "Dragon Ball", "Bleach", "Rent-a-Girlfriend", "Attack on Titan"], names)
+    groups = [x.strip().split("\n")[0] for x in page.locator("#themeGroups .chip").all_inner_texts()]
+    check("seven theme groups show, the 18+ one stays hidden", groups == ["One Piece", "Isekai", "Fantasy", "Action", "Comedy", "Rom Com", "Romance"], groups)
     check("the old themes and colour pickers are gone", all(x not in body for x in ("sakura night", "midnight blue", "amoled", "reset colours")) and page.locator("#colorA, #themeMode, #themePresets").count() == 0)
-    page.click('#themeGrid .thm:has-text("Naruto")'); page.wait_for_timeout(150)
+    page.click('#themeGroups .chip[data-v="action"]'); page.click('#themeGrid .thm:has-text("Naruto")'); page.wait_for_timeout(150)
     check("choosing a theme saves it, marks it and recolours the app", page.evaluate("JSON.parse(localStorage.getItem('wn_theme')).id") == "naruto" and page.get_attribute('#themeGrid .thm:has-text("Naruto")', "aria-pressed") == "true" and page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(13, 10, 7)")
     # appearance
     check("profile pictures are round by default", page.evaluate("document.documentElement.dataset.avatar") == "circle")

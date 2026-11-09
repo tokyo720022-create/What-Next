@@ -28,3 +28,53 @@
 .lsbar{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);margin-top:26px;padding:10px 0 4px;background:linear-gradient(to bottom,transparent,var(--bg) 22%)}
 .lsbar .sub{margin:0 0 6px;min-height:1.2em;text-align:center}
 .lsbar .go{margin:0}
+
+/* Customise list: list types, markers, quick view, background picture */
+#listBg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;pointer-events:none}
+#listBg::after{content:"";position:absolute;inset:0;background:var(--bg);opacity:.62}
+.csbg{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.csbg .sub{flex:1 1 100%;margin:0}
+.csbg .mini{margin:0}
+.csbgprev{flex:1 1 100%;height:120px;border-radius:14px;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px var(--line)}
+.lflags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.lflag{padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--ink);font-size:.62rem;font-weight:800;white-space:nowrap}
+.lpri-low{background:#2f6fbf;color:#fff}
+.lpri-medium{background:#d99a2b;color:#fff}
+.lpri-high{background:#e0475b;color:#fff}
+#listBody .lcard{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+/* Simplified: text only, one slim row per title */
+.lsimp{gap:6px}
+.lsimp .lcover{display:none}
+.lsimp .lmain{padding:2px 0}
+.lsimp .li{padding:10px 58px 10px 14px}
+.lsimp .lt{font-size:.9rem;min-height:0;-webkit-line-clamp:1}
+.lsimp .lm{margin-top:3px}
+.lsimp .ltrack{margin-top:6px;height:3px}
+.lsimp .lcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sakura)}
+.lsimp .lcard[data-s="PLANNING"]::before{background:#5b7cff}
+.lsimp .lcard[data-s="COMPLETED"]::before{background:#2fbf7a}
+.lsimp .lcard[data-s="PAUSED"]::before{background:#d99a2b}
+.lsimp .lcard[data-s="DROPPED"]::before{background:#7d8299}
+.lsimp .lcard[data-s="REPEATING"]::before{background:#a46cf0}
+/* Album: big covers, the title and progress sit on the picture */
+.lalbum .lmain{position:relative}
+.lalbum .lcover::after{display:none}
+.lalbum .sb{bottom:auto;top:6px;left:6px}
+.lalbum .lair{top:32px}
+.lalbum .li{position:absolute;inset:auto 0 0 0;padding:34px 9px 9px;background:linear-gradient(to top,rgba(0,0,0,.82),transparent);color:#fff}
+.lalbum .lt{min-height:0;color:#fff}
+.lalbum .lm,.lalbum .lm .sc{color:rgba(255,255,255,.9)}
+.lalbum .ltrack{background:rgba(255,255,255,.28)}
+.lalbum .lflag{background:rgba(0,0,0,.55);color:#fff}
+.lalbum .lpri-low{background:#2f6fbf}
+.lalbum .lpri-medium{background:#d99a2b}
+.lalbum .lpri-high{background:#e0475b}
+/* Quick view (long press on a card) */
+.qvhead{display:flex;gap:14px;align-items:center}
+.qvhead img{width:64px;aspect-ratio:2/3;object-fit:cover;border-radius:10px;background:var(--chip);flex:none}
+.qvtxt{min-width:0;display:flex;flex-direction:column;gap:4px}
+.qvtxt b{font-size:1.05rem;line-height:1.25}
+.qvprog .chip:disabled{opacity:.35}
+.qvnum{font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;min-width:90px;text-align:center}
+.qvnote{margin:10px 0 0;padding:10px 12px;background:var(--chip);border-radius:12px;font-size:.9rem;white-space:pre-wrap;overflow-wrap:anywhere;max-height:7.5em;overflow:auto}
+#qvBox .go{margin-top:16px}

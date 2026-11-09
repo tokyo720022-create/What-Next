@@ -79,7 +79,7 @@ const savePool = () => cacheSetSoon("acct", "pool_" + acctUser(), state.items, 6
 function applyLocal(id, type, patch){
   const now = Math.floor(Date.now() / 1000);
   const L = lists[type] && lists[type].entries && lists[type].entries.find(x => x.id === id);
-  if(L){ FIELDS.forEach(k => { if(k in patch) L[k] = patch[k]; }); if("score" in patch) L.score = patch.score; L.updatedAt = now; lists[type].rev++; writeListCache(type, lists[type].entries); }
+  if(L){ FIELDS.forEach(k => { if(k in patch) L[k] = patch[k]; }); if("score" in patch) L.score = patch.score; if("notes" in patch) L.notes = String(patch.notes || "").slice(0, 300); if("priority" in patch) L.priority = patch.priority || 0; L.updatedAt = now; lists[type].rev++; writeListCache(type, lists[type].entries); }
   const pi = state.items.findIndex(x => x.media.id === id);
   if(pi >= 0){
     const P = state.items[pi]; FIELDS.forEach(k => { if(k in patch) P[k] = patch[k]; });

@@ -58,7 +58,7 @@ def main(page, out):
         page.click('#csCols .chip[data-v="%d"]' % cols); page.wait_for_timeout(100)
         gc = page.evaluate("getComputedStyle(document.querySelector('#listBody')).gridTemplateColumns.split(' ').length")
         check("layout: grid %d columns" % cols, gc == cols, gc)
-    page.click('#csLayout .chip[data-v="rows"]'); page.wait_for_timeout(150)
+    page.click('#csLayout .chip[data-v="linear"]'); page.wait_for_timeout(150)
     r = page.evaluate("(() => { const c = document.querySelector('#listBody .lcard'); const x = c.getBoundingClientRect(); return {cls: document.querySelector('#listBody').className, w: x.width, h: x.height, flex: getComputedStyle(c.querySelector('.lmain')).display} })()")
     check("layout: list rows render as wide short rows", r["cls"] == "lrows" and r["w"] > 300 and 60 < r["h"] < 200, r)
     page.click("#csHideUnscored"); page.click("#csHideProgress"); page.wait_for_timeout(150)

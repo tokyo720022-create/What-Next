@@ -123,7 +123,7 @@ if(isNative){
       else if(!$("#user").hidden) userPop();
       else if(!$("#media").hidden) closeMedia();
       else if(!$("#relmap").hidden) closeRelMap();
-      else if(!$("#taste").hidden) showTab("pick");
+      else if(!$("#taste").hidden) showTab("profile");
       else if(!$("#seasonal").hidden || !$("#calendar").hidden) showTab("discover");
       else if(!$("#discover").hidden && dx.mode !== "hub") dmShow("hub");
       else if(SUBS.some(id => !$(id).hidden)) showTab("settings");

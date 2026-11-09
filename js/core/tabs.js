@@ -1,7 +1,7 @@
 /* js/core/tabs.js: bottom tabs, screen switching, blur covers */
 // ---------- Tabs and cover blur ----------
 const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", taste: "#taste", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
-const TAB_OF = { taste: "pick", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
+const TAB_OF = { taste: "profile", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
 function showTab(t){
   if(t === "set-sync" && !advancedOn()) t = "settings";   // AniList Triple Sync only opens when Advanced features are on
   const shown = SCREENS[t];

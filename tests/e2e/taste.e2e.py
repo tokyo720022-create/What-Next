@@ -5,9 +5,10 @@ R = []
 def check(n, c, d=""): R.append(bool(c)); print(("PASS " if c else "FAIL ") + n + ((" :: " + str(d)) if d and not c else ""))
 def main(page, out):
     t = lambda sel: page.inner_text(sel)
-    check("Pick shows a taste report card", "Your taste report" in t("#tasteBtn"), t("#tasteBtn"))
+    page.click('#tabs [data-v="profile"]'); page.wait_for_selector("#tasteBtn", state="visible", timeout=8000)
+    check("Profile shows a taste report card", "Your taste report" in t("#tasteBtn"), t("#tasteBtn"))
     page.click("#tasteBtn"); page.wait_for_selector("#tzBody .tzhero", timeout=15000)
-    check("opens the taste screen and keeps the Pick tab lit", page.locator("#taste").is_visible() and page.locator('#tabs [data-v="pick"][aria-pressed="true"]').count() == 1)
+    check("opens the taste screen and keeps the Profile tab lit", page.locator("#taste").is_visible() and page.locator('#tabs [data-v="profile"][aria-pressed="true"]').count() == 1)
     check("anime list asked once with the shared reference sample", [r for r in harness.TASTEREQ if r[0] == "list"] == [("list", "ANIME")] and [r[2] for r in harness.TASTEREQ if r[0] == "ref"] == [1, 2, 3, 4], harness.TASTEREQ)
     hero = t("#tzBody .tzhero")
     check("archetype comes from the strongest theme", "The Portal Hopper" in hero and "Isekai" in hero, hero)
@@ -31,7 +32,7 @@ def main(page, out):
     page.evaluate("closeMedia()"); page.wait_for_timeout(200)
     # cached: reopening does not ask again
     before = len(harness.TASTEREQ)
-    page.click('.back[data-go="pick"]'); page.wait_for_selector("#pickWrap:not([hidden])")
+    page.click('#taste .back[data-go="profile"]'); page.wait_for_selector("#profile:not([hidden])")
     check("entry card now shows the archetype and code", "The Portal Hopper" in t("#tasteBtn") and code in t("#tasteBtn"), t("#tasteBtn"))
     page.click("#tasteBtn"); page.wait_for_selector("#tzBody .tzhero")
     check("reopening uses the saved report (no new requests)", len(harness.TASTEREQ) == before, harness.TASTEREQ[before:])
@@ -48,7 +49,7 @@ def main(page, out):
     harness.NET["off"] = False
     page.click("#tzBody button"); page.wait_for_selector("#tzBody .tzhero", timeout=15000); check("retry loads the report", True)
     # back button chain
-    page.click('.back[data-go="pick"]'); check("back returns to Pick", page.locator("#pickWrap").is_visible())
+    page.click('#taste .back[data-go="profile"]'); check("back returns to Profile", page.locator("#profile").is_visible())
 out = run(main, viewport=(360, 780))
 real = [c for c in out["console"] if "ERR_INTERNET" not in c[1]]
 check("no console errors", not real and not out["errors"], (real[:2], out["errors"][:2]))

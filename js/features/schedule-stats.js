@@ -50,33 +50,62 @@ function fmtIn(secs){
   return d ? d + "d " + h + "h" : h ? h + "h " + m + "m" : m + "m";
 }
 
+// Schedule: airing anime from your list, grouped by day. Day chips jump to one day, the second row narrows to Watching or Planning.
+const schS = { day: "all", status: "all" };
 function renderSchedule(){
-  const box = $("#schedList"); box.replaceChildren();
-  const rows = state.items.filter(e => e.media.nextAiringEpisode && e.media.nextAiringEpisode.airingAt && !hide.has(e.media.id))
+  const box = $("#schedList"), strip = $("#schDays"), sub = $("#schSub"); box.replaceChildren(); strip.replaceChildren();
+  document.querySelectorAll("#schFilter .chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === schS.status)));
+  const all = state.items.filter(e => e.media.nextAiringEpisode && e.media.nextAiringEpisode.airingAt && !hide.has(e.media.id))
     .sort((a, b) => a.media.nextAiringEpisode.airingAt - b.media.nextAiringEpisode.airingAt);
-  if(!rows.length){
+  if(!all.length){
+    sub.textContent = ""; strip.hidden = true; $("#schFilter").hidden = true;
     box.append(el("div", "msg", "No airing anime on your list right now. If you just updated the app, log out and back in to fetch air times. AniList doesn't give manga chapter dates."));
     return;
   }
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  let last = "";
+  strip.hidden = false; $("#schFilter").hidden = false;
+  const keep = e => schS.status === "all" || (schS.status === "watching" ? e.status === "CURRENT" || e.status === "REPEATING" : e.status === "PLANNING");
+  const rows = all.filter(keep), today = new Date(), groups = new Map(); today.setHours(0, 0, 0, 0);
   for(const e of rows){
-    const x = e.media, n = x.nextAiringEpisode, at = new Date(n.airingAt * 1000);
-    const dd = Math.round((new Date(at.getFullYear(), at.getMonth(), at.getDate()) - today) / 86400000);
-    const label = dd <= 0 ? "Today" : dd === 1 ? "Tomorrow" : at.toLocaleDateString([], { weekday: "long" });
-    if(label !== last){ box.append(el("div", "q", label)); last = label; }
-    const card = el("div", "item");
-    const img = new Image(); img.alt = ""; img.loading = "lazy"; img.src = x.coverImage.large;
-    const info = el("div"); info.style.flex = "1"; info.style.minWidth = "0";
-    const h = el("h3"), a = el("a", null, tt(x)); a.href = x.siteUrl; a.target = "_blank"; a.rel = "noopener"; h.append(a);
-    info.append(h, el("p", null, "Episode " + n.episode + " · " + at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })));
-    const waiting = n.episode - 1 - e.progress;
-    if(e.status !== "PLANNING" && waiting > 0) info.append(el("p", null, waiting + " waiting for you"));
-    card.onclick = ev => { if(!ev.target.closest("a")) openMedia(x.id); };
-    card.append(img, info, el("div", "cd", appCfg().relative ? fmtIn(n.airingAt - Date.now() / 1000) : new Date(n.airingAt * 1000).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })));
-    box.append(card);
+    const at = new Date(e.media.nextAiringEpisode.airingAt * 1000), dd = Math.round((new Date(at.getFullYear(), at.getMonth(), at.getDate()) - today) / 86400000), key = dayKey(dd <= 0 ? today : at);   // anything already out counts as Today
+    if(!groups.has(key)) groups.set(key, { dd, at, rows: [] });
+    groups.get(key).rows.push(e);
   }
+  if(schS.day !== "all" && !groups.has(schS.day)) schS.day = "all";
+  const dayName = g => g.dd <= 0 ? "Today" : g.dd === 1 ? "Tomorrow" : g.at.toLocaleDateString([], { weekday: "long" });
+  const dayShort = g => g.dd <= 0 ? "Today" : g.dd === 1 ? "Tmrw" : g.at.toLocaleDateString([], { weekday: "short" });
+  const addChip = (v, text, n) => { const c = el("button", "chip", text); c.dataset.v = v; c.setAttribute("aria-pressed", String(schS.day === v)); c.append(el("i", null, String(n))); strip.append(c); };
+  addChip("all", "All", rows.length); for(const [k, g] of groups) addChip(k, dayShort(g), g.rows.length);
+  let waitingTotal = 0;
+  for(const [k, g] of groups){
+    if(schS.day !== "all" && schS.day !== k) continue;
+    const head = el("div", "schday"); head.append(el("b", null, dayName(g)), el("span", null, g.dd <= 0 ? today.toLocaleDateString([], { month: "short", day: "numeric" }) : g.at.toLocaleDateString([], { month: "short", day: "numeric" })), el("i", null, g.rows.length + (g.rows.length === 1 ? " episode" : " episodes")));
+    box.append(head);
+    for(const e of g.rows){
+      const x = e.media, n = x.nextAiringEpisode, at = new Date(n.airingAt * 1000), secs = n.airingAt - Date.now() / 1000, aired = Math.max(0, n.episode - 1);
+      const waiting = e.status !== "PLANNING" ? Math.max(0, aired - e.progress) : 0; waitingTotal += waiting;
+      const card = el("div", "schcard"); card.setAttribute("role", "button"); card.tabIndex = 0;
+      const poster = el("div", "schposter"), img = new Image(); img.alt = ""; img.loading = "lazy"; img.src = (x.coverImage && x.coverImage.large) || "";
+      poster.append(img, el("span", "schep", "EP " + n.episode));
+      const info = el("div", "schinfo"), time = at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      info.append(el("div", "scht", tt(x)), el("div", "schmeta", "Episode " + n.episode + (appCfg().relative ? " · " + time : "")));
+      if(e.status !== "PLANNING" && aired > 0){
+        const tr = el("div", "schtrack"), fill = el("i"); fill.style.width = Math.min(100, Math.round(e.progress / aired * 100)) + "%"; tr.append(fill);
+        info.append(el("div", "schprog", "Watched " + Math.min(e.progress, aired) + " of " + aired + " aired"), tr);
+      }
+      const pills = el("div", "schpills");
+      pills.append(el("span", "schpill when" + (secs <= 0 ? " now" : secs < 10800 ? " soon" : ""), appCfg().relative ? fmtIn(secs) : at.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })));
+      if(waiting > 0) pills.append(el("span", "schpill", waiting + " waiting for you"));
+      if(e.status === "PLANNING") pills.append(el("span", "schpill plan", "Planning"));
+      info.append(pills); card.append(poster, info);
+      card.onclick = () => openMedia(x.id); card.onkeydown = ev => { if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); openMedia(x.id); } };
+      box.append(card);
+    }
+  }
+  if(!rows.length) box.append(el("div", "msg", "Nothing airing for this filter. Try All."));
+  sub.textContent = rows.length + (rows.length === 1 ? " episode" : " episodes") + " airing" + (waitingTotal ? " · " + waitingTotal + " waiting for you" : "");
 }
+$("#schDays").addEventListener("click", ev => { const c = ev.target.closest(".chip"); if(c){ schS.day = c.dataset.v; renderSchedule(); } });
+$("#schFilter").addEventListener("click", ev => { const c = ev.target.closest(".chip"); if(c){ schS.status = c.dataset.v; schS.day = "all"; renderSchedule(); } });
 
 async function renderStats(){
   const box = $("#statsBody"); box.replaceChildren();

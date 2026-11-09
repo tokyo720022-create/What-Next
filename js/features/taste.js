@@ -1,4 +1,4 @@
-/* js/features/taste.js: Taste report (Pick > Your taste report). The maths lives in taste-math.js. */
+/* js/features/taste.js: Taste report (Profile > Your taste report). The maths lives in taste-math.js. */
 // ---------- Taste report ----------
 const TZ_F = "status score(format:POINT_100) media{id isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} genres tags{name rank isMediaSpoiler} averageScore popularity startDate{year}}";
 const TZ_REF_Q = "query TasteRef($p:Int,$t:MediaType){Page(page:$p,perPage:50){media(type:$t,sort:POPULARITY_DESC,isAdult:false){id genres tags{name rank isMediaSpoiler}}}}";
@@ -29,7 +29,9 @@ function tzEntry(){
 }
 
 function tzSlider(pos){
-  const s = el("div", "tzslider"), dot = el("i"); dot.style.left = Math.round(pos * 100) + "%"; s.append(dot); return s;
+  const s = el("div", "tzslider"), dot = el("i"), fill = el("b");
+  fill.style.left = Math.round(Math.min(pos, 0.5) * 100) + "%"; fill.style.width = Math.round(Math.abs(pos - 0.5) * 100) + "%";   // the coloured part runs from the middle to the dot
+  dot.style.left = Math.round(pos * 100) + "%"; s.append(fill, dot); return s;
 }
 function tzTile(m, label){
   const b = el("button", "tzt"), img = el("img");
@@ -64,14 +66,20 @@ function tzRender(rep){
   const th = el("div", "tzths"); for(const t of rep.themes.up.concat(rep.themes.down)) th.append(tzTheme(t));
   if(th.childNodes.length) hero.append(el("span", "tzk tzk2", "Theme index"), th);
   body.append(hero);
+  const strip = el("div", "tzstats");
+  for(const [n, l] of [[rep.n, "Titles"], [rep.scored, "Rated"], [TZ_REF_PAGES * 50, "Popular titles compared"]]){ const c = el("div", "tzstat"); c.append(el("b", null, String(n)), el("span", null, l)); strip.append(c); }
+  body.append(strip);
   // personality type
   const ty = el("div", "tzcard"), head = el("div", "tzhead"); head.append(el("h3", "tzbig", rep.typeName), el("span", "tzcode", rep.code));
-  ty.append(el("span", "tzk", "Personality type"), head, el("p", "tzlead", rep.typeLine));
+  const letters = el("div", "tzletters");
+  for(const a of rep.axes){ const t = el("div", "tzlt"); t.append(el("b", null, a.letter), el("span", null, a.known ? (a.pos < 0.5 ? a.left.name : a.right.name) : "Needs ratings")); letters.append(t); }
+  ty.append(el("span", "tzk", "Personality type"), head, letters, el("p", "tzlead", rep.typeLine));
   body.append(ty);
   // four sliders
   rep.axes.forEach((a, i) => {
     const c = el("div", "tzcard"), top = el("div", "tzax");
     top.append(el("span", "tzl", a.letter));
+    if(a.known) top.append(el("span", "tzpct", Math.round(Math.abs(a.pos - 0.5) * 200) + "% " + (a.pos < 0.5 ? a.left.name : a.right.name)));
     const poles = el("div", "tzpoles"), lean = a.known ? (a.pos < 0.5 ? 0 : 1) : -1;
     poles.append(el("span", "tzp" + (lean === 0 ? " on" : ""), a.left.name), tzSlider(a.pos), el("span", "tzp" + (lean === 1 ? " on" : ""), a.right.name));
     c.append(top, poles);

@@ -4,6 +4,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,6 +26,7 @@ jobs:
           node tests/unit/about.test.js
           node tests/unit/cardthemes.test.js
           node tests/unit/themes.test.js
+          node tests/unit/guards.test.js
           node tests/unit/apk-signing.test.js
       - name: Install a browser for the screen tests
         run: |

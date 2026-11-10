@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths-ignore: ["site.zip"]   # a pushed site.zip is unpacked first; the unpack workflow then starts this build
-permissions:
-  contents: write
 concurrency:
   group: build-apk
   cancel-in-progress: false
 jobs:
   checks:
+    permissions:
+      contents: read
     # The quick tests run first. If one fails, no APK is built or published, so a broken change never reaches your phone.
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +23,8 @@ jobs:
           node tests/check-structure.js
           for t in tests/unit/*.test.js; do echo "== $t"; node "$t" || exit 1; done
   build:
+    permissions:
+      contents: write   # publishing the release needs this; the quick checks above do not
     needs: checks
     runs-on: ubuntu-latest
     steps:
@@ -65,10 +67,14 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: bash android-signing/patch-android.sh "${{ steps.ver.outputs.name }}" "${{ steps.ver.outputs.code }}"
-      - name: Add login deep link
+      - name: Add login deep link and turn Android backup off
         run: |
           sed -i 's#</activity>#<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="whatnext"/></intent-filter></activity>#' android/app/src/main/AndroidManifest.xml
           grep -q 'android:scheme="whatnext"' android/app/src/main/AndroidManifest.xml || { echo "The login deep link was not added to AndroidManifest.xml"; exit 1; }
+          # The login token and the sync keys live in the app's storage: keep them out of Android backups and device-to-device transfers.
+          M=android/app/src/main/AndroidManifest.xml
+          if grep -q 'android:allowBackup=' "$M"; then sed -i 's#android:allowBackup="[a-zA-Z]*"#android:allowBackup="false"#' "$M"; else sed -i 's#<application #<application android:allowBackup="false" #' "$M"; fi
+          grep -q 'android:allowBackup="false"' "$M" || { echo "Android backup was not turned off in AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
       - name: Build the APK (a release build, or a debug build if that fails)
         id: build

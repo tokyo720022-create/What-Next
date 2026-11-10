@@ -14,6 +14,10 @@ jobs:
       - name: Unpack into folders
         run: |
           test -f site.zip || { echo "site.zip was not found in the repo root"; exit 1; }
+          # site.zip may only carry app files. Anything that could change the build, the signing check or the workflows, or that points outside the repo, is refused.
+          if unzip -Z1 site.zip | grep -E '(^|/)\.\.(/|$)|^/|^\.github/|^android-signing/|^package(-lock)?\.json$|^capacitor\.config\.json$|^build-apk\.yml$'; then
+            echo "::error::site.zip holds files this workflow does not unpack (listed above). Change those by hand in GitHub."; exit 1
+          fi
           rm -f js-*.js css-*.css view-*.html icon.svg
           unzip -o site.zip
           rm site.zip

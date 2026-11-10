@@ -21,8 +21,7 @@ const STATUS_ORDER = ["CURRENT", "REPEATING", "PLANNING", "PAUSED", "COMPLETED",
 const LIST_F = "mediaId status progress repeat customLists(asArray:true) startedAt{year month day} completedAt{year month day} score(format:POINT_100) updatedAt notes priority media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres countryOfOrigin startDate{year}}";
 const FORMATS = { anime: ["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"], manga: ["MANGA", "NOVEL", "ONE_SHOT"] };
 const LS = (k, d) => { try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k) || "{}")); }catch(_){ return Object.assign({}, d); } };
-let lsWarnAt = 0;   // when storage is full the settings can't be kept: tell the person, but not more than once a minute
-const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(_){ if(Date.now() - lsWarnAt > 60000 && typeof toast === "function"){ lsWarnAt = Date.now(); toast("The phone has no room left to save settings."); } return false; } };
+const LSset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(_){ warnStorage("settings"); return false; } };   // when storage is full the settings can't be kept: say so
 const defFilter = () => ({ sort: "UPDATED", format: "", mstatus: "", country: "", yFrom: "", yTo: "", cMin: "", cMax: "", score: "", gi: [], ge: [] });
 const LY_TYPES = ["linear", "grid", "simplified", "album"];   // List type: Linear = cover and details in a row, Grid = covers, Simplified = text only, Album = big covers with the title on top
 const ly = LS("wn_ly", { layout: "grid", cols: 3, hideUnscored: false, hideProgress: false, quick: true, hideAir: false, showNotes: false, showPriority: false });

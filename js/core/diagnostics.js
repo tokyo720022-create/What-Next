@@ -11,7 +11,7 @@ async function diagReport(){
   };
   let saved_ = "n/a"; try{ const st = cacheStats(); saved_ = st.count + " items (cards " + st.byClass.card + ", calendar " + st.byClass.cal + ", account " + st.byClass.acct + ")"; }catch(_){}
   const L = typeof lists !== "undefined" ? lists[curType] : null, body = document.querySelector("#listBody");
-  return ["What Next? v2.1.1 build " + (window.__REV || "unknown"), "Viewport " + innerWidth + "x" + innerHeight + " @" + (devicePixelRatio || 1) + "x | native: " + (typeof isNative !== "undefined" && isNative ? "yes" : "no"),
+  return ["What Next? build " + (window.__REV || "unknown"), "Viewport " + innerWidth + "x" + innerHeight + " @" + (devicePixelRatio || 1) + "x | native: " + (typeof isNative !== "undefined" && isNative ? "yes" : "no"),
     "Saved data: " + saved_ + " | last used: " + (sessionLast() ? new Date(sessionLast()).toLocaleString() : "unknown"),
     body ? "List body class: \"" + body.className + "\" | cards: " + body.children.length : "List body missing",
     box(body, "List body"), box(body && body.children[0], "First card"),

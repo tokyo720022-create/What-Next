@@ -27,6 +27,9 @@ def b_anon(page, out):
     page.wait_for_timeout(800)
     tok = page.evaluate("localStorage.getItem('wn_token')"); print("B. token after deep link:", tok)
     if tok != "abc123token": note("BUG", "deep link did not store the token: %r" % tok)
+    page.evaluate("window.__cap.appUrlOpen({url:'whatnext://auth#access_token=evil999&token_type=Bearer'})"); page.wait_for_timeout(600)
+    tok2 = page.evaluate("localStorage.getItem('wn_token')")
+    if tok2 != "abc123token": note("BUG", "a login link nobody asked for replaced the token: %r" % tok2)
 run(b_anon, anon=True, init=STUB)
 
 def b_back(page, out):

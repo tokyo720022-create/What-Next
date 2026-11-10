@@ -106,7 +106,7 @@ function renderAfter(id, type){
 const TRACK_Q = "mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$repeat:Int,$score:Int,$notes:String,$priority:Int,$private:Boolean,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput,$customLists:[String]){SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,repeat:$repeat,scoreRaw:$score,notes:$notes,priority:$priority,private:$private,startedAt:$startedAt,completedAt:$completedAt,customLists:$customLists){id status progress}}";
 const pend = {}, inflight = new Set(), waiters = {};
 try{ Object.assign(pend, JSON.parse(localStorage.getItem("wn_pending") || "{}")); }catch(_){}
-const savePending = () => { try{ localStorage.setItem("wn_pending", JSON.stringify(pend)); }catch(_){} };
+const savePending = () => { try{ localStorage.setItem("wn_pending", JSON.stringify(pend)); }catch(_){ warnStorage("your waiting changes"); } };   // a change that is waiting to sync could be lost if it is not kept: say so
 const pendingCount = () => Object.keys(pend).length;
 function toVars(id, patch){
   const v = { mediaId: Number(id) };

@@ -170,8 +170,10 @@ async function tsDcFail(r, label, step, url){
   }
   return e;
 }
+// Nothing the app posts may ping anyone: a title or name with "@everyone" in it stays plain text.
+const tsNoPing = b => Object.assign({}, b, { allowed_mentions: { parse: [] } });
 async function tsDiscordPost(url, payload, label){
-  const post = body => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const post = body => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tsNoPing(body)) });
   let r; try{ r = await post(payload); }catch(_){ throw tsNetErr(); }
   if(r.status === 400){   // a forum channel wants a thread name
     let b = null; try{ b = await r.clone().json(); }catch(_){}
@@ -186,8 +188,8 @@ const tsPlain = {};
 const tsThreads = () => { try{ return JSON.parse(localStorage.getItem("wn_ts_threads") || "{}") || {}; }catch(_){ return {}; } };
 const tsThreadSave = (url, key, id) => { const t = tsThreads(), w = url.replace(/[?].*$/, ""); t[w + "|" + key] = id; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} };
 async function tsDcRequest(url, body){
-  let r; try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }catch(_){ throw tsNetErr(); }
-  if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }catch(_){ throw tsNetErr(); } }
+  let r; try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tsNoPing(body)) }); }catch(_){ throw tsNetErr(); }
+  if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tsNoPing(body)) }); }catch(_){ throw tsNetErr(); } }
   return r;
 }
 async function tsMakeThread(url, name, display, kindLabel, label){

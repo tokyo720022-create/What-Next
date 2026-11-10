@@ -160,7 +160,7 @@ function renderMedia(m){
     drawTags(); box.append(msec("Tags", tb, sp));
   }
   // where to watch or read
-  const links = (m.externalLinks || []).filter(l => l.type === "STREAMING");
+  const links = (m.externalLinks || []).filter(l => l.type === "STREAMING" && /^https?:\/\//i.test(l.url || ""));   // openExternal() also refuses anything that is not a web page
   if(links.length){
     const w = el("div");
     links.forEach(l => { const b = el("button", "rk", l.site); b.style.border = "0"; b.style.cursor = "pointer"; b.style.color = "var(--ink)"; b.onclick = () => openExternal(l.url); w.append(b); });

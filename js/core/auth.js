@@ -82,7 +82,11 @@ const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && win
 const nativePlugin = n => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[n];
 const clientId = () => CLIENT_APP;
 function loginErr(t){ $("#loginErr").textContent = t; }
+// Only web pages open from here. Links come from AniList data that anyone can edit, so a "whatnext://auth#access_token=..." link, a javascript: link or
+// another app's link must never get through. A plain http:// link is upgraded to https://.
 function openExternal(url){
+  url = String(url || "").trim().replace(/^http:\/\//i, "https://");
+  if(!/^https:\/\//i.test(url)) return;
   const B = isNative && nativePlugin("Browser");
   if(B && B.open){ try{ return B.open({ url }); }catch(_){} }
   window.open(url, "_blank", "noopener");
@@ -90,6 +94,7 @@ function openExternal(url){
 async function startLogin(){
   const id = clientId();
   if(!id) return loginErr("Login isn't set up in this build yet. The developer needs to add the AniList Client ID.");
+  if(!markLoginStarted()) return loginErr("The phone has no room left to start a login. Free some space and try again.");
   const url = "https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token";
   // No redirect_uri here: AniList uses the Redirect URL saved on the client (whatnext://auth), and sending one switches it to a different login type.
   const B = nativePlugin("Browser");
@@ -98,11 +103,17 @@ async function startLogin(){
 }
 $("#loginBtn").onclick = startLogin;
 $("#registerBtn").onclick = () => openExternal("https://anilist.co/signup");
+// The login link can be opened by any web page or app on the phone, so a token is only taken if the person tapped Log in in the last 10 minutes, and only once.
+const LOGIN_WINDOW_MS = 600000;
+function markLoginStarted(){ try{ localStorage.setItem("wn_login_at", String(Date.now())); return true; }catch(_){ return false; } }
+function loginExpected(){ try{ const t = Number(localStorage.getItem("wn_login_at")) || 0; return t > 0 && Date.now() - t >= 0 && Date.now() - t < LOGIN_WINDOW_MS; }catch(_){ return false; } }
 function handleAuthUrl(url){
   if(!url || url.indexOf(APP_REDIRECT.split("://")[0] + "://") !== 0) return;
+  if(!loginExpected()) return;   // nobody just tapped Log in: ignore the link
   const t = new URLSearchParams(url.split("#")[1] || url.split("?")[1] || "").get("access_token");
   if(!t) return;
-  try{ localStorage.setItem("wn_token", t); }catch(_){}
+  try{ localStorage.removeItem("wn_login_at"); }catch(_){}
+  try{ localStorage.setItem("wn_token", t); }catch(_){ return loginErr("Couldn't save your login: the phone has no room left."); }
   sessionTouch();   // a fresh login starts the 14-day clock again
   try{ localStorage.removeItem("wn_name"); }catch(_){}   // whose saved list is this? start() finds out from AniList before showing any
   try{ const B = nativePlugin("Browser"); if(B && B.close) B.close(); }catch(_){}

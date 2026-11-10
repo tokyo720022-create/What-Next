@@ -32,16 +32,17 @@ function wipeAccountStorage(){
   cacheClear(); legacyCleanup(); wipeMemory();
 }
 // Sign out: the token, the saved data and the screens. reason "expired" explains why on the login screen.
-function wipeAccountData(reason){
+function wipeAccountData(reason, lost){
   wipeAccountStorage();
   try{ localStorage.removeItem(SESSION_KEY); }catch(_){}
   clearAuth();
-  loginErr(reason === "expired" ? "You were signed out because the app wasn't used for 14 days. Log in again." : "");
+  loginErr(reason === "expired" ? "You were signed out because the app wasn't used for 14 days. Log in again." + (lost ? " " + lost + (lost === 1 ? " change" : " changes") + " could not be sent to AniList and " + (lost === 1 ? "was" : "were") + " discarded." : "") : "");
 }
 // Changes that were waiting to sync get one last try (with a time limit), then the account is signed out.
 async function signOutExpired(){
-  try{ if(typeof pendingCount === "function" && pendingCount() && auth.token) await Promise.race([Promise.all(Object.keys(pend).map(id => pump(id))), sleep(6000)]); }catch(_){}
-  wipeAccountData("expired");
+  try{ if(typeof pendingCount === "function" && pendingCount() && auth.token) await Promise.race([Promise.all(Object.keys(pend).map(id => pump(id))), sleep(10000)]); }catch(_){}
+  let left = 0; try{ left = typeof pendingCount === "function" ? pendingCount() : 0; }catch(_){}
+  wipeAccountData("expired", left);
 }
 // A different account logged in on this phone: nothing of the old one may stay.
 function accountCheck(uid){

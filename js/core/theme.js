@@ -9,6 +9,7 @@ const THEME_DEFAULT = "onepiece";
 const THEME_GROUPS = [
   { id: "onepiece", name: "One Piece" }, { id: "isekai", name: "Isekai" }, { id: "fantasy", name: "Fantasy" }, { id: "action", name: "Action" },
   { id: "comedy", name: "Comedy" }, { id: "romcom", name: "Rom Com" }, { id: "romance", name: "Romance" },
+  { id: "magicalgirl", name: "Magical Girl" }, { id: "mystery", name: "Mystery" }, { id: "movies", name: "Movies" },
   { id: "hentai", name: "Hentai 18+", adult: true, note: "Colours and patterns only, nothing explicit." }
 ];
 const THEMES = [
@@ -41,7 +42,29 @@ const THEMES = [
   { id: "mashle", group: "fantasy", name: "Mashle", note: "Light and loud: cream, lightning gold and muscle red.", dark: false, pattern: "bolts", g: ["#B3261E", "#A35200"],
     v: { "--bg": "#FFF8E6", "--card": "#FFFFFF", "--ink": "#1D1A3A", "--muted": "#5C5878", "--line": "#EEDFB6", "--chip": "#FBEFC8", "--sakura": "#B3261E", "--sakura-ink": "#FFFFFF", "--shadow": "0 10px 30px rgba(179,38,30,.12)", "--glass": "rgba(255,255,255,.88)" } },
   { id: "ikenie", group: "hentai", name: "Ikenie no Haha", note: "Crimson and candle gold, after dark.", dark: true, pattern: "embers", g: ["#FF5C8D", "#E8A14C"],
-    v: { "--bg": "#12060B", "--card": "#1F0B14", "--ink": "#FCEBF2", "--muted": "#CFA0B3", "--line": "#3D1627", "--chip": "#2B101D", "--sakura": "#FF5C8D", "--sakura-ink": "#210411", "--shadow": "0 10px 30px rgba(0,0,0,.5)", "--glass": "rgba(31,11,20,.88)" } }
+    v: { "--bg": "#12060B", "--card": "#1F0B14", "--ink": "#FCEBF2", "--muted": "#CFA0B3", "--line": "#3D1627", "--chip": "#2B101D", "--sakura": "#FF5C8D", "--sakura-ink": "#210411", "--shadow": "0 10px 30px rgba(0,0,0,.5)", "--glass": "rgba(31,11,20,.88)" } },
+  { id: "yourname", group: "movies", name: "Your Name", note: "Twilight sky, a falling comet and a red braided cord.", dark: true, pattern: "comet", g: ["#FF7F96", "#FFB36B"],
+    v: { "--bg": "#0B0D26", "--card": "#151A3B", "--ink": "#F4F1FF", "--muted": "#AEB2DD", "--line": "#262C5C", "--chip": "#1D2349", "--sakura": "#FF7F96", "--sakura-ink": "#2A0610", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(21,26,59,.85)" } },
+  { id: "suzume", group: "movies", name: "Suzume", note: "Sunrise pink, door red and sea blue.", dark: false, pattern: "doors", g: ["#B8324A", "#2F6FB5"],
+    v: { "--bg": "#FFF3F0", "--card": "#FFFFFF", "--ink": "#2B2340", "--muted": "#645C7A", "--line": "#F3D9D3", "--chip": "#FDE6E1", "--sakura": "#B8324A", "--sakura-ink": "#FFFFFF", "--shadow": "0 10px 30px rgba(184,50,74,.12)", "--glass": "rgba(255,255,255,.88)" } },
+  { id: "sailormoon", group: "magicalgirl", name: "Sailor Moon", note: "Moonlight pink and gold on a midnight sky.", dark: true, pattern: "moons", g: ["#FF8FCB", "#FFD86B"],
+    v: { "--bg": "#14102E", "--card": "#201A47", "--ink": "#FFF2FA", "--muted": "#CBB8E6", "--line": "#352C6E", "--chip": "#2A2358", "--sakura": "#FF8FCB", "--sakura-ink": "#2A0A20", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(32,26,71,.86)" } },
+  { id: "conan", group: "mystery", name: "Detective Conan", note: "Blue suit, red bow tie and a case to solve.", dark: true, pattern: "clues", g: ["#5B9BFF", "#FF4D5E"],
+    v: { "--bg": "#080C18", "--card": "#111A30", "--ink": "#EEF3FF", "--muted": "#9FB0D6", "--line": "#1E2C52", "--chip": "#17223E", "--sakura": "#5B9BFF", "--sakura-ink": "#02122B", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(17,26,48,.86)" } },
+  { id: "sanji", group: "onepiece", name: "Sanji", note: "Black suit, blond gold and a blue flame.", dark: true, pattern: "smoke", g: ["#FFD84A", "#4DA3FF"],
+    v: { "--bg": "#0A0B10", "--card": "#14161F", "--ink": "#F6F3EA", "--muted": "#B3B0A0", "--line": "#2A2D3A", "--chip": "#1C1F2B", "--sakura": "#FFD84A", "--sakura-ink": "#1A1500", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(20,22,31,.88)" } },
+  { id: "nami", group: "onepiece", name: "Nami", note: "Tangerine orange and Grand Line blue, bright as a sunny deck.", dark: false, pattern: "tangerine", g: ["#C2410C", "#0E6BA8"],
+    v: { "--bg": "#FFF5E8", "--card": "#FFFFFF", "--ink": "#1F2A44", "--muted": "#56627F", "--line": "#F6DFC0", "--chip": "#FFE9CC", "--sakura": "#C2410C", "--sakura-ink": "#FFFFFF", "--shadow": "0 10px 30px rgba(194,65,12,.12)", "--glass": "rgba(255,255,255,.88)" } },
+  { id: "robin", group: "onepiece", name: "Robin", note: "Purple blossoms and old Ohara books.", dark: true, pattern: "hana", g: ["#C58BFF", "#FF8AC4"],
+    v: { "--bg": "#120B1F", "--card": "#1C1230", "--ink": "#F6EEFF", "--muted": "#BBA8D6", "--line": "#33224F", "--chip": "#271A40", "--sakura": "#C58BFF", "--sakura-ink": "#1A0630", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(28,18,48,.86)" } },
+  { id: "zoro", group: "onepiece", name: "Zoro", note: "Moss green and steel, three slashes deep.", dark: true, pattern: "slashes", g: ["#6FE08B", "#C9D3D1"],
+    v: { "--bg": "#070D0A", "--card": "#0F1A14", "--ink": "#EAF5EE", "--muted": "#A3BCAD", "--line": "#1D3328", "--chip": "#15241C", "--sakura": "#6FE08B", "--sakura-ink": "#02140A", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(15,26,20,.88)" } },
+  { id: "luffy", group: "onepiece", name: "Luffy", note: "Rubber-fire orange and straw gold on a warm black night.", dark: true, pattern: "straw", g: ["#FF6B4A", "#FFD36B"],
+    v: { "--bg": "#160A08", "--card": "#25120F", "--ink": "#FFF4EA", "--muted": "#D9B8A8", "--line": "#44201A", "--chip": "#341A15", "--sakura": "#FF6B4A", "--sakura-ink": "#1F0700", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(37,18,15,.88)" } },
+  { id: "usopp", group: "onepiece", name: "Usopp", note: "Sniper olive and slingshot orange, with a tall tale or two.", dark: true, pattern: "pellets", g: ["#B5C94A", "#E0873E"],
+    v: { "--bg": "#100E08", "--card": "#1B1810", "--ink": "#F7EEDF", "--muted": "#C2AD8E", "--line": "#3A2D1D", "--chip": "#272016", "--sakura": "#B5C94A", "--sakura-ink": "#121600", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(27,24,16,.88)" } },
+  { id: "wano", group: "onepiece", name: "Wano", note: "Samurai indigo, a crimson sun and gold, in the Land of Wano.", dark: true, pattern: "asanoha", g: ["#F25C54", "#E9B64A"],
+    v: { "--bg": "#0C1024", "--card": "#151B3A", "--ink": "#F7EFE6", "--muted": "#B3B6D6", "--line": "#252E5E", "--chip": "#1D2548", "--sakura": "#F25C54", "--sakura-ink": "#1C0605", "--shadow": "0 10px 30px rgba(0,0,0,.42)", "--glass": "rgba(21,27,58,.88)" } }
 ];
 // The saved choice is { id }. Older copies saved { mode, a, b }: a light choice becomes Sakura Flowers, anything else the default.
 // Drawers in App Settings come from here. THEME_GROUPS only sets the order, the names and the 18+ flag: a theme with no group, or with a group

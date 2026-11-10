@@ -2,9 +2,9 @@ import sys
 from harness import *
 R = []
 def check(n, c, d=""): R.append(bool(c)); print(("PASS " if c else "FAIL ") + n + ((" :: " + str(d)) if d and not c else ""))
-IDS = ["sakuraflowers", "onepiece", "naruto", "gintama", "dragonball", "bleach", "rentagirlfriend", "aot", "konosuba", "shieldhero", "magicalexplorer", "blackclover", "sao", "mashle", "ikenie"]
-PATTERNS = {"sakuraflowers": "petals", "gintama": "waves", "konosuba": "stars", "shieldhero": "scales", "magicalexplorer": "runes", "blackclover": "clover", "sao": "hex", "mashle": "bolts", "ikenie": "embers"}
-LIGHT = ("sakuraflowers", "rentagirlfriend", "mashle")
+IDS = ["sakuraflowers", "onepiece", "naruto", "gintama", "dragonball", "bleach", "rentagirlfriend", "aot", "konosuba", "shieldhero", "magicalexplorer", "blackclover", "sao", "mashle", "ikenie", "yourname", "suzume", "sailormoon", "conan", "sanji", "nami", "robin", "zoro", "luffy", "usopp", "wano"]
+PATTERNS = {"sakuraflowers": "petals", "gintama": "waves", "konosuba": "stars", "shieldhero": "scales", "magicalexplorer": "runes", "blackclover": "clover", "sao": "hex", "mashle": "bolts", "ikenie": "embers", "yourname": "comet", "suzume": "doors", "sailormoon": "moons", "conan": "clues", "sanji": "smoke", "nami": "tangerine", "robin": "hana", "zoro": "slashes", "luffy": "straw", "usopp": "pellets", "wano": "asanoha"}
+LIGHT = ("sakuraflowers", "rentagirlfriend", "mashle", "suzume", "nami")
 def pick(page, tid):
     h = '#themeGrid .thdh[data-g="%s"]' % page.evaluate("THEMES.find(t => t.id === '%s').group" % tid)
     if page.get_attribute(h, "aria-expanded") != "true": page.click(h); page.wait_for_timeout(320)
@@ -21,9 +21,9 @@ def main(page, out):
     page.evaluate("showTab('set-app')"); page.wait_for_selector("#themeGrid .thm")
     page.evaluate("setApp({adultThemes: true}); fillApp()")
     D = lambda g: '#themeGrid .thdh[data-g="%s"]' % g
-    check("fifteen themes in eight drawers", page.evaluate("THEMES.length") == 15 and page.locator("#themeGrid .thdr").count() == 8 and page.locator("#themeGrid .thm").count() == 15)
+    check("twenty-six themes in eleven drawers", page.evaluate("THEMES.length") == 26 and page.locator("#themeGrid .thdr").count() == 11 and page.locator("#themeGrid .thm").count() == 26)
     check("no horizontal category pills any more", page.locator("#themeGroups").count() == 0)
-    check("each header shows a name and its theme count", page.eval_on_selector_all("#themeGrid .thdr", "els => els.map(e => e.querySelector('.thdn').textContent + ':' + e.querySelector('.thdc').textContent)") == ["One Piece:1", "Isekai:3", "Fantasy:3", "Action:4", "Comedy:1", "Rom Com:1", "Romance:1", "Hentai 18+:1"])
+    check("each header shows a name and its theme count", page.eval_on_selector_all("#themeGrid .thdr", "els => els.map(e => e.querySelector('.thdn').textContent + ':' + e.querySelector('.thdc').textContent)") == ["One Piece:8", "Isekai:3", "Fantasy:3", "Action:4", "Comedy:1", "Rom Com:1", "Romance:1", "Magical Girl:1", "Mystery:1", "Movies:2", "Hentai 18+:1"])
     check("opens on the drawer of the current theme, the others closed", page.get_attribute(D("onepiece"), "aria-expanded") == "true" and page.locator('#themeGrid .thdh[aria-expanded="true"]').count() == 1)
     check("the drawer holding the current theme says Active", page.locator("#themeGrid .thdr[data-cur] .thcur").is_visible())
     page.click(D("comedy")); page.wait_for_timeout(320)
@@ -41,9 +41,9 @@ def main(page, out):
     page.fill("#themeSearch", "zzzz"); page.wait_for_timeout(120)
     check("a search with no match says so", page.locator("#themeGrid .thdr").count() == 0 and page.locator("#themeEmpty").is_visible())
     page.fill("#themeSearch", ""); page.wait_for_timeout(120)
-    check("clearing the search brings every drawer back", page.locator("#themeGrid .thdr").count() == 8 and not page.locator("#themeEmpty").is_visible())
+    check("clearing the search brings every drawer back", page.locator("#themeGrid .thdr").count() == 11 and not page.locator("#themeEmpty").is_visible())
     page.evaluate("setApp({adultThemes: false}); fillApp()")
-    check("the 18+ drawer is hidden until Show 18+ themes is on", page.locator('#themeGrid .thdr[data-g="hentai"]').count() == 0 and page.locator("#themeGrid .thdr").count() == 7)
+    check("the 18+ drawer is hidden until Show 18+ themes is on", page.locator('#themeGrid .thdr[data-g="hentai"]').count() == 0 and page.locator("#themeGrid .thdr").count() == 10)
     page.click("#setApp label:has-text('Show 18+ themes')")
     check("turning it on shows the drawer", page.locator('#themeGrid .thdr[data-g="hentai"]').count() == 1)
     check("current theme is marked", page.get_attribute('#themeGrid .thm[data-id="onepiece"]', "aria-pressed") == "true" and page.locator('#themeGrid .thm[aria-pressed="true"]').count() == 1)

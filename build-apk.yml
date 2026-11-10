@@ -96,9 +96,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.name }}
-          name: What Next? v${{ steps.ver.outputs.name }}
+          name: What Next? v${{ steps.ver.outputs.name }}${{ steps.build.outputs.kind == 'debug' && ' (debug build, do not install)' || '' }}
+          prerelease: ${{ steps.build.outputs.kind == 'debug' }}   # a debug build is never offered as the latest release
           target_commitish: ${{ github.sha }}
-          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build."
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build.${{ steps.build.outputs.kind == 'debug' && ' DEBUG BUILD: the release build failed, so do not install this one. Wait for the next release.' || '' }}"
           generate_release_notes: true
-          make_latest: true
+          make_latest: ${{ steps.build.outputs.kind == 'release' }}
           files: WhatNext-v${{ steps.ver.outputs.name }}.apk

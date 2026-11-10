@@ -116,11 +116,16 @@ function toVars(id, patch){
 function pump(id){
   return new Promise(resolve => { (waiters[id] = waiters[id] || []).push(resolve); if(!inflight.has(id)) runJob(id); });
 }
+// A waiting edit remembers which AniList account it belongs to (state.uid is only set once the account has been checked at start). Nothing is sent before the
+// account is known, and an edit that belongs to a different account is thrown away instead of being sent to this one.
+const jobUid = () => Number(state.uid) || 0;
 async function runJob(id){
   inflight.add(id); let result = { ok: true };
   try{
     while(pend[id]){
       const job = pend[id], ver = job.ver;
+      if(!jobUid()){ result = { ok: false, queued: true }; break; }   // start-up: the account is not checked yet, start() sends everything once it is
+      if(job.uid && job.uid !== jobUid()){ delete pend[id]; savePending(); continue; }
       let json;
       try{ ({ json } = await gql(TRACK_Q, toVars(id, job.patch))); }
       catch(err){ if(isNetErr(err) || !auth.token){ result = { ok: false, queued: true }; break; } throw err; }   // no connection, or the login was refused: keep the change and send it later
@@ -140,7 +145,7 @@ async function runJob(id){
   const ws = waiters[id] || []; delete waiters[id]; ws.forEach(r => r(result));
   if(typeof renderPending === "function") renderPending();
 }
-function flushPending(){ if(!auth.token) return; Object.keys(pend).forEach(id => { if(!inflight.has(id)) pump(id); }); }
+function flushPending(){ if(!auth.token || !jobUid()) return; Object.keys(pend).forEach(id => { if(!inflight.has(id)) pump(id); }); }
 let poolTimer = 0;
 function refreshPool(){
   clearTimeout(poolTimer);
@@ -164,7 +169,8 @@ function trackSave(id, type, patch, opts){
   const bump = patch.progress != null && cur.progress != null ? patch.progress - cur.progress : 0, bumpKey = typeof dayKey === "function" ? dayKey() : "";
   if(bump && typeof bumpDay === "function") bumpDay(bump, bumpKey);   // undoing a tap takes it back off today
   applyLocal(id, type, patch);
-  const job = pend[id] || { type, patch: {}, before: {}, ver: 0, isNew: !f };
+  const job = pend[id] || { type, patch: {}, before: {}, ver: 0, isNew: !f, uid: jobUid() };
+  if(!job.uid) job.uid = jobUid();
   Object.assign(job.patch, patch); Object.keys(before).forEach(k => { if(!(k in job.before)) job.before[k] = before[k]; });
   if(bump > 0){ job.bumps = (job.bumps || []).concat([[bumpKey, bump]]); }
   job.ver++; pend[id] = job; savePending();

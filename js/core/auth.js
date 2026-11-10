@@ -41,11 +41,24 @@ async function gql(query, variables){
     const e = new Error(res.ok ? "AniList sent an answer the app couldn't read. Try again." : "AniList is having trouble right now (" + res.status + "). Try again soon.");
     e.net = true; throw e;
   }
-  const bad = (json.errors || []).some(x => /invalid token|unauthenticated|unauthorized/i.test(x.message || "") || x.status === 400 && /token/i.test(x.message || ""));
-  if(auth.token && (res.status === 401 || bad)){ clearAuth(); throw new Error("AniList didn't accept your login. Log in again."); }
+  // "Invalid token" (or a 401) means the login is really refused. "Unauthorized" can also just mean "this one thing is private", so for that the login is
+  // checked with a small request of its own before the person is signed out.
+  const errs = json.errors || [], sure = res.status === 401 || errs.some(x => /invalid token/i.test(x.message || "") || x.status === 400 && /token/i.test(x.message || ""));
+  const unsure = !sure && errs.some(x => /unauthenticated|unauthorized/i.test(x.message || ""));
+  if(auth.token && (sure || (unsure && await loginRefused(headers)))){ clearAuth(); throw new Error("AniList didn't accept your login. Log in again."); }
   if(res.status === 429) throw pacer.busy(pacer.holdLeft());
   if(GQL_RETRY.includes(res.status)){ const e = new Error("AniList is having trouble right now (" + res.status + "). Try again soon."); e.net = true; throw e; }
   return { res, json };
+}
+
+async function loginRefused(headers){
+  try{
+    const o = await gqlOnce(JSON.stringify({ query: "query{Viewer{id}}", variables: {} }), headers);
+    if(o.res.status === 401) return true;
+    if(!o.json) return false;   // no clear answer: do not sign anyone out on a guess
+    if(o.json.data && o.json.data.Viewer) return false;
+    return (o.json.errors || []).some(x => /invalid token|unauthenticated|unauthorized/i.test(x.message || "") || x.status === 400 && /token/i.test(x.message || ""));
+  }catch(_){ return false; }
 }
 
 // Logged out: only the login screen. Logged in: tabs and app.

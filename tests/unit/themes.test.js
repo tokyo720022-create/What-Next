@@ -33,4 +33,16 @@ for(const t of THEMES){
   ], low = rows.filter(r => ratio(r[1], r[2]) < 4.5).map(r => r[0] + " " + ratio(r[1], r[2]).toFixed(1));
   ok(t.id + ": all text is readable (>= 4.5:1)", !low.length, low.join(", "));
 }
+
+// Categories (the drawers in App Settings) are built from the theme data
+const cats = () => vm.runInContext("themeCategories()", ctx), ids = c => c.flatMap(x => x.themes.map(t => t.id)).sort().join();
+ok("every theme is in exactly one drawer", ids(cats()) === THEMES.map(t => t.id).sort().join());
+ok("no drawer is empty and drawer ids are unique", cats().every(c => c.themes.length) && new Set(cats().map(c => c.id)).size === cats().length);
+ok("drawers follow the order of THEME_GROUPS", cats().map(c => c.id).join() === GROUPS.map(g => g.id).join());
+vm.runInContext('THEMES.push({ id: "zz-nogroup", name: "No Group", note: "n", dark: true, g: ["#000000", "#FFFFFF"], v: {} }, { id: "zz-odd", group: "mystery-group", name: "Odd One", note: "n", dark: true, g: ["#000000", "#FFFFFF"], v: {} })', ctx);
+const c2 = cats();
+ok("a theme with no group is not lost: it lands in Other, last", c2[c2.length - 1].id === "other" && c2[c2.length - 1].name === "Other" && c2[c2.length - 1].themes.some(t => t.id === "zz-nogroup"));
+ok("a group nobody described still gets a drawer with a readable name", (c2.find(c => c.id === "mystery-group") || {}).name === "Mystery Group");
+ok("those extra themes are all reachable", ids(c2) === THEMES.map(t => t.id).sort().join());
+vm.runInContext("THEMES.length -= 2", ctx);
 console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

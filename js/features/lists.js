@@ -79,7 +79,7 @@ async function fetchEntries(type){
   return [...seen.values()];
 }
 function showListLoading(type){
-  const body = $("#listBody"); body.className = lyBodyClass();
+  const body = $("#listBody"); body.className = lyBodyClass(); body.dataset.list = "";
   body.replaceChildren(...Array.from({ length: lyRows() ? 6 : 9 }, () => el("div", "lcard skel")));
   $("#listStatus").replaceChildren(); $("#listMore").hidden = true; $("#listCount").textContent = "Loading…"; setListNote("");
 }
@@ -87,7 +87,7 @@ function showListError(type, err){
   const offline = isNetErr(err), box = el("div", "msg state");
   box.append(el("b", null, offline ? "Can't reach AniList" : "Couldn't load your " + type + " list"), el("p", "sub", offline ? "Check your connection and try again." : err.message));
   const retry = el("button", "go", "Retry"); retry.onclick = () => { showListLoading(type); loadFresh(type); };
-  box.append(retry); $("#listBody").className = ""; $("#listBody").replaceChildren(box);
+  box.append(retry); $("#listBody").className = ""; $("#listBody").dataset.list = ""; $("#listBody").replaceChildren(box);
   $("#listStatus").replaceChildren(); $("#listMore").hidden = true; $("#listCount").textContent = "";
 }
 async function loadFresh(type){
@@ -172,10 +172,13 @@ function renderList(opts){
   $("#listCount").textContent = (L.status === "ALL" ? "All" : lab[L.status]) + (L.custom ? " · " + L.custom : "") + " (" + view.length + ")";
   const body = $("#listBody"), shown = Math.min(view.length, L.shown);
   const sig = [type, L.status, L.custom, q, JSON.stringify(f), ly.layout, ly.cols, ly.hideUnscored, ly.hideProgress, ly.hideAir, ly.showNotes, ly.showPriority, ly.quick, L.rev, view.length].join("|");
-  if(sig === L.sig && L.drawn > 0 && L.drawn < shown){          // "Show more": add only the next batch
+  // Anime and Manga share this one box, so a list may only skip redrawing when the box still shows ITS cards (body.dataset.list).
+  // Without that check, going back to a list that had not changed left the other list's cards on screen.
+  const mine = body.dataset.list === type;
+  if(mine && sig === L.sig && L.drawn > 0 && L.drawn < shown){   // "Show more": add only the next batch
     view.slice(L.drawn, shown).forEach(e => body.append(lcard(e, type))); L.drawn = shown;
-  }else if(!(sig === L.sig && L.drawn === shown && shown > 0)){  // anything else that changed: rebuild
-    body.className = lyBodyClass();
+  }else if(!(mine && sig === L.sig && L.drawn === shown && shown > 0)){  // anything else that changed: rebuild
+    body.className = lyBodyClass(); body.dataset.list = type;
     body.replaceChildren(...(view.length ? view.slice(0, shown).map(e => lcard(e, type)) : [emptyState(type, L)]));
     L.drawn = view.length ? shown : 0; L.sig = sig;
   }

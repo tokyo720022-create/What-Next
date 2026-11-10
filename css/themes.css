@@ -1,23 +1,9 @@
 /* css/themes.css: the theme cards in App Settings, and the patterns behind Sakura Flowers and Gintama */
-.thgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.thm{display:flex;flex-direction:column;gap:6px;padding:10px;border:2px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
-.thm[aria-pressed="true"]{border-color:var(--ink);background:var(--chip)}
-.thsw{position:relative;display:block;height:46px;border-radius:12px;overflow:hidden;background:var(--t0);box-shadow:inset 0 0 0 1px rgba(128,128,128,.28)}
-.thsw::before,.thsw::after{content:"";position:absolute;top:-2px;bottom:-2px;transform:skewX(-24deg)}
-.thsw::before{left:48%;width:36%;background:var(--t1)}
-.thsw::after{left:80%;width:30%;background:var(--t2)}
-.thn{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-weight:700;line-height:1.2}
-.thsp{padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--muted);font-style:normal;font-size:.7rem;font-weight:700}
-.thnote{color:var(--muted);font-size:.8rem;line-height:1.3}
+/* (the theme drawers and cards are at the end of this file) */
 html[data-pattern="petals"] body::before,html[data-pattern="waves"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
 html[data-pattern="petals"] body::before{background-image:radial-gradient(ellipse 9px 5px at 18px 22px,rgba(214,90,140,.30),transparent 72%),radial-gradient(ellipse 7px 4px at 96px 70px,rgba(214,90,140,.24),transparent 72%),radial-gradient(ellipse 10px 6px at 150px 20px,rgba(196,42,98,.18),transparent 72%),radial-gradient(ellipse 8px 5px at 60px 128px,rgba(214,90,140,.26),transparent 72%),radial-gradient(ellipse 6px 4px at 170px 150px,rgba(122,75,200,.16),transparent 72%);background-size:200px 180px}
 html[data-pattern="waves"] body::before{background-image:radial-gradient(circle at 50% 100%,transparent 36%,rgba(201,211,255,.075) 37% 40%,transparent 41% 54%,rgba(201,211,255,.075) 55% 58%,transparent 59% 70%,rgba(201,211,255,.075) 71% 74%,transparent 75%),radial-gradient(circle at 50% 100%,transparent 36%,rgba(201,211,255,.075) 37% 40%,transparent 41% 54%,rgba(201,211,255,.075) 55% 58%,transparent 59% 70%,rgba(201,211,255,.075) 71% 74%,transparent 75%);background-size:64px 32px;background-position:0 0,32px 16px}
 
-/* Theme groups (App Settings) */
-#themeGroups{display:flex;gap:8px;overflow-x:auto;margin:0 -16px 10px;padding:2px 16px 6px;scrollbar-width:none}
-#themeGroups::-webkit-scrollbar{display:none}
-#themeGroups .chip{flex:0 0 auto;min-width:0;padding:9px 14px;font-size:.88rem}
-#themeGroups .chip i{margin-left:6px;font-style:normal;font-weight:800;opacity:.7}
 /* More patterns: faint, drawn in code, behind everything */
 html[data-pattern]:not([data-pattern=""]) body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
 html[data-pattern="stars"] body::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23CFE8FF' fill-opacity='.4'%3E%3Ccircle cx='14' cy='20' r='1.2'/%3E%3Ccircle cx='80' cy='46' r='1'/%3E%3Ccircle cx='52' cy='98' r='1.4'/%3E%3Ccircle cx='104' cy='110' r='.9'/%3E%3C/g%3E%3Cpath d='M96 14l1.6 4.4 4.4 1.6-4.4 1.6L96 26l-1.6-4.4L90 20l4.4-1.6z' fill='%23FFB3C6' fill-opacity='.45'/%3E%3C/svg%3E");background-size:120px 120px}
@@ -27,3 +13,39 @@ html[data-pattern="clover"] body::before{background-image:url("data:image/svg+xm
 html[data-pattern="hex"] body::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cg fill='none' stroke='%238FE9FF' stroke-opacity='.09' stroke-width='1'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 62v22M2 47L-24 62M54 47l26 15'/%3E%3C/g%3E%3C/svg%3E");background-size:56px 100px}
 html[data-pattern="bolts"] body::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M52 6L36 44h14L38 84' fill='none' stroke='%23E8A317' stroke-opacity='.2' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E");background-size:90px 90px}
 html[data-pattern="embers"] body::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cg fill='%23FF8A5C' fill-opacity='.28'%3E%3Ccircle cx='20' cy='30' r='1.4'/%3E%3Ccircle cx='96' cy='18' r='1'/%3E%3Ccircle cx='60' cy='84' r='1.6'/%3E%3Ccircle cx='122' cy='104' r='1.1'/%3E%3Ccircle cx='34' cy='122' r='.9'/%3E%3C/g%3E%3Cg fill='%23E8A14C' fill-opacity='.22'%3E%3Ccircle cx='76' cy='52' r='.9'/%3E%3Ccircle cx='8' cy='84' r='1.2'/%3E%3C/g%3E%3C/svg%3E");background-size:140px 140px}
+/* Theme library (App Settings): search, then one drawer per category with compact theme cards */
+#themeSearch{margin-top:2px}
+.thdrawers{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.thdr{background:var(--card);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .2s}
+.thdr.open{box-shadow:inset 3px 0 0 var(--sakura),var(--shadow)}
+.thdh{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:12px 16px;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.thdn{flex:1;min-width:0;font-weight:800;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thdr.open .thdn{color:var(--sakura)}
+.thcur{display:none;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--sakura);font-size:.68rem;font-weight:800}
+.thdr[data-cur] .thcur{display:inline-block}
+.thdots{display:flex;padding-left:4px}
+.thdots i{width:14px;height:14px;margin-left:-4px;border-radius:50%;border:2px solid var(--card);background:var(--c)}
+.thdr.open .thdots{display:none}
+.thdc{min-width:26px;padding:2px 9px;border-radius:999px;background:var(--chip);color:var(--muted);font-size:.78rem;font-weight:800;text-align:center}
+.thdr.open .thdc{background:var(--grad);color:var(--sakura-ink)}
+.thdx{flex:none;width:9px;height:9px;margin:0 3px 3px 2px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .25s ease}
+.thdr.open .thdx{transform:rotate(-135deg) translate(-2px,-2px);margin-bottom:0}
+.thdb{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .26s ease,visibility 0s .26s}
+.thdr.open .thdb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .26s ease,visibility 0s}
+.thdi{min-height:0;overflow:hidden}
+.thdi>.thnote{margin:0;padding:0 16px 8px}
+.thcards{display:flex;flex-direction:column;gap:8px;padding:2px 12px 12px}
+.thm{display:flex;align-items:center;gap:12px;width:100%;min-width:0;padding:10px;border:2px solid transparent;border-radius:16px;background:var(--chip);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.thm[aria-pressed="true"]{border-color:var(--sakura)}
+.thsw{position:relative;flex:none;width:56px;height:56px;border-radius:14px;overflow:hidden;background:var(--t0);box-shadow:inset 0 0 0 1px rgba(128,128,128,.28)}
+.thsw::before,.thsw::after{content:"";position:absolute;top:-2px;bottom:-2px;transform:skewX(-24deg)}
+.thsw::before{left:40%;width:34%;background:var(--t1)}
+.thsw::after{left:70%;width:34%;background:var(--t2)}
+.thtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.thn{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-weight:700;line-height:1.2}
+.thsp{padding:2px 8px;border-radius:999px;background:var(--card);color:var(--muted);font-style:normal;font-size:.7rem;font-weight:700}
+.thnote{color:var(--muted);font-size:.8rem;line-height:1.3}
+.thck{position:relative;flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line)}
+.thm[aria-pressed="true"] .thck{border-color:transparent;background:var(--grad)}
+.thm[aria-pressed="true"] .thck::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid var(--sakura-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
+@media (prefers-reduced-motion:reduce){.thdr,.thdb,.thdr.open .thdb,.thdx{transition:none}}

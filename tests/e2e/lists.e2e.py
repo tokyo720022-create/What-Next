@@ -25,6 +25,12 @@ def main(page, out):
     check("anime: header count", page.inner_text("#listCount") == "All (%d)" % total, page.inner_text("#listCount"))
     labels = [x["t"].rsplit(" ", 1)[0] for x in chips(page)]
     check("anime: status tabs", labels == ["All", "Watching", "Rewatching", "Planning", "Paused", "Completed", "Dropped"], labels)
+    # regression: going back to a list that has not changed must not leave the other list's cards on screen
+    check("anime: the list area belongs to anime", page.get_attribute("#listBody", "data-list") == "anime" and "/ 12" in page.inner_text("#listBody .lcard:not(.skel) .lm"))
+    go(page, "manga")
+    check("manga: shows its own cards, not anime's", page.get_attribute("#listBody", "data-list") == "manga" and "/ 40" in page.inner_text("#listBody .lcard:not(.skel) .lm"))
+    go(page, "anime")
+    check("anime again: back on the anime cards, not the manga ones", page.get_attribute("#listBody", "data-list") == "anime" and "/ 12" in page.inner_text("#listBody .lcard:not(.skel) .lm") and page.inner_text("#listCount") == "All (%d)" % total)
     # show more
     n = 0
     while not page.eval_on_selector("#listMore", "e => e.hidden"):

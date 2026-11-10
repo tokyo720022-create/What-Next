@@ -2,31 +2,43 @@
 // ---------- App Settings ----------
 const NAME_OPTS = [["", "Follow AniList"], ["ROMAJI", "Romaji"], ["ENGLISH", "English"], ["NATIVE", "Native"]];
 for(const k of ["JP", "KR", "CN", "TW"]) fillSel("#appName" + k, NAME_OPTS);
-// theme picker: group chips on top, the cards of the chosen group below
-let thGroup = "";
+// Theme library: a search box, then one drawer per category. Drawers are built from the theme data (themeCategories() in theme.js), never from a fixed list.
+let thOpen = new Set(), thQuery = "";
+const thCurCat = () => { const c = themeCategories().find(x => x.themes.some(t => t.id === themeId())); return c ? c.id : ""; };
 function drawThemes(){
-  const cur = THEMES.find(x => x.id === themeId()), adultOk = !!appCfg().adultThemes;
-  const groups = THEME_GROUPS.filter(g => !g.adult || adultOk || (cur && cur.group === g.id));   // the 18+ group stays visible while one of its themes is in use
-  if(!groups.some(g => g.id === thGroup)) thGroup = cur && groups.some(g => g.id === cur.group) ? cur.group : groups[0].id;
-  const bar = $("#themeGroups"), grid = $("#themeGrid"), note = $("#themeGroupNote"); bar.replaceChildren(); grid.replaceChildren();
-  for(const g of groups){
-    const c = el("button", "chip", g.name); c.type = "button"; c.dataset.v = g.id; c.setAttribute("aria-pressed", String(g.id === thGroup));
-    c.append(el("i", null, String(THEMES.filter(t => t.group === g.id).length))); c.onclick = () => { thGroup = g.id; drawThemes(); }; bar.append(c);
+  const root = $("#themeGrid"), adultOk = !!appCfg().adultThemes, q = thQuery.trim().toLowerCase(), curCat = thCurCat(); let any = false;
+  root.replaceChildren();
+  for(const c of themeCategories()){
+    if(c.adult && !adultOk && c.id !== curCat) continue;   // the 18+ drawer stays visible while one of its themes is in use
+    const list = q ? c.themes.filter(t => (t.name + " " + t.note + " " + c.name).toLowerCase().includes(q)) : c.themes;
+    if(!list.length) continue; any = true;
+    const open = !!q || thOpen.has(c.id), d = el("div", "thdr" + (open ? " open" : "")), h = el("button", "thdh"), dots = el("span", "thdots");
+    d.dataset.g = c.id; h.type = "button"; h.dataset.g = c.id; h.setAttribute("aria-expanded", String(open)); h.setAttribute("aria-controls", "thb-" + c.id);
+    list.slice(0, 5).forEach(t => { const i = el("i"); i.style.setProperty("--c", t.g[0]); dots.append(i); });
+    h.append(el("span", "thdn", c.name), el("span", "thcur", "Active"), dots, el("span", "thdc", String(list.length)), el("i", "thdx"));
+    const body = el("div", "thdb"), inner = el("div", "thdi"), cards = el("div", "thcards"); body.id = "thb-" + c.id;
+    if(c.note) inner.append(el("p", "thnote", c.note));
+    for(const th of list){
+      const b = el("button", "thm"), tx = el("span", "thtx"), nm = el("span", "thn"); b.type = "button"; b.dataset.id = th.id; b.setAttribute("aria-pressed", String(th.id === themeId()));
+      b.style.setProperty("--t0", th.v["--bg"]); b.style.setProperty("--t1", th.g[0]); b.style.setProperty("--t2", th.g[1]);
+      nm.append(th.name); if(th.special) nm.append(el("em", "thsp", "Special"));
+      tx.append(nm, el("span", "thnote", th.note)); b.append(el("span", "thsw"), tx, el("i", "thck"));
+      b.onclick = () => setTheme(th.id); cards.append(b);
+    }
+    inner.append(cards); body.append(inner); d.append(h, body);
+    h.onclick = () => { const on = !d.classList.contains("open"); d.classList.toggle("open", on); h.setAttribute("aria-expanded", String(on)); if(!q){ if(on) thOpen.add(c.id); else thOpen.delete(c.id); } };
+    root.append(d);
   }
-  const gi = groups.find(g => g.id === thGroup); note.textContent = gi.note || ""; note.hidden = !gi.note;
-  for(const th of THEMES.filter(t => t.group === thGroup)){
-    const b = el("button", "thm"); b.type = "button"; b.dataset.id = th.id; b.setAttribute("aria-pressed", String(th.id === themeId()));
-    b.style.setProperty("--t0", th.v["--bg"]); b.style.setProperty("--t1", th.g[0]); b.style.setProperty("--t2", th.g[1]);
-    const nm = el("span", "thn"); nm.append(th.name); if(th.special) nm.append(el("em", "thsp", "Special"));
-    b.append(el("span", "thsw"), nm, el("span", "thnote", th.note));
-    b.onclick = () => setTheme(th.id);
-    grid.append(b);
-  }
+  $("#themeEmpty").hidden = any; $("#themeEmpty").textContent = "No theme or category matches \u201c" + thQuery.trim() + "\u201d.";
+  markThemeDrawers();
 }
+// the drawer that holds the theme in use says "Active"
+function markThemeDrawers(){ const cur = themeId(); document.querySelectorAll("#themeGrid .thdr").forEach(d => { if(d.querySelector('.thm[data-id="' + cur + '"]')) d.dataset.cur = "1"; else delete d.dataset.cur; }); }
 drawThemes();
+$("#themeSearch").oninput = ev => { thQuery = ev.target.value; drawThemes(); };
 $("#appAdultThemes").onchange = () => { setApp({ adultThemes: $("#appAdultThemes").checked }); drawThemes(); };
 function fillApp(){
-  const c = appCfg(); $("#appAdultThemes").checked = !!c.adultThemes; thGroup = ""; drawThemes();
+  const c = appCfg(); $("#appAdultThemes").checked = !!c.adultThemes; thQuery = ""; $("#themeSearch").value = ""; thOpen = new Set([thCurCat()]); drawThemes();   // opens on the drawer of the theme in use
   $("#appAvatar").checked = c.avatar === "circle"; $("#appSplash").checked = !!c.splash; $("#appAdvanced").checked = !!c.advanced; $("#appRelative").checked = !!c.relative;
   $("#appAllAnime").value = c.allpos.anime; $("#appAllManga").value = c.allpos.manga;
   for(const k of ["JP", "KR", "CN", "TW"]) $("#appName" + k).value = c.naming[k] || "";

@@ -19,7 +19,7 @@ html[data-avatar="square"] .uav{border-radius:22%}
 .rowlink.danger svg{stroke:#ef5b6c}
 #aniForm textarea{width:100%;margin:8px 0 6px}
 /* Wide screens: the app column is 480px, so the full-bleed bars stop at the column edge instead of poking out of it */
-@media (min-width:512px){#lists .srow,#schedule .schdays,#profile .pffavkinds,#setApp #themeGroups{margin-left:0;margin-right:0;padding-left:0;padding-right:0}}
+@media (min-width:512px){#lists .srow,#schedule .schdays,#profile .pffavkinds{margin-left:0;margin-right:0;padding-left:0;padding-right:0}}
 /* Screens fade in (opacity only, so fixed backgrounds are not disturbed) */
 @keyframes wnfade{from{opacity:0}to{opacity:1}}
 main>section:not([hidden]){animation:wnfade .22s ease}

@@ -44,6 +44,18 @@ const THEMES = [
     v: { "--bg": "#12060B", "--card": "#1F0B14", "--ink": "#FCEBF2", "--muted": "#CFA0B3", "--line": "#3D1627", "--chip": "#2B101D", "--sakura": "#FF5C8D", "--sakura-ink": "#210411", "--shadow": "0 10px 30px rgba(0,0,0,.5)", "--glass": "rgba(31,11,20,.88)" } }
 ];
 // The saved choice is { id }. Older copies saved { mode, a, b }: a light choice becomes Sakura Flowers, anything else the default.
+// Drawers in App Settings come from here. THEME_GROUPS only sets the order, the names and the 18+ flag: a theme with no group, or with a group
+// nobody described, still gets a drawer ("Other" for no group) instead of disappearing.
+function themeCategories(){
+  const out = new Map(THEME_GROUPS.map(g => [g.id, { id: g.id, name: g.name, adult: !!g.adult, note: g.note || "", themes: [] }]));
+  for(const t of THEMES){
+    const id = t.group ? String(t.group) : "other";
+    if(!out.has(id)) out.set(id, { id, name: id === "other" ? "Other" : id.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()), adult: false, note: "", themes: [] });
+    out.get(id).themes.push(t);
+  }
+  const all = [...out.values()].filter(c => c.themes.length);
+  return all.filter(c => c.id !== "other").concat(all.filter(c => c.id === "other"));
+}
 function themeId(){
   const t = LS("wn_theme", null);
   if(t && THEMES.some(x => x.id === t.id)) return t.id;
@@ -58,7 +70,7 @@ function applyTheme(){
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = th.v["--bg"];
 }
 function setTheme(id){ LSset("wn_theme", { id }); applyTheme(); fillLook(); }
-function fillLook(){ document.querySelectorAll("#themeGrid .thm").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === themeId()))); }
+function fillLook(){ document.querySelectorAll("#themeGrid .thm").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === themeId()))); if(typeof markThemeDrawers === "function") markThemeDrawers(); }
 applyTheme();
 // ---------- App options (App Settings) ----------
 const APP_DEF = { adultThemes: false, avatar: "circle", size: "m", splash: true, advanced: false, allpos: { anime: "top", manga: "top" }, relative: true, naming: { JP: "", KR: "", CN: "", TW: "" } };

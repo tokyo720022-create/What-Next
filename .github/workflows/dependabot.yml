@@ -1,0 +1,17 @@
+# Keeps the build tools current without anyone having to remember: GitHub opens a pull request when an update is available.
+# Nothing is merged by itself. Read each pull request and let the checks run before merging.
+version: 2
+updates:
+  - package-ecosystem: "npm"        # the Capacitor packages in package.json
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      capacitor:
+        patterns: ["@capacitor/*"]  # these must move together, so they arrive as one pull request
+  - package-ecosystem: "github-actions"   # the actions used by the workflows (checkout, setup-node, the release step)
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

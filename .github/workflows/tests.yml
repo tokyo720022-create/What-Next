@@ -27,6 +27,7 @@ jobs:
           node tests/unit/cardthemes.test.js
           node tests/unit/themes.test.js
           node tests/unit/guards.test.js
+          node tests/unit/secrets.test.js
           node tests/unit/apk-signing.test.js
       - name: Install a browser for the screen tests
         run: |

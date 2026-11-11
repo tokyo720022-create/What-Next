@@ -1,7 +1,7 @@
 /* js/features/pick-taste.js: "For my taste" pick. New titles that suit your taste report and are NOT on your lists. */
 // ---------- Pick for my taste ----------
 // onList:false makes AniList leave out everything on your lists, whatever its status. Titles that are not released yet are left out too.
-const PT_BITS = "id type siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large} format status episodes chapters duration averageScore popularity genres isAdult startDate{year month day} nextAiringEpisode{episode airingAt} tags{name rank isMediaSpoiler}";
+const PT_BITS = "id type siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters duration averageScore popularity genres isAdult startDate{year month day} nextAiringEpisode{episode airingAt} tags{name rank isMediaSpoiler}";
 const PT_Q = "query PickTaste($p:Int,$t:MediaType,$g:[String],$tags:[String],$adult:Boolean){Page(page:$p,perPage:50){media(type:$t,genre_in:$g,tag_in:$tags,onList:false,isAdult:$adult,status_not:NOT_YET_RELEASED,averageScore_greater:65,sort:[POPULARITY_DESC]){" + PT_BITS + "}}}";
 const pt = { token: 0, pools: new Map() };
 

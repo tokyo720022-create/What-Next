@@ -20,3 +20,14 @@
 .usheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;background:rgba(0,0,0,.55)}
 .usheetbox{width:100%;max-height:80%;overflow:auto;padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 18px);border-radius:24px 24px 0 0;background:var(--bg)}
 .usheetbox h3{margin:0 0 6px}
+/* A person's anime or manga list */
+.umtypes{margin-top:4px}
+.umtypes .chip,.umsort .chip{min-width:0}
+.umstat{display:flex;gap:8px;overflow-x:auto;margin:12px -16px 0;padding:2px 16px 6px;scrollbar-width:none}
+.umstat::-webkit-scrollbar{display:none}
+.umstat .chip{flex:0 0 auto;min-width:0;padding:9px 14px;font-size:.88rem}
+.umstat .chip i{margin-left:6px;font-style:normal;font-weight:800;opacity:.7}
+.umsort{margin-top:6px}
+.umsearch{margin:10px 0 4px}
+.umcards{margin-top:12px}
+.umcards.lrows,.umcards.lgrid{margin-top:12px}

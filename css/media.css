@@ -1,5 +1,5 @@
 /* css/media.css: media page and list editor */
-#media{z-index:25;padding-top:0}
+#media{z-index:27;padding-top:0}   /* above #user (26), so a title opened from somebody's list shows */
 #editor{z-index:35}
 .mhead{position:relative;overflow:hidden;color:#fff;margin:0 -16px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 20px}
 .mbar{position:relative;display:flex;justify-content:space-between;margin-bottom:14px}

@@ -27,7 +27,7 @@ query($u:String){
   manga:MediaListCollection(userName:$u,type:MANGA,status_in:[CURRENT,REPEATING,PLANNING]){lists{entries{status progress media{...M}}}}
 }
 fragment M on Media{
-  id type siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large}
+  id type siteUrl title{romaji english native} countryOfOrigin coverImage{large}
   episodes chapters duration averageScore genres isAdult status startDate{year month day} nextAiringEpisode{episode airingAt}
 }`;
 
@@ -152,9 +152,9 @@ function lineup(){
 function show({e,p}){
   const m = e.media, title = m.title.english || m.title.romaji; state.shownId = m.id;
   const hero = el("div", "hero");
-  const bg = el("div", "bg"); bg.style.backgroundImage = "url(" + JSON.stringify(m.coverImage.extraLarge || m.coverImage.large) + ")";
+  const bg = el("div", "bg"); bg.style.backgroundImage = "url(" + JSON.stringify(m.coverImage.large || m.coverImage.extraLarge) + ")";
   const inn = el("div", "in");
-  const img = new Image(); img.alt = ""; img.className = "poster"; img.src = m.coverImage.extraLarge || m.coverImage.large;
+  const img = new Image(); img.alt = ""; img.className = "poster"; img.src = m.coverImage.large || m.coverImage.extraLarge;
   const info = el("div", "hinfo");
   const chips = el("div", "hchips");   // score, format and up to three genres as little chips
   if(m.averageScore) chips.append(el("span", "hchip sc", "★ " + m.averageScore + "%"));

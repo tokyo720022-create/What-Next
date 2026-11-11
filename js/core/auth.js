@@ -144,8 +144,8 @@ if(isNative){
       else if(!$("#qv").hidden) $("#qv").hidden = true;
       else if(!$("#fsheet").hidden) $("#fsheet").hidden = true;
       else if(!$("#csheet").hidden) $("#csheet").hidden = true;
+      else if(!$("#media").hidden) closeMedia();   // the title page is above the people screens, so it closes first
       else if(!$("#user").hidden) userPop();
-      else if(!$("#media").hidden) closeMedia();
       else if(!$("#relmap").hidden) closeRelMap();
       else if(!$("#taste").hidden) showTab("profile");
       else if(!$("#seasonal").hidden || !$("#calendar").hidden) showTab("discover");

@@ -249,13 +249,14 @@ function drawQuick(){
   box.append(open);
   $("#qv").hidden = false;
 }
-function lcard(e, type){
+// ro = read-only: somebody else's list (no +1 button, no quick view to change things)
+function lcard(e, type, ro){
   const m = e.m, total = type === "anime" ? m.episodes : m.chapters, lab = STATUS_LABEL(type)[e.status] || e.status;
   const card = el("div", "lcard"); card.dataset.s = e.status;
   const main = el("button", "lmain"); main.type = "button";
   main.setAttribute("aria-label", tt(m) + ", " + lab + ", " + e.progress + " of " + (total || "unknown"));
-  const cover = el("div", "lcover"), img = new Image(); img.alt = ""; img.loading = "lazy"; img.decoding = "async";
-  if(m.coverImage && m.coverImage.large && ly.layout !== "simplified") img.src = m.coverImage.large;   // Simplified has no covers, so none are downloaded
+  const cover = el("div", "lcover"), img = new Image(); img.alt = ""; img.loading = "lazy";
+  if(m.coverImage && m.coverImage.large && ly.layout !== "simplified") setCover(img, m.coverImage.large, ly.layout === "linear");   // Simplified has no covers, so none are downloaded; Linear shows a 64px cover, so it gets the small file
   cover.append(img, el("span", "sb", lab));
   const air = ly.hideAir ? null : airBadge(e, type); if(air) cover.append(air);
   const info = el("div", "li"), meta = el("div", "lm");
@@ -266,8 +267,8 @@ function lcard(e, type){
   info.append(meta);
   if(!ly.hideProgress && total){ const tr = el("div", "ltrack"), fill = el("i"); fill.style.width = Math.min(100, Math.round(e.progress / total * 100)) + "%"; tr.append(fill); info.append(tr); }
   main.append(cover, info); main.onclick = () => { if(Date.now() - holdAt < 800) return; openMedia(m.id); }; card.append(main);   // the tap that ends a long press must not also open the page
-  if(ly.quick) attachHold(main, () => openQuick(e.id, type));
-  if(auth.token && ["CURRENT", "REPEATING", "PLANNING", "PAUSED"].includes(e.status) && !(total && e.progress >= total)){
+  if(ly.quick && !ro) attachHold(main, () => openQuick(e.id, type));
+  if(!ro && auth.token && ["CURRENT", "REPEATING", "PLANNING", "PAUSED"].includes(e.status) && !(total && e.progress >= total)){
     const plus = el("button", "lplus", "+1"); plus.type = "button"; plus.setAttribute("aria-label", "Add one " + (type === "anime" ? "episode" : "chapter"));
     plus.onclick = ev => { ev.stopPropagation(); bumpEntry(e, type, plus); }; card.append(plus);
   }

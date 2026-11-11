@@ -3,8 +3,8 @@
 let trendAt = 0;
 function trendCard(m){
   const c = el("button", "tcard"), top = el("div", "ttop"), bg = el("div", "tbg");
-  bg.style.backgroundImage = "url(" + JSON.stringify(m.bannerImage || m.coverImage.extraLarge) + ")";
-  const img = new Image(); img.alt = ""; img.loading = "lazy"; img.className = "tposter"; img.src = m.coverImage.extraLarge;
+  bg.style.backgroundImage = "url(" + JSON.stringify(m.bannerImage || m.coverImage.large || m.coverImage.extraLarge) + ")";
+  const img = new Image(); img.alt = ""; img.loading = "lazy"; img.className = "tposter"; img.src = m.coverImage.large || m.coverImage.extraLarge;   // a 104px poster does not need the big file; that one is for the title page
   const sub = m.type === "ANIME" ? ((m.studios.nodes[0] && m.studios.nodes[0].name) || "") : (m.staff.edges || []).map(x => x.node.name.full).join(", ");
   const stats = el("div", "tstats"); stats.append(el("span", null, "★ " + (m.averageScore || "–")), el("span", null, "♥ " + (m.favourites || 0).toLocaleString()));
   const info = el("div", "tinfo"); info.append(el("b", "tt2", tt(m)), el("span", "tsub", sub), stats);

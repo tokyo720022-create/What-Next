@@ -15,3 +15,13 @@ const titleCase = x => String(x).replace(/\w\S*/g, w => w[0].toUpperCase() + w.s
 const isNetErr = e => !!e && (e.net === true || /Failed to fetch|NetworkError|Load failed|Network request failed|network|timed out|took too long/i.test(e.message || ""));
 // The logo screen waits for this (see boot.js), so the first screen is ready underneath it.
 const readyNow = () => { try{ if(window.__wnReady) window.__wnReady(); }catch(_){} };
+
+// AniList keeps every cover in three sizes under the same file name (".../cover/large/x.jpg", ".../cover/medium/x.jpg"). A small thumbnail asks for the medium one,
+// which is about a quarter of the download. If that file is not there, the original is used.
+const thumbUrl = u => (typeof u === "string" && u.indexOf("/cover/large/") > 0 ? u.replace("/cover/large/", "/cover/medium/") : u);
+function setCover(img, url, small){
+  img.decoding = "async";
+  const s = small ? thumbUrl(url) : url;
+  if(s !== url) img.onerror = () => { img.onerror = null; img.src = url; };
+  img.src = s;
+}

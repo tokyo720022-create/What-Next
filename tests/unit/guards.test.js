@@ -110,5 +110,32 @@ const LINK = "whatnext://auth#access_token=ABC.def-123&token_type=Bearer";
     const q = queueWorld(0, { 13: job(7) }); q.flush();
     ok("flushPending does nothing until the account is known", q.sent.length === 0 && !!q.pend[13]);
   }
+
+  // ---------- smaller covers for thumbnails ----------
+  const compat = read("js/core/compat.js"), cctx = { console, String };
+  vm.createContext(cctx); vm.runInContext(compat.slice(compat.indexOf("const thumbUrl")), cctx);
+  const L = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx12345-AbC.jpg", M = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx12345-AbC.jpg";
+  ok("a large cover address gets its medium twin", vm.runInContext("thumbUrl", cctx)(L) === M);
+  ok("other addresses and empty values are left alone", vm.runInContext("thumbUrl", cctx)("https://img.test/c1.jpg") === "https://img.test/c1.jpg" && vm.runInContext("thumbUrl", cctx)("") === "" && vm.runInContext("thumbUrl", cctx)(null) === null);
+  const img = () => ({ src: "", decoding: "", onerror: null }), sc = (i, u, small) => vm.runInContext("setCover", cctx)(i, u, small);
+  { const i = img(); sc(i, L, true); const first = i.src; i.onerror(); ok("a thumbnail asks for the medium file first and falls back to the original if it is missing", first === M && i.src === L && i.onerror === null && i.decoding === "async"); }
+  { const i = img(); sc(i, L, false); ok("a normal cover keeps the large file", i.src === L && i.onerror === null); }
+  { const i = img(); sc(i, "https://img.test/c1.jpg", true); ok("a cover that has no medium twin is used as it is", i.src === "https://img.test/c1.jpg" && i.onerror === null); }
+
+  // ---------- somebody else's list: what is shown ----------
+  const users = read("js/features/users.js");
+  const uctx = { console, String, Map, Array, SORTS: { UPDATED: (a, b) => b.updatedAt - a.updatedAt, SCORE: (a, b) => b.score - a.score, TITLE: (a, b) => a.m.title.romaji.localeCompare(b.m.title.romaji) } };
+  vm.createContext(uctx); vm.runInContext(cut(users, "function uEntries(raw){", "function uBuildMediaList(page){"), uctx);
+  const E = (id, status, score, upd, romaji, o = {}) => ({ mediaId: id, status, score, updatedAt: upd, progress: 1, media: { id, title: Object.assign({ romaji, english: null, native: null }, o) } });
+  const raw = [E(1, "CURRENT", 90, 5, "Alpha"), E(2, "COMPLETED", 70, 9, "Beta", { english: "Bravo Story" }), E(1, "CURRENT", 90, 5, "Alpha"), E(3, "COMPLETED", 100, 1, "Gamma", { native: "ガンマ" }), { mediaId: 4, status: "PLANNING" }, E(5, "PLANNING", 0, 3, "Delta")];
+  const ent = vm.runInContext("uEntries", uctx)(raw), view = f => vm.runInContext("uMediaView", uctx)(ent, f), ids = r => r.rows.map(e => e.id).join();
+  ok("each title is listed once, and entries without a title are dropped", ent.length === 4 && ent.map(e => e.id).sort().join() === "1,2,3,5");
+  ok("All shows every title, newest update first", ids(view({ status: "ALL", q: "", sort: "UPDATED" })) === "2,1,5,3");
+  ok("a status shows only its titles", ids(view({ status: "COMPLETED", q: "", sort: "SCORE" })) === "3,2");
+  ok("status counts ignore the search words", JSON.stringify(view({ status: "ALL", q: "alpha", sort: "UPDATED" }).counts) === JSON.stringify({ ALL: 4, CURRENT: 1, COMPLETED: 2, PLANNING: 1 }));
+  ok("search finds romaji, English and native titles, in any case", ids(view({ status: "ALL", q: "ALPHA", sort: "TITLE" })) === "1" && ids(view({ status: "ALL", q: " bravo ", sort: "TITLE" })) === "2" && ids(view({ status: "ALL", q: "ガン", sort: "TITLE" })) === "3");
+  ok("search and status work together; no match gives an empty list", ids(view({ status: "PLANNING", q: "alpha", sort: "TITLE" })) === "" && ids(view({ status: "PLANNING", q: "del", sort: "TITLE" })) === "5");
+  ok("sort by title is alphabetical", ids(view({ status: "ALL", q: "", sort: "TITLE" })) === "1,2,5,3");
+  ok("an unknown sort falls back to last updated", ids(view({ status: "ALL", q: "", sort: "NOPE" })) === "2,1,5,3");
   console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);
 })();

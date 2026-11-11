@@ -1,6 +1,6 @@
 /* js/features/users.js: other people's profiles, and the Followers and Following lists */
 // ---------- People: Followers / Following lists and profiles of other users ----------
-const ustack = [];   // pages shown in the #user overlay: { kind: "list" | "profile" | "stats", ... }
+const ustack = [];   // pages shown in the #user overlay: { kind: "list" | "profile" | "stats" | "mlist", ... }
 const affCache = new Map();
 const U_LIST_Q = mode => "query($id:Int!,$p:Int){Page(page:$p,perPage:30){pageInfo{hasNextPage} " + mode + "(userId:$id,sort:USERNAME){id name avatar{large} bannerImage isFollowing isFollower}}}";
 const U_Q = "query($id:Int!){User(id:$id){id name siteUrl about(asHtml:false) bannerImage avatar{large} options{profileColor} isFollowing isFollower statistics{anime{count episodesWatched minutesWatched meanScore} manga{count chaptersRead volumesRead meanScore}}}}";
@@ -17,7 +17,7 @@ const aniLink = name => "https://anilist.co/user/" + encodeURIComponent(name);
 function userShow(){
   const box = $("#user"), top = ustack[ustack.length - 1];
   if(!top){ box.hidden = true; box.replaceChildren(); return; }
-  if(!top.root){ top.root = el("div", "uroot"); ({ list: uBuildList, stats: uBuildStats, profile: uBuildProfile })[top.kind](top); }
+  if(!top.root){ top.root = el("div", "uroot"); ({ list: uBuildList, stats: uBuildStats, profile: uBuildProfile, mlist: uBuildMediaList })[top.kind](top); }
   box.hidden = false; box.replaceChildren(top.root); box.scrollTop = top.scroll || 0;
 }
 function userPush(p){ const cur = ustack[ustack.length - 1]; if(cur) cur.scroll = $("#user").scrollTop; ustack.push(p); userShow(); }
@@ -97,13 +97,66 @@ function affinityOf(a, b){
   return { n, pct: Math.max(0, Math.round(sxy / Math.sqrt(sxx * syy) * n / (n + 5) * 100)) };
 }
 
+// ----- a person's anime or manga list (read-only) -----
+const U_LIST_F = "mediaId status progress repeat score(format:POINT_100) updatedAt media{id siteUrl title{romaji english native} countryOfOrigin coverImage{large} format status episodes chapters averageScore popularity genres startDate{year}}";
+const U_SORT_NAMES = [["UPDATED", "Updated"], ["SCORE", "Score"], ["TITLE", "Title"]];
+const uListMsg = err => /private/i.test(err.message || "") ? "This person keeps their list private." : /not found|404/i.test(err.message || "") ? "This list could not be found." : uMsg(err);
+// Titles in the shape the list cards use, once each (AniList repeats a title that is in several custom lists).
+function uEntries(raw){
+  const seen = new Map();
+  for(const e of raw || []) if(e && e.media && !seen.has(e.mediaId)) seen.set(e.mediaId, { id: e.mediaId, status: e.status, progress: e.progress || 0, repeat: e.repeat || 0, score: e.score || 0, updatedAt: e.updatedAt || 0, notes: "", priority: 0, custom: [], m: e.media });
+  return [...seen.values()];
+}
+// What to show for the chosen status, search words and sort, plus how many titles each status has (counts ignore the search, like the status tabs of your own list).
+function uMediaView(entries, f){
+  const counts = { ALL: entries.length }; for(const e of entries) counts[e.status] = (counts[e.status] || 0) + 1;
+  const q = String(f.q || "").trim().toLowerCase(), cmp = SORTS[f.sort] || SORTS.UPDATED;
+  const rows = entries.filter(e => (f.status === "ALL" || e.status === f.status) && (!q || [e.m.title && e.m.title.romaji, e.m.title && e.m.title.english, e.m.title && e.m.title.native].some(t => t && String(t).toLowerCase().includes(q)))).sort(cmp);
+  return { counts, rows };
+}
+function uBuildMediaList(page){
+  const root = page.root, types = el("div", "row umtypes"), stat = el("div", "umstat"), sorts = el("div", "row umsort"), search = el("input", "umsearch"), cards = el("div"), more = el("button", "go alt", "Show more"), msg = el("div", "msg");
+  search.type = "search"; search.placeholder = "Search this list"; search.autocomplete = "off"; search.setAttribute("aria-label", "Search this list");
+  more.hidden = true; msg.hidden = true;
+  Object.assign(page, { type: page.type || "anime", data: {}, status: "ALL", q: "", sort: "UPDATED", shown: LIST_BATCH });
+  root.append(uBar((page.name || "User") + "\u2019s list"), types, stat, sorts, search, msg, cards, more);
+  for(const [t, label] of [["anime", "Anime"], ["manga", "Manga"]]){ const b = el("button", "chip", label); b.dataset.v = t; b.onclick = () => { if(page.type === t) return; Object.assign(page, { type: t, status: "ALL", q: "", shown: LIST_BATCH }); search.value = ""; go(); }; types.append(b); }
+  for(const [k, label] of U_SORT_NAMES){ const b = el("button", "chip", label); b.dataset.v = k; b.onclick = () => { page.sort = k; page.shown = LIST_BATCH; draw(); }; sorts.append(b); }
+  search.oninput = () => { page.q = search.value; page.shown = LIST_BATCH; draw(); };
+  more.onclick = () => { page.shown += LIST_BATCH; draw(); };
+  const say = (text, retry) => { msg.replaceChildren(); msg.append(el("b", null, text)); if(retry){ const r = el("button", "go alt", "Try again"); r.onclick = () => go(true); msg.append(r); } msg.hidden = false; cards.replaceChildren(); stat.replaceChildren(); more.hidden = true; };
+  function draw(){
+    const type = page.type, all = page.data[type]; if(!all) return;
+    types.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === type)));
+    sorts.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === page.sort)));
+    const { counts, rows } = uMediaView(all, page); msg.hidden = true; stat.replaceChildren();
+    const labels = STATUS_LABEL(type);
+    for(const k of ["ALL"].concat(STATUS_ORDER.filter(s => counts[s]))){ const c = el("button", "chip", k === "ALL" ? "All" : labels[k] || k); c.append(el("i", null, String(counts[k] || 0))); c.setAttribute("aria-pressed", String(page.status === k)); c.onclick = () => { page.status = k; page.shown = LIST_BATCH; draw(); }; stat.append(c); }
+    if(page.status !== "ALL" && !counts[page.status]) page.status = "ALL";
+    cards.className = "umcards " + lyBodyClass();
+    if(!all.length){ cards.replaceChildren(); msg.replaceChildren(el("b", null, "Nothing on this " + type + " list yet.")); msg.hidden = false; more.hidden = true; return; }
+    if(!rows.length){ cards.replaceChildren(); msg.replaceChildren(el("b", null, "No titles match.")); msg.hidden = false; more.hidden = true; return; }
+    const shown = Math.min(page.shown, rows.length);
+    cards.replaceChildren(...rows.slice(0, shown).map(e => lcard(e, type, true))); more.hidden = shown >= rows.length;
+  }
+  async function go(force){
+    const type = page.type; types.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === type)));
+    if(page.data[type] && !force){ draw(); return; }
+    stat.replaceChildren(); more.hidden = true; msg.hidden = true; cards.className = "umcards " + lyBodyClass(); cards.replaceChildren(...Array.from({ length: lyRows() ? 6 : 9 }, () => el("div", "lcard skel")));
+    try{ page.data[type] = uEntries(await collection(page.name, type.toUpperCase(), "", U_LIST_F)); if(page.type === type) draw(); }
+    catch(err){ if(page.type === type) say(uListMsg(err), !/private/i.test(err.message || "")); }
+  }
+  go();
+}
+
 // ----- another person's profile -----
 const uRow = label => { const r = el("div", "prow"), v = el("b", null, "–"); r.append(el("span", null, label), v); return [r, v]; };
 function uBuildProfile(page){
   const root = page.root, card = el("div", "pcard"), banner = el("div", "pbanner"), av = el("img", "pavatar"), name = el("h2", "ph pname", page.name || ""), chips = el("div", "uchips"), acts = el("div", "uacts");
   av.alt = ""; av.hidden = true; card.append(banner, av, name, chips, acts);
   const cell = (label, fn) => { const b = el(fn ? "button" : "div"), n = el("b", null, "–"); b.append(n, el("span", null, label)); if(fn) b.onclick = fn; return [b, n]; };
-  const [cA, nA] = cell("Anime"), [cM, nM] = cell("Manga"), [cFo, nFo] = cell("Following", () => userPush({ kind: "list", mode: "following", id: page.id, name: page.name })), [cFe, nFe] = cell("Followers", () => userPush({ kind: "list", mode: "followers", id: page.id, name: page.name }));
+  const openMine = type => () => { if(page.id === meId()){ userCloseAll(); showTab(type); } else userPush({ kind: "mlist", id: page.id, name: page.name, type }); };   // your own lists are the Anime and Manga tabs
+  const [cA, nA] = cell("Anime", openMine("anime")), [cM, nM] = cell("Manga", openMine("manga")), [cFo, nFo] = cell("Following", () => userPush({ kind: "list", mode: "following", id: page.id, name: page.name })), [cFe, nFe] = cell("Followers", () => userPush({ kind: "list", mode: "followers", id: page.id, name: page.name }));
   const counts = el("div", "pcounts"); counts.append(cA, cM, cFo, cFe);
   const status = el("p", "sub warn"); status.hidden = true; status.onclick = () => { status.hidden = true; load(); };
   const aff = el("div", "card prows"), [rAA, vAA] = uRow("Anime"), [rAM, vAM] = uRow("Manga"); aff.style.marginTop = "0"; aff.append(rAA, rAM);

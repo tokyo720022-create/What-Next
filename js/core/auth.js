@@ -22,6 +22,9 @@ async function gql(query, variables){
   const headers = { "Content-Type": "application/json", "Accept": "application/json" };
   if(auth.token) headers.Authorization = "Bearer " + auth.token;
   const body = JSON.stringify({ query, variables }), isChange = /^\s*mutation/i.test(query);
+  // A change that may already have gone through must not be sent twice: a follow or favourite toggle would flip back, and a message would be posted twice.
+  // After a 429 AniList did not process the request, so that retry is always safe. After a gateway error (502-504) only changes that end the same when repeated are retried.
+  const repeatable = !isChange || /\b(SaveMediaListEntry|DeleteMediaListEntry|UpdateUser)\(/.test(query);
   let out;
   for(let attempt = 0; ; attempt++){
     await pacer.pace(isChange);   // waits when the per-minute limit is used up (and after a 429), so AniList never has to say "too many requests"
@@ -29,8 +32,9 @@ async function gql(query, variables){
     const h = out.res.headers, hv = k => Number(h && h.get && h.get(k));
     if(hv("X-RateLimit-Limit") > 0) pacer.setLimit(hv("X-RateLimit-Limit"));
     if(out.res.status === 429) pacer.setHold((hv("Retry-After") > 0 ? hv("Retry-After") : 60) * 1000);
-    if(GQL_RETRY.includes(out.res.status) && attempt < 2){
-      const wait = out.res.status === 429 ? pacer.holdLeft() : 1500 * (attempt + 1);
+    if(typeof crumb === "function") crumb("AniList " + crumbOp(query) + " " + out.res.status);
+    if(GQL_RETRY.includes(out.res.status) && attempt < 2 && (out.res.status === 429 || repeatable)){
+      const wait = out.res.status === 429 ? pacer.holdLeft() : Math.round(1500 * (attempt + 1) * (0.8 + Math.random() * 0.4));   // 1.2 to 1.8 s, then 2.4 to 3.6 s
       if(wait <= 10000){ await sleep(wait); continue; }
     }
     break;
@@ -87,7 +91,6 @@ async function markDone(e, p, btn){
 }
 
 // ---------- Login: the client ID is built in, like other AniList apps ----------
-const APP = { version: "2.1.1", company: "Tokyo Brotherhood", creator: "Hariharasuthan Karunakaran", contributor: "Claude (AI)" };
 const CFG0 = window.WN_CONFIG || {};   // set in config.js
 const CLIENT_APP = String(CFG0.clientApp || "54060");   // built-in default, so login works even without config.js
 const APP_REDIRECT = "whatnext://auth";
@@ -107,8 +110,8 @@ function openExternal(url){
 async function startLogin(){
   const id = clientId();
   if(!id) return loginErr("Login isn't set up in this build yet. The developer needs to add the AniList Client ID.");
-  if(!markLoginStarted()) return loginErr("The phone has no room left to start a login. Free some space and try again.");
-  const url = "https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token";
+  const state = markLoginStarted(); if(!state) return loginErr("The phone has no room left to start a login. Free some space and try again.");
+  const url = "https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token&state=" + state;
   // No redirect_uri here: AniList uses the Redirect URL saved on the client (whatnext://auth), and sending one switches it to a different login type.
   const B = nativePlugin("Browser");
   if(B && B.open){ try{ return await B.open({ url }); }catch(_){} }
@@ -118,14 +121,19 @@ $("#loginBtn").onclick = startLogin;
 $("#registerBtn").onclick = () => openExternal("https://anilist.co/signup");
 // The login link can be opened by any web page or app on the phone, so a token is only taken if the person tapped Log in in the last 10 minutes, and only once.
 const LOGIN_WINDOW_MS = 600000;
-function markLoginStarted(){ try{ localStorage.setItem("wn_login_at", String(Date.now())); return true; }catch(_){ return false; } }
+// AniList accepts a "state" value on the login page and (as far as its documentation says) hands it back with the token. It is checked when it comes back; if it does not
+// come back, the 10-minute, once-only rule above still protects the login.
+const loginNonce = () => { try{ const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, "0")).join(""); }catch(_){ return String(Math.random()).slice(2) + String(Date.now()); } };
+function markLoginStarted(){ try{ const st = loginNonce(); localStorage.setItem("wn_login_at", String(Date.now())); localStorage.setItem("wn_login_state", st); return st; }catch(_){ return ""; } }
 function loginExpected(){ try{ const t = Number(localStorage.getItem("wn_login_at")) || 0; return t > 0 && Date.now() - t >= 0 && Date.now() - t < LOGIN_WINDOW_MS; }catch(_){ return false; } }
 function handleAuthUrl(url){
   if(!url || url.indexOf(APP_REDIRECT.split("://")[0] + "://") !== 0) return;
   if(!loginExpected()) return;   // nobody just tapped Log in: ignore the link
-  const t = new URLSearchParams(url.split("#")[1] || url.split("?")[1] || "").get("access_token");
+  const q = new URLSearchParams(url.split("#")[1] || url.split("?")[1] || ""), t = q.get("access_token");
   if(!t) return;
-  try{ localStorage.removeItem("wn_login_at"); }catch(_){}
+  let want = ""; try{ want = localStorage.getItem("wn_login_state") || ""; }catch(_){}
+  if(want && q.get("state") && q.get("state") !== want) return;   // AniList sent back a different state: this login was not started here
+  try{ localStorage.removeItem("wn_login_at"); localStorage.removeItem("wn_login_state"); }catch(_){}
   try{ localStorage.setItem("wn_token", t); }catch(_){ return loginErr("Couldn't save your login: the phone has no room left."); }
   sessionTouch();   // a fresh login starts the 14-day clock again
   try{ localStorage.removeItem("wn_name"); }catch(_){}   // whose saved list is this? start() finds out from AniList before showing any

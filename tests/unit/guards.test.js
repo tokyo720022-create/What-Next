@@ -13,7 +13,7 @@ function loginWorld(){
   const ctx = { console, URLSearchParams, String, Number, Date,
     localStorage: { getItem: k => store.has(k) ? store.get(k) : null, setItem(k, v){ if(full) throw new Error("quota"); store.set(k, String(v)); }, removeItem: k => store.delete(k) },
     $: () => ({ set textContent(v){ err = v; }, get textContent(){ return err; } }), isNative: false, nativePlugin: () => null, APP_REDIRECT: "whatnext://auth", clientId: () => "54060",
-    sessionTouch(){}, location: { reload(){ reloads++; } }, window: { open: u => opened.push(u) } };
+    sessionTouch(){}, location: { reload(){ reloads++; } }, window: { open: u => opened.push(u) }, Uint8Array, Array, crypto: { getRandomValues(a){ for(let i = 0; i < a.length; i++) a[i] = i + 10; return a; } } };
   vm.createContext(ctx);
   vm.runInContext(cut(auth, "function loginErr", "if(isNative){").replace(/\$\("#loginBtn"\)\.onclick = startLogin;/, "").replace(/\$\("#registerBtn"\)\.onclick = [^\n]*/, ""), ctx);
   return { store, run: s => vm.runInContext(s, ctx), opened, err: () => err, reloads: () => reloads, setFull: v => { full = v; } };
@@ -30,6 +30,16 @@ const LINK = "whatnext://auth#access_token=ABC.def-123&token_type=Bearer";
   ok("the link right after the tap logs in once", w.store.get("wn_token") === "ABC.def-123" && w.reloads() === 1 && !w.store.has("wn_login_at"));
   w.store.delete("wn_token"); w.run('handleAuthUrl("' + LINK + '")');
   ok("the same link a second time is ignored", !w.store.has("wn_token"));
+  {
+    const v = loginWorld(); await v.run("startLogin()"); const st = v.store.get("wn_login_state");
+    ok("the login page address carries a state value that is kept", /^[0-9a-f]{32}$/.test(st) && v.opened[0].includes("&state=" + st));
+    v.run('handleAuthUrl("whatnext://auth#access_token=ABC&state=WRONG")');
+    ok("a different state coming back is ignored, and the login can still finish", !v.store.has("wn_token") && v.store.has("wn_login_at"));
+    v.run('handleAuthUrl("whatnext://auth#access_token=ABC&state=' + st + '")');
+    ok("the matching state logs in, once", v.store.get("wn_token") === "ABC" && !v.store.has("wn_login_state") && !v.store.has("wn_login_at"));
+    const u = loginWorld(); await u.run("startLogin()"); u.run('handleAuthUrl("' + LINK + '")');
+    ok("if AniList does not send the state back, the login still works", u.store.get("wn_token") === "ABC.def-123");
+  }
   w.store.set("wn_login_at", String(Date.now() - 700000)); w.run('handleAuthUrl("' + LINK + '")');
   ok("a tap more than 10 minutes ago no longer counts", !w.store.has("wn_token"));
   w.store.set("wn_login_at", String(Date.now() + 60000)); w.run('handleAuthUrl("' + LINK + '")');
@@ -47,7 +57,7 @@ const LINK = "whatnext://auth#access_token=ABC.def-123&token_type=Bearer";
   const loginRefusedSrc = cut(auth, "async function loginRefused(headers){", "// Logged out: only the login screen");
   function gqlWorld(token, answers){
     const calls = []; let cleared = 0;
-    const ctx = { console, Number, Promise, JSON, Error, Date, auth: { token }, GQL_RETRY: [500, 502, 503, 504],
+    const ctx = { console, Number, Promise, JSON, Error, Date, auth: { token }, GQL_RETRY: [429, 502, 503, 504],
       pacer: { pace: async () => {}, setLimit(){}, setHold(){}, holdLeft: () => 0, busy: () => new Error("busy") }, sleep: async () => {}, isNetErr: () => false,
       clearAuth(){ cleared++; },
       gqlOnce: async body => { const q = JSON.parse(body).query; calls.push(q); return q.includes("Viewer{id}") ? answers.viewer : answers.main; } };
@@ -79,6 +89,31 @@ const LINK = "whatnext://auth#access_token=ABC.def-123&token_type=Bearer";
   {
     const w = gqlWorld(null, { main: R(401, { errors: [{ message: "Invalid token" }] }) }); await tryGql(w, "query{Public}");
     ok("with no login there is nobody to sign out", w.cleared() === 0);
+  }
+
+  // ---------- a change that may already have gone through is never sent twice ----------
+  {
+    const R2 = (status, json) => ({ res: { status, ok: status < 400, headers: { get: () => null } }, json });
+    const count = async (query, status) => { const w = gqlWorld("T", { main: R2(status, null) }); await tryGql(w, query); return w.calls.length; };
+    ok("a follow toggle is not resent after a gateway error", await count("mutation($id:Int){ToggleFollow(userId:$id){id}}", 502) === 1);
+    ok("a favourite toggle is not resent after a gateway error", await count("mutation($a:Int){ToggleFavourite(animeId:$a){anime{nodes{id}}}}", 503) === 1);
+    ok("a chat message is not sent twice after a gateway error", await count("mutation($r:Int,$m:String){SaveMessageActivity(recipientId:$r,message:$m){id}}", 504) === 1);
+    ok("a list edit is retried after a gateway error (same result when repeated)", await count("mutation($mediaId:Int,$progress:Int){SaveMediaListEntry(mediaId:$mediaId,progress:$progress){id}}", 502) === 3);
+    ok("a settings change is retried after a gateway error", await count("mutation($about:String){UpdateUser(about:$about){id}}", 503) === 3);
+    ok("a plain read is retried after a gateway error", await count("query{Media(id:1){id}}", 502) === 3);
+    ok("a toggle IS retried after 429, because AniList did not process it", await count("mutation($id:Int){ToggleFollow(userId:$id){id}}", 429) === 3);
+  }
+
+  // ---------- breadcrumbs in the bug report ----------
+  {
+    const dsrc = read("js/core/diagnostics.js"), dctx = { console, String, Date, Array, RegExp };
+    vm.createContext(dctx); vm.runInContext(cut(dsrc, "const crumbs = [];", "async function diagReport"), dctx);
+    const op = q => vm.runInContext("crumbOp", dctx)(q), crumb = x => vm.runInContext("crumb", dctx)(x), list = () => vm.runInContext("crumbs", dctx);
+    ok("a breadcrumb names the AniList operation, not the request", op("query($id:Int){Media(id:$id){id}}") === "Media" && op("mutation($mediaId:Int){SaveMediaListEntry(mediaId:$mediaId){id}}") === "change SaveMediaListEntry" && op("") === "request" && op(null) === "request");
+    ok("a breadcrumb never contains variables or the token", !op("query($t:String){Media(search:$t,secret:\"abc123\"){id}}").includes("abc123") && !op("{Viewer{id}} Bearer SECRETTOKEN").includes("SECRETTOKEN"));
+    for(let i = 0; i < 45; i++) crumb("screen " + i);
+    ok("only the last 30 steps are kept, each with a time", list().length === 30 && /^\d\d:\d\d:\d\d screen 44$/.test(list()[29]) && list()[0].endsWith("screen 15"));
+    crumb("x".repeat(500)); ok("a long step is cut short", list()[list().length - 1].length <= 89);
   }
 
   // ---------- waiting edits belong to one account ----------

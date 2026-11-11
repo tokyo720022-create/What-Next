@@ -1,6 +1,6 @@
 /* js/features/lists.js: Anime and Manga lists, filter and customise sheets */
 // ---------- AniList collection reader (handles AniList's 500-entry chunks) ----------
-const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{extraLarge large} episodes chapters duration averageScore genres status startDate{year month day} nextAiringEpisode{episode airingAt}}";
+const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} episodes chapters duration averageScore genres status startDate{year month day} nextAiringEpisode{episode airingAt}}";
 async function collection(user, type, filter, fields){
   const out = []; let chunk = 1, more = true;
   while(more){
@@ -49,7 +49,6 @@ const SORTS = {
 const lcacheName = type => "list_" + type + "_" + acctUser();
 function readListCache(type){ const m = cacheMetaAs("acct", lcacheName(type), CACHE_OK.list); return m ? { at: m.at, entries: m.d.entries } : null; }
 function writeListCache(type, entries){ cacheSetSoon("acct", lcacheName(type), { entries }, 800); }
-function clearListCaches(){ cacheDelPrefix("acct", "list_"); }
 function setListNote(t){ const n = $("#listNote"); n.hidden = !t; n.textContent = t || ""; n.classList.remove("warn"); n.onclick = null; }
 // If the cards are squashed (old or mismatched files), say so and offer a clean reload instead of a blank list.
 let guardTimer = 0;

@@ -21,16 +21,6 @@ function buildGenres(keep){
   }));
 }
 
-const QUERY = `
-query($u:String){
-  anime:MediaListCollection(userName:$u,type:ANIME,status_in:[CURRENT,REPEATING,PLANNING]){lists{entries{status progress media{...M}}}}
-  manga:MediaListCollection(userName:$u,type:MANGA,status_in:[CURRENT,REPEATING,PLANNING]){lists{entries{status progress media{...M}}}}
-}
-fragment M on Media{
-  id type siteUrl title{romaji english native} countryOfOrigin coverImage{large}
-  episodes chapters duration averageScore genres isAdult status startDate{year month day} nextAiringEpisode{episode airingAt}
-}`;
-
 function msg(text){
   const d = document.createElement("div");
   d.className = "msg"; d.textContent = text;

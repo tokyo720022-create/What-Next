@@ -3,6 +3,10 @@ window.__wnErrors = [];
 const diagPush = t => { window.__wnErrors.push(t); if(window.__wnErrors.length > 20) window.__wnErrors.shift(); };
 window.addEventListener("error", e => diagPush((e.message || "error") + " @ " + String(e.filename || "").split("/").pop() + ":" + (e.lineno || 0)));
 window.addEventListener("unhandledrejection", e => diagPush("promise: " + (e.reason && e.reason.message || e.reason)));
+// The last steps before a problem: which screen was opened and how each AniList request ended (operation name and status number only, never the request itself).
+const crumbs = [];
+const crumbOp = q => { const m = /\{\s*([A-Za-z]+)/.exec(String(q || "")); return (/^\s*mutation/i.test(String(q || "")) ? "change " : "") + (m ? m[1] : "request"); };
+function crumb(s){ crumbs.push(new Date().toTimeString().slice(0, 8) + " " + String(s).slice(0, 80)); if(crumbs.length > 30) crumbs.shift(); }
 async function diagReport(){
   const box = (el, name) => {
     if(!el) return name + ": missing";
@@ -16,7 +20,8 @@ async function diagReport(){
     body ? "List body class: \"" + body.className + "\" | cards: " + body.children.length : "List body missing",
     box(body, "List body"), box(body && body.children[0], "First card"),
     L ? "State: type=" + curType + " entries=" + (L.entries ? L.entries.length : "none") + " status=" + L.status + " shown=" + L.shown + " drawn=" + L.drawn + " stale=" + L.stale + " offline=" + L.offline : "",
-    "Errors: " + (window.__wnErrors.length ? window.__wnErrors.join(" | ") : "none")].join("\n");
+    "Errors: " + (window.__wnErrors.length ? window.__wnErrors.join(" | ") : "none"),
+    "Recent steps:" + (crumbs.length ? "\n  " + crumbs.join("\n  ") : " none")].join("\n");
 }
 // Removes the service worker and its caches, then reloads, so the phone fetches every file fresh.
 async function cleanReload(){

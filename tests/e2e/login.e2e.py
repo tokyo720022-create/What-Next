@@ -12,7 +12,8 @@ def main(page, out):
     check("the buttons can be reached and tapped", page.evaluate("(() => { for(const id of ['#loginBtn', '#registerBtn']){ const b = document.querySelector(id); b.scrollIntoView(); const r = b.getBoundingClientRect(); if(r.bottom > innerHeight || r.right > innerWidth || r.left < 0) return false; } return true; })()"))
     check("nothing sticks out sideways", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
     page.evaluate("window.__o = []; window.open = u => { window.__o.push(u); return null; }"); page.click("#loginBtn"); page.wait_for_timeout(300)
-    check("Log in opens AniList with the built-in app ID", page.evaluate("window.__o.filter(Boolean)") == ["https://anilist.co/api/v2/oauth/authorize?client_id=54060&response_type=token"], page.evaluate("window.__o"))
+    opened = page.evaluate("window.__o.filter(Boolean)")
+    check("Log in opens AniList with the built-in app ID and a state value", len(opened) == 1 and opened[0].startswith("https://anilist.co/api/v2/oauth/authorize?client_id=54060&response_type=token&state=") and len(opened[0].split("state=")[1]) >= 16, opened)
     check("no error is shown", t("#loginErr") == "", t("#loginErr"))
 for vp in ((360, 780), (320, 568)):
     out = run(main, viewport=vp, anon=True); print("-- viewport", vp)

@@ -1,7 +1,6 @@
 /* js/features/settings.js: Settings pages: AniList options and list tools */
 // ---------- Settings pages: AniList account options and list tools ----------
 const SUBS = ["#setApp", "#setAnilist", "#setLists", "#setSync", "#setAccount", "#setAbout"];
-const TITLE_LANGS = [["ROMAJI", "Romaji"], ["ENGLISH", "English"], ["NATIVE", "Native"]];
 const SCORE_FORMATS = [["POINT_100", "100 point (55 / 100)"], ["POINT_10_DECIMAL", "10 point decimal (5.5 / 10)"], ["POINT_10", "10 point (5 / 10)"], ["POINT_5", "5 star (3 / 5)"], ["POINT_3", "3 point smiley"]];
 const fillSel = (id, pairs) => $(id).replaceChildren(...pairs.map(([v, t]) => Object.assign(document.createElement("option"), { value: v, textContent: t })));
 

@@ -76,13 +76,35 @@ jobs:
           if grep -q 'android:allowBackup=' "$M"; then sed -i 's#android:allowBackup="[a-zA-Z]*"#android:allowBackup="false"#' "$M"; else sed -i 's#<application #<application android:allowBackup="false" #' "$M"; fi
           grep -q 'android:allowBackup="false"' "$M" || { echo "Android backup was not turned off in AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
+      - name: Add the native add-on (Kotlin, secure login storage). If that fails the build goes on without it
+        id: addon
+        run: |
+          rm -rf /tmp/android.pristine && cp -r android /tmp/android.pristine
+          if python3 native/apply-addon.py android; then
+            echo "used=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The native add-on could not be added (see the message above), so this build keeps the login in the app's normal storage."
+            rm -rf android && cp -r /tmp/android.pristine android
+            echo "used=no" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build the APK (a release build, or a debug build if that fails)
         id: build
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           cd android && chmod +x gradlew
+          ADDON="${{ steps.addon.outputs.used }}"
+          BUILT=no
           if ./gradlew assembleRelease; then
+            BUILT=yes
+          elif [ "$ADDON" = "yes" ]; then
+            echo "::warning::The build failed with the native add-on (see the error above), so it is being built again without it."
+            cd .. && rm -rf android && cp -r /tmp/android.pristine android && cd android && chmod +x gradlew
+            ADDON=no
+            if ./gradlew assembleRelease; then BUILT=yes; fi
+          fi
+          echo "addon=$ADDON" >> "$GITHUB_OUTPUT"
+          if [ "$BUILT" = "yes" ]; then
             echo "apk=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
             echo "kind=release" >> "$GITHUB_OUTPUT"
           else
@@ -105,7 +127,7 @@ jobs:
           name: What Next? v${{ steps.ver.outputs.name }}${{ steps.build.outputs.kind == 'debug' && ' (debug build, do not install)' || '' }}
           prerelease: ${{ steps.build.outputs.kind == 'debug' }}   # a debug build is never offered as the latest release
           target_commitish: ${{ github.sha }}
-          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build.${{ steps.build.outputs.kind == 'debug' && ' DEBUG BUILD: the release build failed, so do not install this one. Wait for the next release.' || '' }}"
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build. Native add-on (secure login storage): ${{ steps.build.outputs.addon }}.${{ steps.build.outputs.kind == 'debug' && ' DEBUG BUILD: the release build failed, so do not install this one. Wait for the next release.' || '' }}"
           generate_release_notes: true
           make_latest: ${{ steps.build.outputs.kind == 'release' }}
           files: WhatNext-v${{ steps.ver.outputs.name }}.apk

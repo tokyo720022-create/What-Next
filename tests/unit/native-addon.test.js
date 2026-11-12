@@ -87,7 +87,7 @@ const count = (s, re) => (s.match(re) || []).length;
   ok("the Kotlin plugin is added after the Android Gradle plugin in build.gradle", /classpath 'com\.android\.tools\.build:gradle:8\.7\.2'\n\s*classpath "org\.jetbrains\.kotlin:kotlin-gradle-plugin:1\.9\.25"/.test(s["build.gradle"]) && s["build.gradle"].includes("google-services:4.4.2"));
   ok("app/build.gradle applies Kotlin, matches the Java version and adds the encryption library", s["app/build.gradle"].startsWith("apply plugin: 'com.android.application'\napply plugin: 'kotlin-android'") && /android \{\n    kotlinOptions \{ jvmTarget = "21" \}/.test(s["app/build.gradle"]) && /dependencies \{\n    implementation "androidx\.security:security-crypto:1\.1\.0-alpha06"/.test(s["app/build.gradle"]) && s["app/build.gradle"].includes("implementation project(':capacitor-android')"));
   const kt = s["app/src/main/java/app/whatnext/addon/WnSecurePlugin.kt"];
-  ok("the Kotlin file is copied into the project", kt === read("native/android/WnSecurePlugin.kt"));
+  ok("the Kotlin file is copied into the project", kt === read("native/kotlin/WnSecurePlugin.kt"));
   const main = s["app/src/main/java/com/whatnext/app/MainActivity.java"];
   ok("MainActivity registers the plugin before the bridge starts", /import android\.os\.Bundle;\nimport app\.whatnext\.addon\.WnSecurePlugin;/.test(main) && main.indexOf("registerPlugin(WnSecurePlugin.class)") > 0 && main.indexOf("registerPlugin(WnSecurePlugin.class)") < main.indexOf("super.onCreate(savedInstanceState)") && /^package com\.whatnext\.app;/.test(main) && main.includes("import com.getcapacitor.BridgeActivity;"));
   // running it again changes nothing and adds nothing twice
@@ -113,7 +113,7 @@ bad("a MainActivity with code of its own is left alone", { main: MAIN.replace("{
 }
 
 // ---- the Kotlin file's rules (it cannot be compiled here)
-const kt = read("native/android/WnSecurePlugin.kt");
+const kt = read("native/kotlin/WnSecurePlugin.kt");
 ok("the plugin is called WnSecure, the name the app looks for", /@CapacitorPlugin\(name = "WnSecure"\)/.test(kt) && /nativePlugin\("WnSecure"\)/.test(read("js/core/auth.js")));
 ok("it offers get, set and remove, each marked as a plugin method", ["get", "set", "remove"].every(m => new RegExp("@PluginMethod\\s+fun " + m + "\\(call: PluginCall\\)").test(kt)));
 ok("it uses the Keystore-backed encrypted store with strong schemes", /EncryptedSharedPreferences\.create/.test(kt) && /KeyScheme\.AES256_GCM/.test(kt) && /PrefKeyEncryptionScheme\.AES256_SIV/.test(kt) && /PrefValueEncryptionScheme\.AES256_GCM/.test(kt));

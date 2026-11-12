@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adds the Kotlin add-on (native/android/WnSecurePlugin.kt) to the Android project that Capacitor generated.
+"""Adds the Kotlin add-on (native/kotlin/WnSecurePlugin.kt) to the Android project that Capacitor generated.
 
     python3 native/apply-addon.py android
 
@@ -33,7 +33,7 @@ def main(android, here):
     root_gradle = os.path.join(android, "build.gradle")
     app_gradle = os.path.join(android, "app", "build.gradle")
     cap_gradle = os.path.join(android, "app", "capacitor.build.gradle")
-    source = os.path.join(here, "android", "WnSecurePlugin.kt")
+    source = os.path.join(here, "kotlin", "WnSecurePlugin.kt")
     for f in (root_gradle, app_gradle, source):
         if not os.path.isfile(f):
             fail("cannot find " + f)

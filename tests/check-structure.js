@@ -32,4 +32,14 @@ ok("CSS braces balanced in all " + CSS.length + " files");
 const cls = new Map(); CSS.forEach(f => { for(const m of read(f).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?:^|\})\s*(\.[A-Za-z0-9_-]+)\s*\{/g)) cls.set(m[1], (cls.get(m[1]) || new Set()).add(f)); });
 const twice = [...cls].filter(([, s]) => s.size > 1).map(([k]) => k); twice.length ? fail("same class styled in several CSS files: " + twice) : ok("no class is styled in two CSS files");
 const tiny = [...cls.keys()].filter(k => /^\.c\d$/.test(k)); tiny.length ? fail("risky short class names (this caused the blank lists): " + tiny) : ok("no short class names like .c3");
+// A file inside a folder that .gitignore hides is silently left out of every commit (the unpack workflow runs "git add -A"), and then the app or a test cannot find it.
+// A line such as "android/" hides EVERY folder with that name, at any depth, so native/android/ was lost once. Folders made by the build (android, www at the top) are expected.
+{
+  const ignoredNames = read(".gitignore").split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith("#") && l.endsWith("/") && !l.startsWith("/") && !l.slice(0, -1).includes("/")).map(l => l.slice(0, -1));
+  const hidden = [], skip = new Set(["node_modules", ".git", "__pycache__"]);
+  (function walk(dir, rel){ for(const e of fs.readdirSync(path.join(root, dir || "."), { withFileTypes: true })){
+    const r = rel ? rel + "/" + e.name : e.name;
+    if(e.isDirectory()){ if(skip.has(e.name) || (!rel && ignoredNames.includes(e.name))) continue; if(ignoredNames.includes(e.name)) { hidden.push(r + "/"); continue; } walk(r, r); } } })("", "");
+  hidden.length ? fail("these folders are hidden by .gitignore, so their files would never be committed: " + hidden.join(", ")) : ok("no folder of the project is hidden by .gitignore (" + ignoredNames.join(", ") + ")");
+}
 console.log(bad ? "\n" + bad + " problem(s)" : "\nStructure OK"); process.exit(bad ? 1 : 0);

@@ -143,7 +143,7 @@ function handleAuthUrl(url){
     location.reload();
   });
 }
-// Android only: the login token is kept in the phone's secure key store, through the Kotlin add-on called "WnSecure" (native/android/WnSecurePlugin.kt).
+// Android only: the login token is kept in the phone's secure key store, through the Kotlin add-on called "WnSecure" (native/kotlin/WnSecurePlugin.kt).
 // Without it (a browser, or a build that could not add it) the token stays in localStorage, exactly as before. Every call here can fail and then falls back.
 const secureStore = () => { const P = nativePlugin("WnSecure"); return P && typeof P.get === "function" && typeof P.set === "function" ? P : null; };
 function storeToken(t, done){

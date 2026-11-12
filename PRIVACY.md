@@ -5,7 +5,7 @@ _Last updated: November 2026. This page describes what the app does with your da
 **What Next?** is an Android app by Tokyo Brotherhood that helps you pick what to watch or read next from your AniList lists. It has no servers of its own, no accounts of its own, no ads, no analytics and no crash reporting.
 
 ## What stays on your phone
-- Your AniList login token and username, so you stay signed in.
+- Your AniList login token and username, so you stay signed in. On Android the token is kept in the phone's encrypted storage (protected by a key in the Android Keystore) when your build includes the secure add-on; the release text and the bug report say whether it does. Otherwise it is kept in the app's own storage.
 - Saved copies of what the app loaded (your lists, profile and statistics, titles and pages you opened, the airing calendar), so screens open quickly and work offline. These delete themselves: cards and pages after 3 days, the calendar after 7 days, and your lists and profile after 14 days.
 - Your settings, hidden titles, daily counts, recent chat searches, and changes that are waiting to sync. Each waiting change remembers which AniList account it belongs to, so it is never sent to a different account.
 - If you choose one, the background picture for your Anime and Manga lists (shrunk and kept only on the phone; it is removed when you log out).

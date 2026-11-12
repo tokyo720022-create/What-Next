@@ -116,6 +116,34 @@ const LINK = "whatnext://auth#access_token=ABC.def-123&token_type=Bearer";
     crumb("x".repeat(500)); ok("a long step is cut short", list()[list().length - 1].length <= 89);
   }
 
+  // ---------- the login token and the Android secure store ----------
+  {
+    const code = cut(auth, "const secureStore = ", "if(isNative){");
+    const world = (plugin, local = {}) => {
+      const store = new Map(Object.entries(local)); const removed = [];
+      const ctx = { console, Promise, Map, Object, auth: { token: store.get("wn_token") || null }, nativePlugin: n => n === "WnSecure" ? plugin : null,
+        localStorage: { getItem: k => store.has(k) ? store.get(k) : null, setItem(k, v){ if(ctx.full) throw new Error("quota"); store.set(k, String(v)); }, removeItem: k => { store.delete(k); removed.push(k); } } };
+      vm.createContext(ctx); vm.runInContext(code, ctx);
+      return { run: s => vm.runInContext(s, ctx), store, ctx, auth: ctx.auth };
+    };
+    const mem = () => { const m = new Map(); return { m, get: async ({ key }) => m.has(key) ? { value: m.get(key) } : {}, set: async ({ key, value }) => { m.set(key, value); }, remove: async ({ key }) => { m.delete(key); } }; };
+    { const w = world(null); ok("without the add-on, the plain way still works", w.run("secureStore()") === null && (await w.run("tokenHydrate()")) === undefined); let got; w.run('storeToken("T1", ok => { globalThis.__r = ok; })'); ok("without the add-on, the token is saved at once, in localStorage", w.store.get("wn_token") === "T1" && w.ctx.__r === true); }
+    { const P = mem(), w = world(P); await new Promise(r => { w.ctx.cb = ok => { w.ctx.res = ok; r(); }; w.run('storeToken("T2", cb)'); });
+      ok("with the add-on, the token goes to the secure store and not to localStorage", P.m.get("wn_token") === "T2" && !w.store.has("wn_token") && w.ctx.res === true); }
+    { const P = mem(); P.m.set("wn_token", "SECURE"); const w = world(P); await w.run("tokenHydrate()");
+      ok("at start the token is read from the secure store", w.auth.token === "SECURE" && !w.store.has("wn_token")); }
+    { const P = mem(), w = world(P, { wn_token: "OLD" }); await w.run("tokenHydrate()");
+      ok("an old plain-text token moves to the secure store, and is deleted once it reads back", P.m.get("wn_token") === "OLD" && !w.store.has("wn_token") && w.auth.token === "OLD"); }
+    { const P = mem(); P.set = async () => {}; const w = world(P, { wn_token: "OLD" }); await w.run("tokenHydrate()");
+      ok("if the secure store does not hold what was written, the plain copy is kept", w.store.get("wn_token") === "OLD" && w.auth.token === "OLD"); }
+    { const P = { get: async () => { throw new Error("keystore broken"); }, set: async () => { throw new Error("keystore broken"); }, remove: async () => {} }, w = world(P, { wn_token: "OLD" }); await w.run("tokenHydrate()");
+      ok("a broken secure store never logs anyone out: the plain copy keeps working", w.auth.token === "OLD" && w.store.get("wn_token") === "OLD");
+      await new Promise(r => { w.ctx.cb = ok => { w.ctx.res = ok; r(); }; w.run('storeToken("T3", cb)'); });
+      ok("and a login still saves, in the plain way", w.store.get("wn_token") === "T3" && w.ctx.res === true); }
+    ok("clearAuth also deletes the secure copy", /function clearAuth\(\)\{[\s\S]*?secureStore\(\)[\s\S]*?remove\(\{ key: "wn_token" \}\)[\s\S]*?\n\}/.test(auth));
+    ok("start() fetches the token before anything else", /\(async function start\(\)\{\n\s*await tokenHydrate\(\);/.test(read("js/core/start.js")));
+  }
+
   // ---------- waiting edits belong to one account ----------
   const tr = read("js/core/tracker.js");
   function queueWorld(stateUid, pendObj){

@@ -21,6 +21,7 @@ async function diagReport(){
     box(body, "List body"), box(body && body.children[0], "First card"),
     L ? "State: type=" + curType + " entries=" + (L.entries ? L.entries.length : "none") + " status=" + L.status + " shown=" + L.shown + " drawn=" + L.drawn + " stale=" + L.stale + " offline=" + L.offline : "",
     "Errors: " + (window.__wnErrors.length ? window.__wnErrors.join(" | ") : "none"),
+    "Secure login storage: " + (typeof secureStore === "function" && secureStore() ? "on" : "off"),
     "Recent steps:" + (crumbs.length ? "\n  " + crumbs.join("\n  ") : " none")].join("\n");
 }
 // Removes the service worker and its caches, then reloads, so the phone fetches every file fresh.

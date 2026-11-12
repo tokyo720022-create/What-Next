@@ -9,6 +9,7 @@ try{
 legacyCleanup();
 
 (async function start(){
+  await tokenHydrate();                                      // Android: the login comes from the secure store (does nothing in a browser)
   cacheSweep();                                              // delete anything saved for too long
   if(auth.token && sessionExpired()) await signOutExpired(); // not used for 14 days: sign out before anything is shown or asked
   else if(auth.token) sessionTouch();

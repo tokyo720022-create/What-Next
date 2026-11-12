@@ -76,6 +76,7 @@ function syncAuthUI(){
 function clearAuth(){
   auth.token = null;
   try{ localStorage.removeItem("wn_token"); }catch(_){}
+  try{ const P = secureStore(); if(P) P.remove({ key: "wn_token" }).catch(() => {}); }catch(_){}
   syncAuthUI();
 }
 async function markDone(e, p, btn){
@@ -134,11 +135,34 @@ function handleAuthUrl(url){
   let want = ""; try{ want = localStorage.getItem("wn_login_state") || ""; }catch(_){}
   if(want && q.get("state") && q.get("state") !== want) return;   // AniList sent back a different state: this login was not started here
   try{ localStorage.removeItem("wn_login_at"); localStorage.removeItem("wn_login_state"); }catch(_){}
-  try{ localStorage.setItem("wn_token", t); }catch(_){ return loginErr("Couldn't save your login: the phone has no room left."); }
-  sessionTouch();   // a fresh login starts the 14-day clock again
-  try{ localStorage.removeItem("wn_name"); }catch(_){}   // whose saved list is this? start() finds out from AniList before showing any
-  try{ const B = nativePlugin("Browser"); if(B && B.close) B.close(); }catch(_){}
-  location.reload();
+  storeToken(t, saved => {
+    if(!saved) return loginErr("Couldn't save your login: the phone has no room left.");
+    sessionTouch();   // a fresh login starts the 14-day clock again
+    try{ localStorage.removeItem("wn_name"); }catch(_){}   // whose saved list is this? start() finds out from AniList before showing any
+    try{ const B = nativePlugin("Browser"); if(B && B.close) B.close(); }catch(_){}
+    location.reload();
+  });
+}
+// Android only: the login token is kept in the phone's secure key store, through the Kotlin add-on called "WnSecure" (native/android/WnSecurePlugin.kt).
+// Without it (a browser, or a build that could not add it) the token stays in localStorage, exactly as before. Every call here can fail and then falls back.
+const secureStore = () => { const P = nativePlugin("WnSecure"); return P && typeof P.get === "function" && typeof P.set === "function" ? P : null; };
+function storeToken(t, done){
+  const P = secureStore(), plain = () => { try{ localStorage.setItem("wn_token", t); return true; }catch(_){ return false; } };
+  if(!P) return done(plain());   // no add-on: save it the plain way, right now
+  P.set({ key: "wn_token", value: t }).then(() => { try{ localStorage.removeItem("wn_token"); }catch(_){} done(true); }).catch(() => done(plain()));
+}
+// Called first thing at start: fetch the token from the secure store, and move an old plain-text one over (it is only deleted once it reads back correctly).
+async function tokenHydrate(){
+  const P = secureStore(); if(!P) return;
+  try{
+    const r = await P.get({ key: "wn_token" });
+    if(r && r.value){ auth.token = r.value; try{ localStorage.removeItem("wn_token"); }catch(_){} return; }
+    if(auth.token){
+      await P.set({ key: "wn_token", value: auth.token });
+      const back = await P.get({ key: "wn_token" });
+      if(back && back.value === auth.token){ try{ localStorage.removeItem("wn_token"); }catch(_){} }
+    }
+  }catch(_){}   // the secure store does not work on this phone: the plain copy keeps working
 }
 if(isNative){
   const A = nativePlugin("App");

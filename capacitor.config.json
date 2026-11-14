@@ -11,7 +11,7 @@
     },
     "LocalNotifications": {
       "smallIcon": "ic_stat_whatnext",
-      "iconColor": "#F5C542"
+      "iconColor": "#8B7CFF"
     }
   }
 }

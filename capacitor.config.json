@@ -8,6 +8,10 @@
   "plugins": {
     "CapacitorHttp": {
       "enabled": true
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_whatnext",
+      "iconColor": "#F5C542"
     }
   }
 }

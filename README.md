@@ -6,7 +6,7 @@ An Android app that picks what to watch or read next from your [AniList](https:/
 
 The app is plain HTML, CSS and JavaScript inside an Android shell ([Capacitor](https://capacitorjs.com)): a thin `index.html` loads the rest of the files, and the included GitHub workflow builds the APK. There is no website version.
 
-A bell at the top (next to your name) opens **Notifications**, and **Settings > Notifications** has the notification switches. There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover**, **Schedule**, and **Profile** (Stats, Chat, and Settings live inside Profile).
+Notifications show the app's own small icon (the logo's play-next symbol in a ring) in the status bar next to the clock, tinted purple in the notification shade (`native/android-res/drawable/ic_stat_whatnext.xml`; Android draws only the shape of a status-bar icon, so it cannot be the colourful logo). A bell at the top (next to your name) opens **Notifications**, and **Settings > Notifications** has the notification switches. There are six tabs along the bottom: **Pick**, **Anime**, **Manga**, **Discover**, **Schedule**, and **Profile** (Stats, Chat, and Settings live inside Profile).
 
 ## Features
 

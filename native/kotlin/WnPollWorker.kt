@@ -155,6 +155,7 @@ class WnPollWorker(context: Context, params: WorkerParameters) : Worker(context,
         fun post(id: Int, title: String, text: String) {
             val n = NotificationCompat.Builder(ctx, CHANNEL)
                 .setSmallIcon(icon)
+                .setColor(0xFF8B7CFF.toInt())
                 .setContentTitle(title)
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))

@@ -2,19 +2,41 @@
    It shows your AniList notifications: episodes that aired, titles added or changed on your list, and activity from other people. */
 // ---------- AniList notifications ----------
 const NF_NAME = "name avatar{medium}", NF_MEDIA = "media{id title{romaji english native} coverImage{large} countryOfOrigin}";
-const NF_FRAGS = [
-  "... on AiringNotification{id type createdAt episode contexts " + NF_MEDIA + "}",
-  "... on RelatedMediaAdditionNotification{id type createdAt mediaId context " + NF_MEDIA + "}",
-  "... on MediaDataChangeNotification{id type createdAt mediaId context reason " + NF_MEDIA + "}",
-  "... on MediaMergeNotification{id type createdAt mediaId context reason deletedMediaTitles " + NF_MEDIA + "}",
-  "... on MediaDeletionNotification{id type createdAt deletedMediaTitle context reason}",
-  "... on FollowingNotification{id type createdAt context user{id " + NF_NAME + "}}",
-  ...["ActivityMessage", "ActivityReply", "ActivityMention", "ActivityLike", "ActivityReplyLike", "ActivityReplySubscribed"].map(k => "... on " + k + "Notification{id type createdAt activityId context user{id " + NF_NAME + "}}"),
-  ...["ThreadCommentMention", "ThreadCommentReply", "ThreadCommentSubscribed", "ThreadCommentLike", "ThreadLike"].map(k => "... on " + k + "Notification{id type createdAt threadId context user{id " + NF_NAME + "}}")
-].join(" ");
-const NF_Q = "query($p:Int,$t:[NotificationType],$r:Boolean){Viewer{unreadNotificationCount} Page(page:$p,perPage:30){pageInfo{hasNextPage} notifications(type_in:$t,resetNotificationCount:$r){__typename " + NF_FRAGS + "}}}";
+const NF_ACT = k => ["... on " + k + "Notification{id type createdAt activityId context user{id " + NF_NAME + "}}"];
+const NF_THR = k => ["... on " + k + "Notification{id type createdAt threadId context user{id " + NF_NAME + "}}"];
+// One entry per notification type: [AniList type name, its fields]. A type AniList rejects is dropped (see nfFetch), so one wrong field never empties the whole list.
+const NF_FR = [
+  ["AiringNotification", "id type createdAt episode contexts " + NF_MEDIA],
+  ["RelatedMediaAdditionNotification", "id type createdAt mediaId context " + NF_MEDIA],
+  ["MediaDataChangeNotification", "id type createdAt mediaId context reason " + NF_MEDIA],
+  ["MediaMergeNotification", "id type createdAt mediaId context reason deletedMediaTitles " + NF_MEDIA],
+  ["MediaDeletionNotification", "id type createdAt deletedMediaTitle context reason"],
+  ["FollowingNotification", "id type createdAt context user{id " + NF_NAME + "}"],
+  ...["ActivityMessage", "ActivityReply", "ActivityMention", "ActivityLike", "ActivityReplyLike", "ActivityReplySubscribed"].map(k => [k + "Notification", "id type createdAt activityId context user{id " + NF_NAME + "}"]),
+  ...["ThreadCommentMention", "ThreadCommentReply", "ThreadCommentSubscribed", "ThreadCommentLike", "ThreadLike"].map(k => [k + "Notification", "id type createdAt threadId context user{id " + NF_NAME + "}"])
+];
+const nfDropped = new Set();
+function nfQuery(typed){
+  const frags = NF_FR.filter(f => !nfDropped.has(f[0])).map(f => "... on " + f[0] + "{" + f[1] + "}").join(" ");
+  return "query($p:Int,$r:Boolean" + (typed ? ",$t:[NotificationType]" : "") + "){Viewer{unreadNotificationCount} Page(page:$p,perPage:30){pageInfo{hasNextPage} notifications(" + (typed ? "type_in:$t," : "") + "resetNotificationCount:$r){__typename " + frags + "}}}";
+}
+// Asks AniList for a page. If AniList refuses the query because of one notification type (an unknown type or field), that type is left out and the rest still load.
+async function nfFetch(page, types){
+  let last = "AniList sent no notifications. Try again.";
+  for(let i = 0; i < 12; i++){
+    const vars = { p: page, r: page === 1 }; if(types) vars.t = types;
+    const { json } = await gql(nfQuery(!!types), vars), pg = json.data && json.data.Page;
+    if(pg && pg.notifications) return pg;
+    const msg = (json.errors && json.errors[0] && json.errors[0].message) || "";
+    if(msg) last = msg;
+    const m = /on type "(\w+Notification)"|Unknown type "(\w+Notification)"|never be of type "(\w+Notification)"/.exec(msg), bad = m && (m[1] || m[2] || m[3]);
+    if(!bad || nfDropped.has(bad) || !NF_FR.some(f => f[0] === bad)) break;
+    nfDropped.add(bad);
+  }
+  throw new Error(last);
+}
 const NF_COUNT_Q = "query{Viewer{unreadNotificationCount}}";
-const nfS = { filter: "all", page: 0, more: false, busy: false, rows: [], seen: 0, gen: 0 };
+const nfS = { filter: "all", page: 0, more: false, busy: false, rows: [], seen: 0, gen: 0, err: "" };
 const nfSeenGet = () => Number(localStorage.getItem("wn_nf_seen")) || 0;
 
 function nfBadgeSet(n){
@@ -50,16 +72,16 @@ function nfDraw(){
   const box = $("#nfList"); box.replaceChildren();
   for(const n of nfS.rows) box.append(nfRow(n, (n.createdAt || 0) > nfS.seen));
   $("#nfMore").hidden = !nfS.more;
-  if(!nfS.rows.length && !nfS.busy) $("#nfMsg").textContent = "Nothing here yet. You will see aired episodes, titles added to your list and activity from other people.";
+  if(nfS.err) $("#nfMsg").textContent = nfS.err;
+  else if(!nfS.rows.length && !nfS.busy) $("#nfMsg").textContent = "Nothing here yet. You will see aired episodes, titles added to your list and activity from other people.";
 }
 async function nfLoad(reset){
   if(nfS.busy) return;
   const first = reset || !nfS.page, page = first ? 1 : nfS.page + 1, gen = ++nfS.gen;
-  nfS.busy = true; $("#nfMsg").textContent = first && !nfS.rows.length ? "Loading…" : "";
+  nfS.busy = true; nfS.err = ""; $("#nfMsg").textContent = first && !nfS.rows.length ? "Loading…" : "";
   $("#nfMore").disabled = true;
   try{
-    const { json } = await gql(NF_Q, { p: page, t: NF_FILTERS[nfS.filter], r: page === 1 }), pg = json.data && json.data.Page;
-    if(!pg) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "AniList sent no notifications. Try again.");
+    const pg = await nfFetch(page, NF_FILTERS[nfS.filter]);   // r: page === 1 inside: the first page marks them read on AniList
     if(gen !== nfS.gen) return;   // a newer request (another filter) took over
     const got = (pg.notifications || []).filter(Boolean);
     if(first){ nfS.seen = nfSeenGet(); nfS.rows = got; } else nfS.rows = nfS.rows.concat(got);
@@ -69,14 +91,14 @@ async function nfLoad(reset){
     if(top > nfSeenGet()){ try{ localStorage.setItem("wn_nf_seen", String(top)); }catch(_){} }
     $("#nfMsg").textContent = "";
   }catch(err){
-    if(gen === nfS.gen) $("#nfMsg").textContent = isNetErr(err) ? "Couldn't reach AniList. Check your connection and try again." : err.message;
+    if(gen === nfS.gen) nfS.err = isNetErr(err) ? "Couldn't reach AniList. Check your connection and try again." : "AniList could not load your notifications: " + err.message;
   }finally{
     if(gen === nfS.gen){ nfS.busy = false; $("#nfMore").disabled = false; nfDraw(); }
   }
 }
 // Opening the screen (showTab calls this)
 function nfOpen(){
-  nfS.rows = []; nfS.page = 0; nfS.more = false; nfS.busy = false; nfS.gen++;
+  nfS.err = ""; nfS.rows = []; nfS.page = 0; nfS.more = false; nfS.busy = false; nfS.gen++;
   document.querySelectorAll("#nfFilter .chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === nfS.filter)));
   nfDraw(); nfLoad(true);
 }

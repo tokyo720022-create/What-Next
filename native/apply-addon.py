@@ -21,7 +21,8 @@ KOTLIN = "1.9.25"
 CRYPTO = "androidx.security:security-crypto:1.1.0-alpha06"
 WORK = "androidx.work:work-runtime:2.9.1"
 KOTLIN_FILES = ["WnSecurePlugin.kt"]
-NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt"]
+NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt"]
+EXTRA_PLUGINS = ["WnNotifyPlugin", "WnImagePlugin"]   # registered next to WnSecurePlugin unless --secure-only
 MARK = "what-next-addon"
 
 
@@ -96,6 +97,7 @@ def main(android, here, notify=True):
         fail("MainActivity is a Kotlin file, which this script does not change")
     text = read(main_activity)
     original = text
+    extras = EXTRA_PLUGINS if notify else []
     if "registerPlugin(WnSecurePlugin.class)" not in text:
         m = re.search(r"public\s+class\s+MainActivity\s+extends\s+BridgeActivity\s*\{\s*\}", text)
         if not m:
@@ -108,19 +110,21 @@ def main(android, here, notify=True):
             "%s"
             "        super.onCreate(savedInstanceState);\n"
             "    }\n"
-            "}" % (MARK, "        registerPlugin(WnNotifyPlugin.class);   // %s\n" % MARK if notify else "")
+            "}" % (MARK, "".join("        registerPlugin(%s.class);   // %s\n" % (x, MARK) for x in extras))
         )
         text = text[: m.start()] + body + text[m.end():]
         p = re.search(r"^package [^\n]*\n", text, re.M)
         if not p:
             fail("MainActivity.java has no package line")
-        text = text[: p.end()] + "\nimport android.os.Bundle;\nimport %s.WnSecurePlugin;\n%s" % (PACKAGE, "import %s.WnNotifyPlugin;\n" % PACKAGE if notify else "") + text[p.end():]
-    elif notify and "registerPlugin(WnNotifyPlugin.class)" not in text:
-        # an earlier run added only the secure login storage: add the second plugin next to the first
-        text = text.replace("registerPlugin(WnSecurePlugin.class);", "registerPlugin(WnSecurePlugin.class);\n        registerPlugin(WnNotifyPlugin.class);", 1)
-        text = text.replace("import %s.WnSecurePlugin;" % PACKAGE, "import %s.WnSecurePlugin;\nimport %s.WnNotifyPlugin;" % (PACKAGE, PACKAGE), 1)
-        if "registerPlugin(WnNotifyPlugin.class)" not in text or "import %s.WnNotifyPlugin;" % PACKAGE not in text:
-            fail("MainActivity.java was changed by hand, so the notify add-on cannot be registered automatically")
+        text = text[: p.end()] + "\nimport android.os.Bundle;\nimport %s.WnSecurePlugin;\n%s" % (PACKAGE, "".join("import %s.%s;\n" % (PACKAGE, x) for x in extras)) + text[p.end():]
+    else:
+        # an earlier run added only some plugins: add the missing ones next to the first
+        for x in extras:
+            if "registerPlugin(%s.class)" % x not in text:
+                text = text.replace("registerPlugin(WnSecurePlugin.class);", "registerPlugin(WnSecurePlugin.class);\n        registerPlugin(%s.class);" % x, 1)
+                text = text.replace("import %s.WnSecurePlugin;" % PACKAGE, "import %s.WnSecurePlugin;\nimport %s.%s;" % (PACKAGE, PACKAGE, x), 1)
+                if "registerPlugin(%s.class)" % x not in text or "import %s.%s;" % (PACKAGE, x) not in text:
+                    fail("MainActivity.java was changed by hand, so the add-on cannot be registered automatically")
     if text != original:
         writes[main_activity] = text
 

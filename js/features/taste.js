@@ -1,6 +1,6 @@
 /* js/features/taste.js: Taste report (Profile > Your taste report). The maths lives in taste-math.js. */
 // ---------- Taste report ----------
-const TZ_F = "status score(format:POINT_100) media{id isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} genres tags{name rank isMediaSpoiler} averageScore popularity startDate{year}}";
+const TZ_F = "status score(format:POINT_100) progress completedAt{year} startedAt{year} media{id isAdult siteUrl format episodes chapters source studios(isMain:true){nodes{name}} title{romaji english native} countryOfOrigin coverImage{large} genres tags{name rank isMediaSpoiler} averageScore popularity startDate{year}}";
 const TZ_REF_Q = "query TasteRef($p:Int,$t:MediaType){Page(page:$p,perPage:50){media(type:$t,sort:POPULARITY_DESC,isAdult:false){id genres tags{name rank isMediaSpoiler}}}}";
 const TZ_REF_PAGES = 4;
 const tz = { type: "anime", token: 0, cache: {} };
@@ -63,12 +63,18 @@ function tzRender(rep){
     const cv = el("div", "tzcovers"); for(const m of rep.arch.covers){ const i = el("img"); i.src = (m.coverImage && m.coverImage.large) || ""; i.alt = ""; cv.append(i); }
     hl.append(cv); hero.append(hl);
   }
+  const ex = rep.extra;
+  if(ex && ex.runnerUp) hero.append(el("p", "tzalso", "Also in you: " + ex.runnerUp.name + " (" + ex.runnerUp.tag + " " + tzX(ex.runnerUp.lift) + ")"));
   const th = el("div", "tzths"); for(const t of rep.themes.up.concat(rep.themes.down)) th.append(tzTheme(t));
   if(th.childNodes.length) hero.append(el("span", "tzk tzk2", "Theme index"), th);
   body.append(hero);
   const strip = el("div", "tzstats");
   for(const [n, l] of [[rep.n, "Titles"], [rep.scored, "Rated"], [TZ_REF_PAGES * 50, "Popular titles compared"]]){ const c = el("div", "tzstat"); c.append(el("b", null, String(n)), el("span", null, l)); strip.append(c); }
   body.append(strip);
+  if(ex){
+    const sc = el("div", "tzcard tzsum"); sc.append(el("span", "tzk", "Your " + kind + " in a line"), el("p", "tzsumt", ex.summary));
+    const cf = el("div", "tzconf"); cf.append(el("b", "tzcl " + ex.confidence.level.toLowerCase(), ex.confidence.level + " confidence"), el("span", null, ex.confidence.line)); sc.append(cf); body.append(sc);
+  }
   // personality type
   const ty = el("div", "tzcard"), head = el("div", "tzhead"); head.append(el("h3", "tzbig", rep.typeName), el("span", "tzcode", rep.code));
   const letters = el("div", "tzletters");
@@ -112,11 +118,46 @@ function tzRender(rep){
   }
   vb.append(el("p", "tzfoot", "Each side is compared with the average fan. In the middle, both sides pull equally."));
   body.append(vb);
-  const share = el("button", "go", "Share my taste report"); share.onclick = () => tzShare(rep); body.append(share);
+  if(ex) tzExtra(rep, body, kind);
+  const share = el("button", "go", "Share my taste report"); share.onclick = () => tsOpen(rep); body.append(share);
   body.append(el("p", "tzfoot", "Based on " + rep.n + " " + kind + " titles in your list (" + rep.scored + " rated), compared with the most popular titles on AniList."));
 }
 
-async function tzShare(rep){
+// The extra cards: what your list says, how you rate, eras and formats, studios, and new titles to try.
+function tzExtra(rep, body, kind){
+  const x = rep.extra, card = (title) => { const c = el("div", "tzcard"); c.append(el("h3", "tzbig sm", title)); body.append(c); return c; };
+  if(x.lines.length){
+    const c = card("What your list says");
+    for(const ln of x.lines){ const r = el("div", "tzins"), t = el("div"); t.append(el("b", null, ln.head), el("span", null, ln.body)); r.append(el("i", null, ln.icon), t); c.append(r); }
+  }
+  if(x.style.known){
+    const c = card("How you rate"), s = x.style, hist = el("div", "tzhist"), max = Math.max(...s.hist, 1);
+    s.hist.forEach((n, i) => { const col = el("div", "tzhc"), bar = el("b"); bar.style.height = Math.max(n ? 6 : 2, Math.round(n / max * 100)) + "%"; if(n === max) bar.className = "top"; col.append(bar, el("span", null, String(i + 1))); col.title = n + " rated " + (i + 1); hist.append(col); });
+    const chips = el("div", "tzchips");
+    for(const t of ["Average " + s.mean.toFixed(1), "Median " + s.median.toFixed(1), s.label + " rater"].concat(s.bias !== null ? [(s.bias >= 0 ? "+" : "−") + Math.abs(s.bias).toFixed(1) + " vs fans"] : [])) chips.append(el("span", "tzcp", t));
+    c.append(hist, chips, el("p", "tzfoot", s.narrow ? "You stay in a narrow band of the scale, so a very high or low score from you means a lot." : "You use a wide part of the scale, so your scores separate favourites from the rest."));
+  }
+  if(x.decades.rows.length >= 2 || x.formats.length){
+    const c = card("Eras and formats");
+    const mx = Math.max(...x.decades.rows.map(r => r.pct), 1);
+    for(const r of x.decades.rows){ const row = el("div", "tzdec"), bar = el("div", "tzdbar"), f = el("b"); f.style.width = Math.round(r.pct / mx * 100) + "%"; bar.append(f); row.append(el("span", null, r.label), bar, el("em", null, r.pct + "%")); c.append(row); }
+    if(x.formats.length){ const chips = el("div", "tzchips"); for(const f of x.formats) chips.append(el("span", "tzcp", f.name + " " + f.pct + "%")); c.append(chips); }
+  }
+  if(x.studios.length){
+    const c = card("Studios you keep coming back to"), chips = el("div", "tzchips");
+    for(const s of x.studios) chips.append(el("span", "tzcp", s.name + " · " + s.n)); c.append(chips);
+  }
+  const next = card("Try next, picked from your taste"), row = el("div", "tzrow"); next.append(row);
+  row.append(el("div", "msg", "Looking for titles that are not on your lists…"));
+  ptPool(rep.type).then(r => {
+    const shown = (r.items || []).filter(i => !i.m.isAdult && !hide.has(i.m.id)).slice(0, 8);
+    row.replaceChildren(); for(const i of shown) row.append(tzTile(i.m, ""));
+    if(!shown.length) next.remove();
+  }).catch(() => next.remove());
+}
+
+// The text version, used when the picture cannot be made or shared.
+async function tzShareAsText(rep){
   const text = tzShareText(rep);
   try{ if(navigator.share){ await navigator.share({ title: "My taste report", text }); return; } }catch(e){ if(e && e.name === "AbortError") return; }
   try{ await navigator.clipboard.writeText(text); toast("Copied your taste report"); }catch(_){ toast("Couldn't share from here"); }
@@ -127,7 +168,8 @@ async function tzGet(type){
   if(tz.cache[type]) return tz.cache[type];
   if(!state.user) throw new Error("Failed to fetch");
   const entries = await collection(state.user, type.toUpperCase(), "status_in:[COMPLETED,CURRENT,REPEATING,PAUSED,DROPPED]", TZ_F);
-  const rep = tzBuild(entries, await tzRef(type), type, new Date().getFullYear());
+  const ref = await tzRef(type), year = new Date().getFullYear(), rep = tzBuild(entries, ref, type, year);
+  if(rep.ready){ try{ rep.extra = tiBuild(entries, rep, ref, type, year); }catch(_){ rep.extra = null; } }
   tz.cache[type] = rep;
   if(rep.ready){ const s = tzSum(); s[type] = { name: rep.arch.name, code: rep.code, type: rep.typeName }; LSset("wn_taste_sum", s); tzEntry(); }
   return rep;

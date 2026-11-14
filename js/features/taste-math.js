@@ -165,7 +165,7 @@ function tzGenres(entries){
     const best = entries.filter(e => tzShown(e) && !used.has(e.media.id) && (e.media.genres || []).includes(g)).sort((a, b) => (b.score || 0) - (a.score || 0) || (b.media.averageScore || 0) - (a.media.averageScore || 0) || a.media.id - b.media.id)[0];
     if(best){ used.add(best.media.id); picks.push({ m: best.media, label: "" }); }
   }
-  return { bars, picks };
+  return { bars, picks, names: all.slice(0, 8).map(x => x[0]) };
 }
 function tzGaps(entries){
   return entries.filter(e => tzShown(e) && e.score > 0 && e.media.averageScore > 0)

@@ -7,7 +7,7 @@ def main(page, out):
     check("splash used the logo image", page.evaluate("performance.getEntriesByType('resource').some(r => r.name.includes('logo-512.png'))"))
     check("splash is removed after loading", page.locator("#boot").count() == 0)
     check("header shows the logo image", page.evaluate("(() => { const i = document.querySelector('.brand img.logo'); return !!i && i.naturalWidth > 0; })()"))
-    check("no Log out button in the header", page.locator("#whoBar button").count() == 0 and page.locator("header #logout").count() == 0)
+    check("no Log out button in the header", page.locator("#whoBar button:not(#bellBtn)").count() == 0 and page.locator("header #logout").count() == 0)
     # a failing AniList request shows a message and can be retried
     NET["profileerr"] = True; page.click('#tabs [data-v="profile"]'); page.wait_for_selector("#profErr:not([hidden])")
     check("profile error is shown, not blank", "Too Many Requests" in page.inner_text("#profErr"), page.inner_text("#profErr"))

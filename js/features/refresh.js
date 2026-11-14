@@ -13,7 +13,8 @@ const PTR_ACTIONS = {
   "#profile": async () => { await profRefresh(); },
   "#stats": async () => { asCache.clear(); showStats(); },
   "#taste": async () => { tz.cache = {}; await tzLoad(); },
-  "#chat": async () => { renderRecent(); }
+  "#chat": async () => { renderRecent(); },
+  "#notifs": async () => { nfS.busy = false; await nfLoad(true); }
 };
 const ptrAction = () => { for(const id in PTR_ACTIONS){ const n = $(id); if(n && !n.hidden) return PTR_ACTIONS[id]; } return null; };
 const ptrBlocked = () => !!document.querySelector(".sheet:not([hidden]), .dsheet");

@@ -89,10 +89,21 @@ const count = (s, re) => (s.match(re) || []).length;
   const kt = s["app/src/main/java/app/whatnext/addon/WnSecurePlugin.kt"];
   ok("the Kotlin file is copied into the project", kt === read("native/kotlin/WnSecurePlugin.kt"));
   const main = s["app/src/main/java/com/whatnext/app/MainActivity.java"];
+  ok("the background alert files are copied and the WorkManager library is added once", ["WnNotifyPlugin.kt", "WnPollWorker.kt"].every(f => s["app/src/main/java/app/whatnext/addon/" + f] === read("native/kotlin/" + f)) && count(s["app/build.gradle"], /implementation "androidx\.work:work-runtime:2\.9\.1"/g) === 1 && /import app\.whatnext\.addon\.WnNotifyPlugin;/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]));
+  ok("MainActivity registers both plugins before the bridge starts", s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") > 0 && s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") < s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("super.onCreate(savedInstanceState)"));
   ok("MainActivity registers the plugin before the bridge starts", /import android\.os\.Bundle;\nimport app\.whatnext\.addon\.WnSecurePlugin;/.test(main) && main.indexOf("registerPlugin(WnSecurePlugin.class)") > 0 && main.indexOf("registerPlugin(WnSecurePlugin.class)") < main.indexOf("super.onCreate(savedInstanceState)") && /^package com\.whatnext\.app;/.test(main) && main.includes("import com.getcapacitor.BridgeActivity;"));
   // running it again changes nothing and adds nothing twice
   const r2 = run(a), s2 = snapshot(a);
-  ok("running it twice does no harm", r2.status === 0 && JSON.stringify(s2) === JSON.stringify(s) && count(s2["build.gradle"], /kotlin-gradle-plugin/g) === 1 && count(s2["app/build.gradle"], /security-crypto/g) === 1 && count(s2["app/src/main/java/com/whatnext/app/MainActivity.java"], /registerPlugin/g) === 1);
+  ok("running it twice does no harm", r2.status === 0 && JSON.stringify(s2) === JSON.stringify(s) && count(s2["build.gradle"], /kotlin-gradle-plugin/g) === 1 && count(s2["app/build.gradle"], /security-crypto/g) === 1 && count(s2["app/build.gradle"], /work-runtime/g) === 1 && count(s2["app/src/main/java/com/whatnext/app/MainActivity.java"], /registerPlugin/g) === 2);
+}
+// ---- secure login storage alone (the fallback when the background alerts do not build)
+{
+  const a = project(), r = spawnSync("python3", [path.join(ROOT, "native/apply-addon.py"), a, "--secure-only"], { encoding: "utf8" }), s = snapshot(a);
+  const main = s["app/src/main/java/com/whatnext/app/MainActivity.java"];
+  ok("--secure-only adds the login storage and nothing of the alerts", r.status === 0 && /background alerts: no/.test(r.stdout) && s["app/src/main/java/app/whatnext/addon/WnSecurePlugin.kt"] && !s["app/src/main/java/app/whatnext/addon/WnNotifyPlugin.kt"] && !s["app/src/main/java/app/whatnext/addon/WnPollWorker.kt"] && !/work-runtime/.test(s["app/build.gradle"]) && !/WnNotify/.test(main) && /registerPlugin\(WnSecurePlugin\.class\)/.test(main), r.stdout + r.stderr);
+  // then the full add-on on top of it (an upgrade): the second plugin is added next to the first, nothing twice
+  const r2 = run(a), s2 = snapshot(a), main2 = s2["app/src/main/java/com/whatnext/app/MainActivity.java"];
+  ok("the full add-on can be applied after the secure-only one", r2.status === 0 && count(main2, /registerPlugin\(WnSecurePlugin\.class\)/g) === 1 && count(main2, /registerPlugin\(WnNotifyPlugin\.class\)/g) === 1 && count(main2, /import app\.whatnext\.addon\.WnNotifyPlugin;/g) === 1 && count(s2["app/build.gradle"], /security-crypto/g) === 1 && count(s2["app/build.gradle"], /work-runtime/g) === 1 && count(s2["build.gradle"], /kotlin-gradle-plugin/g) === 1, r2.stdout + r2.stderr);
 }
 // ---- the Java version is taken from the project
 {
@@ -122,11 +133,26 @@ ok("every method is wrapped so a failure becomes a rejection, not a crash", ["ge
 ok("a stored value is never written to the log", !/\bLog\.|println\(|Timber|printStackTrace/.test(kt));
 ok("a save is confirmed (commit), not fire-and-forget", /putString\(k, v\)\.commit\(\)/.test(kt));
 
+// ---- the background alert files' rules
+const kp = read("native/kotlin/WnNotifyPlugin.kt"), kw = read("native/kotlin/WnPollWorker.kt");
+ok("the notify plugin is called WnNotify, the name the app looks for", /@CapacitorPlugin\(name = "WnNotify"\)/.test(kp) && /nativePlugin\("WnNotify"\)/.test(read("js/features/notify.js")) && /@PluginMethod\s+fun configure\(call: PluginCall\)/.test(kp));
+ok("configure is wrapped so a failure is a rejection, not a crash, and the type list is cleaned before it goes into a query", /try \{[\s\S]*catch \(e: Exception\)[\s\S]*call\.reject/.test(kp) && /isUpperCase\(\) \|\| it == '_' \|\| it == ','/.test(kp));
+ok("the check runs every 30 minutes, only with a connection, and replaces its own earlier schedule", /30, TimeUnit\.MINUTES/.test(kp) && /NetworkType\.CONNECTED/.test(kp) && /enqueueUniquePeriodicWork\(WnPollWorker\.WORK, ExistingPeriodicWorkPolicy\.UPDATE/.test(kp) && /cancelUniqueWork/.test(kp));
+ok("a first run only remembers the time, so old notifications never flood the phone", /contains\("last"\)/.test(kp) && /if \(at > last\) fresh\.add/.test(kw));
+ok("the worker reads the login from the same encrypted store and only talks to AniList", /"wn_secure"/.test(kw) && /"wn_token"/.test(kw) && /https:\/\/graphql\.anilist\.co/.test(kw) && (kw.match(/https?:\/\//g) || []).length === 1);
+ok("the worker never marks notifications read on AniList, so the unread count in the app stays right", !/resetNotificationCount/.test(kw));
+ok("any problem ends a run quietly and the token is never logged", /catch \(e: Exception\)[\s\S]*Result\.success\(\)/.test(kw) && !/\bLog\.|println\(|printStackTrace/.test(kw + kp));
+ok("a missing value from AniList is never shown as the word null", /isNull\(key\)/.test(kw));
+ok("tapping an alert opens the app on the Notifications list (the link the app understands)", /whatnext:\/\/notifications/.test(kw) && /whatnext:\\\/\\\/notifications/.test(read("js/features/notify.js")));
+
 // ---- the workflow
 const wf = read(".github/workflows/build-apk.yml");
 ok("the workflow adds the add-on after cap sync and before the build", wf.indexOf("npx cap sync android") < wf.indexOf("python3 native/apply-addon.py android") && wf.indexOf("python3 native/apply-addon.py android") < wf.indexOf("assembleRelease"));
 ok("if adding the add-on fails, the project is restored from the copy made just before", /cp -r android \/tmp\/android\.pristine/.test(wf) && /rm -rf android && cp -r \/tmp\/android\.pristine android/.test(wf));
-ok("if the build fails with the add-on, it is built again without it before any debug fallback", wf.indexOf("built again without it") > 0 && wf.indexOf("built again without it") < wf.indexOf("assembleDebug") && (wf.match(/assembleRelease/g) || []).length === 2);
-ok("the release text says whether the add-on is in", /Native add-on \(secure login storage\): \$\{\{ steps\.build\.outputs\.addon \}\}/.test(wf));
+ok("if the build fails with the add-ons, it is built again with the login storage alone, then with nothing, before any debug fallback", wf.indexOf("built again with only the secure login storage") > 0 && wf.indexOf("built again without it") > wf.indexOf("built again with only the secure login storage") && wf.indexOf("built again without it") < wf.indexOf("assembleDebug") && (wf.match(/assembleRelease/g) || []).length === 3 && /apply-addon\.py android --secure-only/.test(wf));
+ok("the release text says which add-ons are in", /Native add-ons \([^)]*\): \$\{\{ steps\.build\.outputs\.addon \}\}/.test(wf));
+ok("the build adds the notification icon, the permissions and the plugin check", /ic_stat_whatnext\.xml/.test(wf) && ["POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "SCHEDULE_EXACT_ALARM", "USE_EXACT_ALARM"].every(p => wf.includes("android.permission." + p)) && /@capacitor\/local-notifications/.test(wf) && fs.existsSync(path.join(ROOT, "native/android-res/drawable/ic_stat_whatnext.xml")));
+ok("an out-of-date package-lock.json falls back to npm install instead of stopping the build", /npm ci \|\| \{/.test(wf) && /npm install/.test(wf));
+ok("the plugin the reminders use is listed in package.json and set up in capacitor.config.json", /"@capacitor\/local-notifications"/.test(read("package.json")) && /ic_stat_whatnext/.test(read("capacitor.config.json")));
 ok("the root copy of the workflow matches", fs.readFileSync(path.join(ROOT, "build-apk.yml"), "utf8").replace(/\r\n/g, "\n").trimEnd() === wf.replace(/\r\n/g, "\n").trimEnd());
 console.log("\n" + pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

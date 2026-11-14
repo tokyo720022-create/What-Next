@@ -1,7 +1,7 @@
 /* js/core/tabs.js: bottom tabs, screen switching, blur covers */
 // ---------- Tabs and cover blur ----------
-const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", taste: "#taste", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
-const TAB_OF = { taste: "profile", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
+const SCREENS = { pick: "#pickWrap", anime: "#lists", manga: "#lists", discover: "#discover", seasonal: "#seasonal", taste: "#taste", calendar: "#calendar", schedule: "#schedule", profile: "#profile", stats: "#stats", chat: "#chat", settings: "#settings", notifications: "#notifs", "set-notify": "#setNotify", "set-app": "#setApp", "set-anilist": "#setAnilist", "set-lists": "#setLists", "set-sync": "#setSync", "set-account": "#setAccount", "set-about": "#setAbout" };
+const TAB_OF = { notifications: "", "set-notify": "profile", taste: "profile", seasonal: "discover", calendar: "discover", stats: "profile", chat: "profile", settings: "profile", "set-app": "profile", "set-anilist": "profile", "set-lists": "profile", "set-sync": "profile", "set-account": "profile", "set-about": "profile" };
 function showTab(t){
   if(typeof crumb === "function") crumb("screen " + t);
   if(t === "set-sync" && !advancedOn()) t = "settings";   // AniList Triple Sync only opens when Advanced features are on
@@ -16,6 +16,8 @@ function showTab(t){
   if(t === "schedule") renderSchedule();
   if(t === "stats") showStats();
   if(t === "chat") renderRecent();
+  if(t === "notifications") nfOpen();
+  if(t === "set-notify") nfFill();
   if(t === "profile") renderProfile();
   if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); }
   if(t === "set-sync"){ tsFill(); tsRenderStatus(); }

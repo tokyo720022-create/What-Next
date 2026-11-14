@@ -36,9 +36,10 @@ legacyCleanup();
     syncAniOptions();
     flushPending();
     setTimeout(maybeAutoSync, 3000);
+    nfStarted();
   }catch(err){
     let cn = ""; try{ cn = localStorage.getItem("wn_name") || ""; state.uid = Number(localStorage.getItem("wn_uid")) || 0; }catch(_){}
-    if(cn && auth.token){ state.user = cn; return loadList(cn); }
+    if(cn && auth.token){ state.user = cn; nfStarted(); return loadList(cn); }
     readyNow(); loginErr(err.message); syncAuthUI();
   }
 })();

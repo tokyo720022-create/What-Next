@@ -73,7 +73,7 @@ function findEntry(id, type){
   return { cur: { status: src.status, progress: src.progress || 0, repeat: src.repeat || 0, startedAt: src.startedAt, completedAt: src.completedAt }, total: total || null };
 }
 const FIELDS = ["status", "progress", "repeat", "startedAt", "completedAt"];
-const savePool = () => cacheSetSoon("acct", "pool_" + acctUser(), state.items, 600);   // saved a moment later, so a burst of taps writes once
+const savePool = () => { cacheSetSoon("acct", "pool_" + acctUser(), state.items, 600); if(typeof nfSoon === "function") nfSoon(); };   // saved a moment later, so a burst of taps writes once
 
 // Update every on-screen copy at once.
 function applyLocal(id, type, patch){

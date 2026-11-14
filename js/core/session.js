@@ -3,7 +3,7 @@
 
 // What belongs to the account and goes when you sign out. App settings (theme, layout, filters, daily goal) stay.
 const ACCOUNT_KEYS = ["wn_name", "wn_uid", "wn_pending", "wn_chats", "wn_hide", "wn_days", "wn_taste_sum", "wn_tlang", "wn_scorefmt",
-  "wn_ts", "wn_ts_threads", "wn_ts_state_anime", "wn_ts_state_manga", "wn_ts_fail_anime", "wn_ts_fail_manga", "wn_cfg", "wn_sync_anime", "wn_sync_manga", "wn_lybg"];
+  "wn_ts", "wn_ts_threads", "wn_ts_state_anime", "wn_ts_state_manga", "wn_ts_fail_anime", "wn_ts_fail_manga", "wn_cfg", "wn_sync_anime", "wn_sync_manga", "wn_lybg", "wn_nf_seen"];
 // Saved by older versions of the app, before the smart cache. They are never read any more.
 const LEGACY_KEYS = ["wn_cache", "wn_profile", "wn_actdays", "wn_tagcol", "wn_taste_ref_anime", "wn_taste_ref_manga", "wn_client"];
 

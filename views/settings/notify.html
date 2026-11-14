@@ -1,0 +1,32 @@
+<section id="setNotify" hidden>
+  <button class="back" data-go="settings">← Settings</button>
+  <h2 class="ph">Notifications</h2>
+  <p class="sub">Alerts on your phone for the anime and manga on your list (Watching, Rewatching and Planning). Your AniList notifications are under the bell at the top of the app.</p>
+
+  <div class="q">Release reminders</div>
+  <div class="card" style="margin-top:0">
+    <label class="lsrow"><span>Remind me when episodes air</span><input class="lssw" type="checkbox" id="nfReminders"><i class="lsck"></i></label>
+    <div id="nfTimes">
+      <label class="lsrow"><span>3 hours before</span><input class="lssw" type="checkbox" id="nfH3"><i class="lsck"></i></label>
+      <label class="lsrow"><span>30 minutes before</span><input class="lssw" type="checkbox" id="nfM30"><i class="lsck"></i></label>
+      <label class="lsrow"><span>When it airs</span><input class="lssw" type="checkbox" id="nfLive"><i class="lsck"></i></label>
+      <label class="lsrow"><span>On the release day of titles with a release date (anime and manga)</span><input class="lssw" type="checkbox" id="nfToday"><i class="lsck"></i></label>
+    </div>
+    <p class="sub" style="margin:8px 0 0">AniList only gives air times for anime, and about two weeks ahead are planned each time the app opens. Manga chapters have no dates on AniList.</p>
+  </div>
+
+  <div class="q">Changes to your titles</div>
+  <div class="card" style="margin-top:0">
+    <label class="lsrow"><span>Tell me when a sequel is added or a title on my list changes</span><input class="lssw" type="checkbox" id="nfUpdates"><i class="lsck"></i></label>
+    <label class="lsrow"><span>Also likes, replies, mentions, messages and follows</span><input class="lssw" type="checkbox" id="nfSocial"><i class="lsck"></i></label>
+    <p class="sub" style="margin:8px 0 0">These come from AniList and are checked in the background about every 30 minutes, so they can arrive a little late. They need the background add-on in this build; the bug report in About says whether it is on. What AniList notifies you about is still chosen in AniList Settings.</p>
+  </div>
+
+  <div class="q">This phone</div>
+  <div class="card" style="margin-top:0">
+    <p class="sub" id="nfStatus" style="margin:0 0 10px" aria-live="polite"></p>
+    <button class="go" id="nfAllow" hidden>Allow notifications</button>
+    <button class="go alt" id="nfTest" hidden>Send a test notification</button>
+    <p class="sub" style="margin:10px 0 0">If reminders arrive late or not at all, some phones stop apps in the background to save battery. In your phone's settings, set What Next? to unrestricted battery use.</p>
+  </div>
+</section>

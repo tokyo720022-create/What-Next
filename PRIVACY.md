@@ -7,6 +7,7 @@ _Last updated: November 2026. This page describes what the app does with your da
 ## What stays on your phone
 - Your AniList login token and username, so you stay signed in. On Android the token is kept in the phone's encrypted storage (protected by a key in the Android Keystore) when your build includes the secure add-on; the release text and the bug report say whether it does. Otherwise it is kept in the app's own storage.
 - Saved copies of what the app loaded (your lists, profile and statistics, titles and pages you opened, the airing calendar), so screens open quickly and work offline. These delete themselves: cards and pages after 3 days, the calendar after 7 days, and your lists and profile after 14 days.
+- Release reminders: the air times of the anime on your list are turned into phone notifications that Android keeps and shows on its own, so they arrive when the app is closed. They hold only a title, an episode number and a time, and are removed when you log out.
 - Your settings, hidden titles, daily counts, recent chat searches, and changes that are waiting to sync. Each waiting change remembers which AniList account it belongs to, so it is never sent to a different account.
 - If you choose one, the background picture for your Anime and Manga lists (shrunk and kept only on the phone; it is removed when you log out).
 - If you turn on **Triple Sync**: the AniList and MyAnimeList keys and tokens you enter, and an optional Discord webhook address.
@@ -15,6 +16,7 @@ None of this is sent to the developer. The app keeps itself out of Android backu
 
 ## Who the app talks to
 - **AniList** (anilist.co, graphql.anilist.co): you log in on AniList's own page; the app then reads and changes your lists and settings on your behalf. Titles and pictures come from AniList. AniList's own terms and privacy policy apply to that data.
+- **AniList in the background:** if your build includes the background alerts add-on and you leave **Settings > Notifications > Changes to your titles** on, the phone asks AniList about every 30 minutes whether you have new notifications (a sequel added, a title on your list changed, and activity if you turned that on), using your saved login. It only reads; nothing is marked as read, and nothing goes anywhere except to AniList. Turn the switches off, or log out, to stop it.
 - **GitHub** (api.github.com): only when you tap **Check for updates** or **What's new**, to read the latest release of this app.
 - **MyAnimeList** and **Discord**: only if you set up Triple Sync, and only with the details you entered.
 - **YouTube / Dailymotion**: only when you tap a trailer link; it opens in your browser.

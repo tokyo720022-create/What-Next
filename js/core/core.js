@@ -45,6 +45,7 @@ async function loadList(user){
     for(const e of entries){ if(!seen.has(e.media.id)) seen.set(e.media.id, e); }
     state.items = [...seen.values()];
     cacheSet("acct", poolName(user), state.items);
+    if(typeof nfSoon === "function") nfSoon();
     state.user = user;
     const painted = state.fromCache; state.fromCache = false;
     buildGenres(painted);

@@ -75,6 +75,7 @@ function syncAuthUI(){
 }
 function clearAuth(){
   auth.token = null;
+  if(typeof nfSignedOut === "function") nfSignedOut();
   try{ localStorage.removeItem("wn_token"); }catch(_){}
   try{ const P = secureStore(); if(P) P.remove({ key: "wn_token" }).catch(() => {}); }catch(_){}
   syncAuthUI();
@@ -167,8 +168,8 @@ async function tokenHydrate(){
 if(isNative){
   const A = nativePlugin("App");
   if(A && A.addListener){
-    A.addListener("appUrlOpen", ev => handleAuthUrl(ev.url));
-    A.addListener("appStateChange", st => { if(st && st.isActive) sessionResume(); else cacheFlushSoon(); });
+    A.addListener("appUrlOpen", ev => { if(!nfOpenUrl(ev.url)) handleAuthUrl(ev.url); });
+    A.addListener("appStateChange", st => { if(st && st.isActive){ sessionResume(); if(typeof nfResume === "function") nfResume(); } else cacheFlushSoon(); });
     A.addListener("backButton", () => {
       const sheet = document.querySelector(".dsheet,.usheet");
       if(sheet) sheet.remove();
@@ -187,7 +188,7 @@ if(isNative){
       else if($("#pickWrap").hidden) showTab("pick");
       else if(A.exitApp) A.exitApp();
     });
-    if(A.getLaunchUrl) A.getLaunchUrl().then(r => r && handleAuthUrl(r.url)).catch(() => {});
+    if(A.getLaunchUrl) A.getLaunchUrl().then(r => r && !nfOpenUrl(r.url) && handleAuthUrl(r.url)).catch(() => {});
   }
 }
 $("#appsLink").onclick = () => openExternal("https://anilist.co/settings/apps");

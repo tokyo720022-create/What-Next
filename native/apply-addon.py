@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Adds the Kotlin add-on (native/kotlin/WnSecurePlugin.kt) to the Android project that Capacitor generated.
 
-    python3 native/apply-addon.py android
+    python3 native/apply-addon.py android                  (both add-ons)
+    python3 native/apply-addon.py android --secure-only    (only the secure login storage)
 
-It changes four things: the Kotlin plugin in the root build.gradle, the Kotlin settings and the encryption library in
-app/build.gradle, a copy of the Kotlin file, and MainActivity.java (to register the plugin).
+The first add-on keeps the login in encrypted storage (WnSecurePlugin). The second checks AniList for new notifications in the
+background (WnNotifyPlugin and WnPollWorker), so alerts such as "a sequel was added" arrive while the app is closed.
+It changes four things: the Kotlin plugin in the root build.gradle, the Kotlin settings and the libraries in
+app/build.gradle, copies of the Kotlin files, and MainActivity.java (to register the plugins).
 Nothing is written until every check has passed. On any problem it prints a message and exits with 1, and the build goes on
 without the add-on (the app then keeps the login in its normal storage). Running it twice does no harm.
 """
@@ -16,6 +19,9 @@ import sys
 PACKAGE = "app.whatnext.addon"
 KOTLIN = "1.9.25"
 CRYPTO = "androidx.security:security-crypto:1.1.0-alpha06"
+WORK = "androidx.work:work-runtime:2.9.1"
+KOTLIN_FILES = ["WnSecurePlugin.kt"]
+NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt"]
 MARK = "what-next-addon"
 
 
@@ -29,12 +35,13 @@ def read(path):
         return f.read()
 
 
-def main(android, here):
+def main(android, here, notify=True):
     root_gradle = os.path.join(android, "build.gradle")
     app_gradle = os.path.join(android, "app", "build.gradle")
     cap_gradle = os.path.join(android, "app", "capacitor.build.gradle")
-    source = os.path.join(here, "kotlin", "WnSecurePlugin.kt")
-    for f in (root_gradle, app_gradle, source):
+    names = KOTLIN_FILES + (NOTIFY_FILES if notify else [])
+    sources = [os.path.join(here, "kotlin", n) for n in names]
+    for f in [root_gradle, app_gradle] + sources:
         if not os.path.isfile(f):
             fail("cannot find " + f)
 
@@ -72,7 +79,10 @@ def main(android, here):
         app = app.rstrip("\n") + '\n\ndependencies {\n    implementation "%s"   // %s\n}\n' % (CRYPTO, MARK)
         writes[app_gradle] = app
 
-    # MainActivity: register the plugin before the bridge starts.
+    if notify and "androidx.work:work-runtime" not in app:
+        writes[app_gradle] = (writes.get(app_gradle, app)).rstrip("\n") + '\n\ndependencies {\n    implementation "%s"   // %s\n}\n' % (WORK, MARK)
+
+    # MainActivity: register the plugins before the bridge starts.
     java_root = os.path.join(android, "app", "src", "main", "java")
     found = []
     for d, _, files in os.walk(java_root):
@@ -85,6 +95,7 @@ def main(android, here):
     if main_activity.endswith(".kt"):
         fail("MainActivity is a Kotlin file, which this script does not change")
     text = read(main_activity)
+    original = text
     if "registerPlugin(WnSecurePlugin.class)" not in text:
         m = re.search(r"public\s+class\s+MainActivity\s+extends\s+BridgeActivity\s*\{\s*\}", text)
         if not m:
@@ -94,15 +105,23 @@ def main(android, here):
             "    @Override\n"
             "    public void onCreate(Bundle savedInstanceState) {\n"
             "        registerPlugin(WnSecurePlugin.class);   // %s\n"
+            "%s"
             "        super.onCreate(savedInstanceState);\n"
             "    }\n"
-            "}" % MARK
+            "}" % (MARK, "        registerPlugin(WnNotifyPlugin.class);   // %s\n" % MARK if notify else "")
         )
         text = text[: m.start()] + body + text[m.end():]
         p = re.search(r"^package [^\n]*\n", text, re.M)
         if not p:
             fail("MainActivity.java has no package line")
-        text = text[: p.end()] + "\nimport android.os.Bundle;\nimport %s.WnSecurePlugin;\n" % PACKAGE + text[p.end():]
+        text = text[: p.end()] + "\nimport android.os.Bundle;\nimport %s.WnSecurePlugin;\n%s" % (PACKAGE, "import %s.WnNotifyPlugin;\n" % PACKAGE if notify else "") + text[p.end():]
+    elif notify and "registerPlugin(WnNotifyPlugin.class)" not in text:
+        # an earlier run added only the secure login storage: add the second plugin next to the first
+        text = text.replace("registerPlugin(WnSecurePlugin.class);", "registerPlugin(WnSecurePlugin.class);\n        registerPlugin(WnNotifyPlugin.class);", 1)
+        text = text.replace("import %s.WnSecurePlugin;" % PACKAGE, "import %s.WnSecurePlugin;\nimport %s.WnNotifyPlugin;" % (PACKAGE, PACKAGE), 1)
+        if "registerPlugin(WnNotifyPlugin.class)" not in text or "import %s.WnNotifyPlugin;" % PACKAGE not in text:
+            fail("MainActivity.java was changed by hand, so the notify add-on cannot be registered automatically")
+    if text != original:
         writes[main_activity] = text
 
     # Everything checked: now write.
@@ -111,11 +130,15 @@ def main(android, here):
             f.write(content)
     dest_dir = os.path.join(java_root, *PACKAGE.split("."))
     os.makedirs(dest_dir, exist_ok=True)
-    shutil.copyfile(source, os.path.join(dest_dir, "WnSecurePlugin.kt"))
-    print("native add-on: added (Java %s, Kotlin %s, %d file(s) changed)" % (jvm, KOTLIN, len(writes)))
+    for src, n in zip(sources, names):
+        shutil.copyfile(src, os.path.join(dest_dir, n))
+    print("native add-on: added (Java %s, Kotlin %s, %d file(s) changed, background alerts: %s)" % (jvm, KOTLIN, len(writes), "yes" if notify else "no"))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        fail("usage: python3 native/apply-addon.py <android folder>")
-    main(sys.argv[1], os.path.dirname(os.path.abspath(__file__)))
+    args = sys.argv[1:]
+    secure_only = "--secure-only" in args
+    args = [a for a in args if a != "--secure-only"]
+    if len(args) != 1:
+        fail("usage: python3 native/apply-addon.py <android folder> [--secure-only]")
+    main(args[0], os.path.dirname(os.path.abspath(__file__)), not secure_only)

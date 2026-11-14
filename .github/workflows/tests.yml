@@ -1,0 +1,45 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Quick checks
+        run: |
+          node tests/check-structure.js
+          node tests/unit/rules.test.js
+          node tests/unit/cache.test.js
+          node tests/unit/pacer.test.js
+          node tests/unit/about.test.js
+          node tests/unit/cardthemes.test.js
+          node tests/unit/themes.test.js
+          node tests/unit/guards.test.js
+          node tests/unit/secrets.test.js
+          node tests/unit/apk-signing.test.js
+          node tests/unit/native-addon.test.js
+          node tests/unit/codechecks.test.js
+          node tests/unit/notify.test.js
+      - name: TypeScript check (fails only on real mistakes, such as a name that does not exist)
+        run: node tools/tsc-gate.js
+      - name: ESLint (report only for now; read the list, it does not fail the run)
+        continue-on-error: true
+        run: npx --yes eslint@9.14.0 .
+      - name: Install a browser for the screen tests
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Screen tests
+        run: python tests/e2e/run_all.py

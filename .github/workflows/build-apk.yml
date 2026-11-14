@@ -40,8 +40,15 @@ jobs:
         run: |
           grep -q '"@capacitor/app"' package.json || { echo "package.json is missing @capacitor/app. Upload the new package.json."; exit 1; }
           grep -q '"@capacitor/browser"' package.json || { echo "package.json is missing @capacitor/browser. Upload the new package.json."; exit 1; }
+          grep -q '"@capacitor/local-notifications"' package.json || { echo "package.json is missing @capacitor/local-notifications (release reminders need it). Upload the new package.json."; exit 1; }
       - name: Install dependencies (the exact versions in package-lock.json, once that file exists)
-        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: |
+          if [ -f package-lock.json ]; then
+            # npm ci refuses a lock file that does not list a newly added plugin: then npm install adds it (and the build says so).
+            npm ci || { echo "::warning::package-lock.json is out of date (a plugin was added), so npm install was used. Run npm install on a computer and upload the new package-lock.json to get fixed versions again."; npm install; }
+          else
+            npm install
+          fi
       - name: Save package-lock.json the first time, so every later build uses the same versions
         run: |
           if ! git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
@@ -53,6 +60,11 @@ jobs:
         run: npm ls --depth=0 || true
       - run: mkdir -p www && cp -r index.html boot.js css js views assets www/ && (cp config.js www/ || true)
       - run: npx cap add android
+      - name: Add the notification icon (the small bell in the status bar)
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          cp native/android-res/drawable/ic_stat_whatnext.xml android/app/src/main/res/drawable/
+          test -f android/app/src/main/res/drawable/ic_stat_whatnext.xml
       - name: Generate app icon and splash screen
         run: npx --yes @capacitor/assets@3 generate --android --assetPath resources --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#0A0714' --splashBackgroundColorDark '#0A0714' || echo "Icon generation failed. The build continues with the default icon."
       - name: Work out the version of this build
@@ -75,34 +87,59 @@ jobs:
           M=android/app/src/main/AndroidManifest.xml
           if grep -q 'android:allowBackup=' "$M"; then sed -i 's#android:allowBackup="[a-zA-Z]*"#android:allowBackup="false"#' "$M"; else sed -i 's#<application #<application android:allowBackup="false" #' "$M"; fi
           grep -q 'android:allowBackup="false"' "$M" || { echo "Android backup was not turned off in AndroidManifest.xml"; exit 1; }
+          # Release reminders: show notifications (Android 13+), keep them after a restart, and fire at the exact minute (the exact-alarm permission is granted automatically on Android 13+ and by default before).
+          sed -i 's#</manifest>#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/><uses-permission android:name="android.permission.USE_EXACT_ALARM"/></manifest>#' "$M"
+          grep -q 'android.permission.POST_NOTIFICATIONS' "$M" || { echo "The notification permissions were not added to AndroidManifest.xml"; exit 1; }
       - run: npx cap sync android
-      - name: Add the native add-on (Kotlin, secure login storage). If that fails the build goes on without it
+      - name: Add the native add-ons (Kotlin, secure login storage and background alerts). If that fails the build goes on with less
         id: addon
         run: |
           rm -rf /tmp/android.pristine && cp -r android /tmp/android.pristine
           if python3 native/apply-addon.py android; then
             echo "used=yes" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::The native add-on could not be added (see the message above), so this build keeps the login in the app's normal storage."
+            echo "::warning::The native add-ons could not be added (see the message above). Trying the secure login storage alone."
             rm -rf android && cp -r /tmp/android.pristine android
-            echo "used=no" >> "$GITHUB_OUTPUT"
+            if python3 native/apply-addon.py android --secure-only; then
+              echo "used=secure" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::The native add-on could not be added at all, so this build keeps the login in the app's normal storage and has no background alerts."
+              rm -rf android && cp -r /tmp/android.pristine android
+              echo "used=no" >> "$GITHUB_OUTPUT"
+            fi
           fi
       - name: Build the APK (a release build, or a debug build if that fails)
         id: build
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          cd android && chmod +x gradlew
           ADDON="${{ steps.addon.outputs.used }}"
           BUILT=no
+          cd android && chmod +x gradlew
           if ./gradlew assembleRelease; then
             BUILT=yes
           elif [ "$ADDON" = "yes" ]; then
-            echo "::warning::The build failed with the native add-on (see the error above), so it is being built again without it."
-            cd .. && rm -rf android && cp -r /tmp/android.pristine android && cd android && chmod +x gradlew
-            ADDON=no
-            if ./gradlew assembleRelease; then BUILT=yes; fi
+            echo "::warning::The build failed with the background alerts add-on (see the error above), so it is being built again with only the secure login storage."
+            cd "$GITHUB_WORKSPACE" && rm -rf android && cp -r /tmp/android.pristine android
+            if python3 native/apply-addon.py android --secure-only; then
+              ADDON=secure
+              cd android && chmod +x gradlew
+              if ./gradlew assembleRelease; then BUILT=yes; fi
+            else
+              ADDON=no
+            fi
           fi
+          if [ "$BUILT" = "no" ] && [ "$ADDON" != "no" ]; then
+            echo "::warning::The build failed with the native add-on (see the error above), so it is being built again without it."
+            cd "$GITHUB_WORKSPACE" && rm -rf android && cp -r /tmp/android.pristine android
+            ADDON=no
+          fi
+          if [ "$BUILT" = "no" ] && [ "$ADDON" = "no" ] && [ "${{ steps.addon.outputs.used }}" != "no" ]; then
+            cd android && chmod +x gradlew
+            if ./gradlew assembleRelease; then BUILT=yes; fi
+            cd "$GITHUB_WORKSPACE"
+          fi
+          cd "$GITHUB_WORKSPACE/android"
           echo "addon=$ADDON" >> "$GITHUB_OUTPUT"
           if [ "$BUILT" = "yes" ]; then
             echo "apk=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
@@ -127,7 +164,7 @@ jobs:
           name: What Next? v${{ steps.ver.outputs.name }}${{ steps.build.outputs.kind == 'debug' && ' (debug build, do not install)' || '' }}
           prerelease: ${{ steps.build.outputs.kind == 'debug' }}   # a debug build is never offered as the latest release
           target_commitish: ${{ github.sha }}
-          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build. Native add-on (secure login storage): ${{ steps.build.outputs.addon }}.${{ steps.build.outputs.kind == 'debug' && ' DEBUG BUILD: the release build failed, so do not install this one. Wait for the next release.' || '' }}"
+          body: "Installs over the previous version: same signing key (SHA-256 ${{ steps.fp.outputs.key }}), version code ${{ steps.ver.outputs.code }}, ${{ steps.build.outputs.kind }} build. Native add-ons (yes = secure login storage and background alerts, secure = login storage only, no = neither): ${{ steps.build.outputs.addon }}.${{ steps.build.outputs.kind == 'debug' && ' DEBUG BUILD: the release build failed, so do not install this one. Wait for the next release.' || '' }}"
           generate_release_notes: true
           make_latest: ${{ steps.build.outputs.kind == 'release' }}
           files: WhatNext-v${{ steps.ver.outputs.name }}.apk

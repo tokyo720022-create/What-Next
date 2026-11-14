@@ -31,6 +31,7 @@ jobs:
           node tests/unit/apk-signing.test.js
           node tests/unit/native-addon.test.js
           node tests/unit/codechecks.test.js
+          node tests/unit/notify.test.js
       - name: TypeScript check (fails only on real mistakes, such as a name that does not exist)
         run: node tools/tsc-gate.js
       - name: ESLint (report only for now; read the list, it does not fail the run)

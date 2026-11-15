@@ -34,7 +34,7 @@ let lyBg = ""; try{ lyBg = localStorage.getItem(LYBG_KEY) || ""; }catch(_){}
 const fstore = LS("wn_lf", { persist: false, anime: null, manga: null });
 const lf = { anime: (fstore.persist && fstore.anime) || defFilter(), manga: (fstore.persist && fstore.manga) || defFilter() };
 const LIST_BATCH = 24;   // titles drawn at a time; "Show more" adds the next 24
-const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, refreshErr: "", cachedAt: 0, rev: 0, sig: "", drawn: 0, refreshing: false });
+const mkList = () => ({ entries: null, custom: "", status: "ALL", q: "", shown: LIST_BATCH, stale: false, offline: false, refreshErr: "", cachedAt: 0, rev: 0, sig: "", memo: null, drawn: 0, refreshing: false });
 const lists = { anime: mkList(), manga: mkList() };
 let curType = "anime";
 const tt = m => { const t = m.title || {}, per = appCfg().naming[m.countryOfOrigin], p = per || localStorage.getItem("wn_tlang") || "ENGLISH"; return (p === "ROMAJI" ? t.romaji : p === "NATIVE" ? (t.native || t.romaji) : t.english) || t.english || t.romaji || "Untitled"; };
@@ -151,8 +151,15 @@ function renderList(opts){
   const type = curType, L = lists[type], f = lf[type], lab = STATUS_LABEL(type);
   if(!L.entries) return;
   const y = window.scrollY, q = L.q.trim().toLowerCase();
-  const rows = L.entries.filter(e => passes(e, f, type) && (!L.custom || (e.custom || []).includes(L.custom)) && (!q || (tt(e.m) + " " + (e.m.title.romaji || "")).toLowerCase().includes(q)));
-  const all = statusCounts(L.entries), counts = statusCounts(rows);
+  // Filtering and sorting a few thousand titles is the slow part, so it is done once per change of list, search, status or filters, not again for "Show more".
+  const mkey = [type, L.status, L.custom, q, JSON.stringify(f), L.rev].join("|");
+  if(!L.memo || L.memo.key !== mkey){
+    const rows = L.entries.filter(e => passes(e, f, type) && (!L.custom || (e.custom || []).includes(L.custom)) && (!q || (tt(e.m) + " " + (e.m.title.romaji || "")).toLowerCase().includes(q)));
+    const view = (L.status === "ALL" ? rows : rows.filter(e => e.status === L.status)).slice();
+    view.sort(L.status === "ALL" && f.sort === "UPDATED" ? (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || b.updatedAt - a.updatedAt : (SORTS[f.sort] || SORTS.UPDATED));
+    L.memo = { key: mkey, rows, view, all: statusCounts(L.entries), counts: statusCounts(rows) };
+  }
+  const { rows, view, all, counts } = L.memo;
   const chips = $("#listStatus"); chips.replaceChildren();
   const order = ["ALL", ...STATUS_ORDER.filter(x => all[x] || x === L.status)]; if(appCfg().allpos[type] === "bottom") order.push(order.shift());
   for(const s of order){
@@ -165,8 +172,6 @@ function renderList(opts){
   }
   const cb = $("#lListsBtn"), hasCustom = customCounts(L.entries).length > 0;
   cb.hidden = !(hasCustom || L.custom); cb.textContent = L.custom ? "List: " + L.custom : "Custom lists"; cb.setAttribute("aria-pressed", String(!!L.custom));
-  const view = (L.status === "ALL" ? rows : rows.filter(e => e.status === L.status)).slice();
-  view.sort(L.status === "ALL" && f.sort === "UPDATED" ? (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || b.updatedAt - a.updatedAt : (SORTS[f.sort] || SORTS.UPDATED));
   $("#listCount").textContent = (L.status === "ALL" ? "All" : lab[L.status]) + (L.custom ? " · " + L.custom : "") + " (" + view.length + ")";
   const body = $("#listBody"), shown = Math.min(view.length, L.shown);
   const sig = [type, L.status, L.custom, q, JSON.stringify(f), ly.layout, ly.cols, ly.hideUnscored, ly.hideProgress, ly.hideAir, ly.showNotes, ly.showPriority, ly.quick, L.rev, view.length].join("|");
@@ -174,7 +179,7 @@ function renderList(opts){
   // Without that check, going back to a list that had not changed left the other list's cards on screen.
   const mine = body.dataset.list === type;
   if(mine && sig === L.sig && L.drawn > 0 && L.drawn < shown){   // "Show more": add only the next batch
-    view.slice(L.drawn, shown).forEach(e => body.append(lcard(e, type))); L.drawn = shown;
+    body.append(...view.slice(L.drawn, shown).map(e => lcard(e, type))); L.drawn = shown;
   }else if(!(mine && sig === L.sig && L.drawn === shown && shown > 0)){  // anything else that changed: rebuild
     body.className = lyBodyClass(); body.dataset.list = type;
     body.replaceChildren(...(view.length ? view.slice(0, shown).map(e => lcard(e, type)) : [emptyState(type, L)]));
@@ -290,7 +295,12 @@ $("#lSearchBtn").onclick = () => {
   const i = $("#listSearch"); i.hidden = !i.hidden;
   if(i.hidden){ i.value = ""; lists[curType].q = ""; renderList(); } else i.focus();
 };
-$("#listSearch").oninput = ev => { lists[curType].q = ev.target.value; lists[curType].shown = LIST_BATCH; renderList(); };
+let listSearchT = 0;
+$("#listSearch").oninput = ev => {
+  const L = lists[curType]; L.q = ev.target.value; L.shown = LIST_BATCH; clearTimeout(listSearchT);
+  if(L.entries && L.entries.length > 400) listSearchT = setTimeout(() => renderList(), 160);   // a long list waits for a pause in typing; a short one answers at once
+  else renderList();
+};
 
 // Filter sheet
 function setTri(b, s){ b.dataset.s = s; b.setAttribute("aria-pressed", String(s === 1)); b.classList.toggle("ex", s === 2); b.textContent = (s === 1 ? "+ " : s === 2 ? "− " : "") + b.dataset.n; }

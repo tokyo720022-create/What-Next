@@ -8,7 +8,7 @@ def main(page, out):
     t = lambda sel: page.inner_text(sel)
     page.evaluate("openMedia(1001)"); page.wait_for_selector('#media button:has-text("Relation map")')
     check("media page has a Relation map button", True)
-    page.click('#media button:has-text("Relation map")'); page.wait_for_selector("#relmap .rmnode")
+    page.click('#media button:has-text("Relation map")'); page.wait_for_selector("#relmap .rmnode"); page.wait_for_function("/found|no related/.test(document.querySelector('#rmStatus').textContent)")
     check("map opens above and the media page steps aside", page.locator("#relmap").is_visible() and page.locator("#media").is_hidden())
     nb = boxes(page); ids = sorted(b["id"] for b in nb)
     check("core + related titles are drawn, characters are not", ids == [1001, 5000, 5002, 5003, 5004, 5005, 5006, 5007, 5010, 5011], ids)
@@ -44,7 +44,7 @@ def main(page, out):
     page.click("#rmCore"); check("Core off: only related links stay", sorted(b["id"] for b in boxes(page)) == [1001, 5003, 5004, 5005, 5006], sorted(b["id"] for b in boxes(page)))
     page.click("#rmCore")
     # characters on
-    page.click("#rmChar"); page.wait_for_function("document.querySelectorAll('#rmInner .rmnode').length >= 12")
+    page.click("#rmChar"); page.wait_for_function("document.querySelectorAll('#rmInner .rmnode').length >= 12 && /found/.test(document.querySelector('#rmStatus').textContent)")
     check("Character links are loaded on demand", any(5020 in r for r in harness.RMREQS) and "11 related" in t("#rmStatus"), t("#rmStatus"))
     page.click("#rmChar"); check("Character off hides them again", page.locator("#rmInner .rmnode").count() == 10)
     # add to list from the map
@@ -54,6 +54,11 @@ def main(page, out):
     page.click("#rmList"); page.wait_for_selector("#rmListView .rmrow")
     lv = t("#rmListView"); check("List view groups titles by relation", "THIS TITLE" in lv and "SIDE STORY" in lv.upper() and "Show 5002" in lv and page.locator("#rmView").is_hidden() and page.locator("#rmBar").is_hidden())
     page.click("#rmList"); check("back to the map", page.locator("#rmView").is_visible())
+    # watch order
+    page.click("#rmOrder"); page.wait_for_selector("#rmOrderView .rmorow")
+    ov = t("#rmOrderView"); check("Watch order lists the titles in release order with this title marked", "watch order" in ov.lower() and "This title" in ov and page.locator("#rmView").is_hidden() and page.locator("#rmListView").is_hidden() and page.locator("#rmOrderView .rmorow").count() >= 5, ov[:90])
+    check("exactly one title is marked Next up or Start here", page.locator("#rmOrderView .rmotag.go").count() == 1, page.locator("#rmOrderView .rmotag.go").count())
+    page.click("#rmOrder"); check("back to the map from the order view", page.locator("#rmView").is_visible() and page.locator("#rmOrderView").is_hidden())
     # opening a title from the map, then returning
     page.click('.rmnode[data-id="5004"] .rmttl'); page.wait_for_selector("#media:not([hidden])")
     check("tapping a title opens its page above the map", page.locator("#media").is_visible() and page.locator("#relmap").is_visible())

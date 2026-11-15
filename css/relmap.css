@@ -45,3 +45,22 @@
 .rmbrow{position:relative;display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 0;margin:0;border-bottom:1px solid var(--line);font-size:1rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink);cursor:pointer}
 .rmbrow span{min-width:0;display:flex;flex-direction:column}
 .rmbrow small{color:var(--muted);font-weight:500}
+
+/* Watch or read order, richer cards, Load more */
+.rmmeta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rmMore{margin:0 0 8px}
+.rmosum{margin-top:10px;padding:14px;border-radius:16px;background:var(--card);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.rmosum b{font-size:1.1rem}
+.rmosum span{color:var(--muted);font-size:.88rem}
+.rmolead{margin:2px 0 0;font-weight:700}
+.rmotr{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}
+.rmotr i{display:block;height:100%;border-radius:3px;background:var(--grad)}
+.rmorow{border:1.5px solid transparent}
+.rmorow.rmomain{border-left:4px solid #6fb4f5}
+.rmorow.rmonext{border-color:var(--sakura);box-shadow:0 0 0 2px rgba(139,124,255,.25)}
+.rmotop{display:flex;align-items:center;gap:8px}
+.rmon{flex:none;min-width:24px;height:24px;border-radius:12px;background:var(--chip);display:grid;place-items:center;font-style:normal;font-weight:800;font-size:.75rem}
+.rmotags{display:flex;flex-wrap:wrap;gap:6px}
+.rmotag{padding:1px 8px;border:1.5px solid var(--line);border-radius:999px;font-style:normal;font-weight:700;font-size:.72rem;color:var(--muted)}
+.rmotag.here{color:#7fd36f;border-color:#7fd36f}
+.rmotag.go{background:var(--sakura);border-color:var(--sakura);color:var(--sakura-ink)}

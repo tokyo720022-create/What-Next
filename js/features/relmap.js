@@ -1,6 +1,6 @@
 /* js/features/relmap.js: Relation map. Draws a title's franchise as a graph (core, related and character links). */
 // ---------- Relation map ----------
-const RM_Q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id type format status isAdult title{romaji english native} countryOfOrigin coverImage{medium} averageScore seasonYear startDate{year} mediaListEntry{status} relations{edges{relationType(version:2) node{id}}}}}}";
+const RM_Q = "query($ids:[Int]){Page(perPage:50){media(id_in:$ids){id type format status isAdult title{romaji english native} countryOfOrigin coverImage{medium} averageScore seasonYear startDate{year month day} episodes chapters mediaListEntry{status progress} relations{edges{relationType(version:2) node{id}}}}}}";
 const RM_TYPES = {
   SOURCE: { g: "core", up: true, label: "Source", color: "#f0a95b" }, PARENT: { g: "core", up: true, label: "Parent", color: "#f0a95b" },
   PREQUEL: { g: "core", up: true, label: "Prequel", color: "#6fb4f5" }, SEQUEL: { g: "core", up: false, label: "Sequel", color: "#7fd36f" },
@@ -12,11 +12,12 @@ const RM_TYPES = {
 };
 const RM_ORDER = Object.keys(RM_TYPES), RM_MAX = 90, RM_MAX_CHAR = 140, RM_CW = 150, RM_CH = 112, RM_GAP = 26, RM_PAD = 24;
 const RM_STATUS = { CURRENT: ["Watching", "Reading"], REPEATING: ["Rewatching", "Rereading"], PLANNING: ["Planning", "Planning"], COMPLETED: ["Completed", "Completed"], PAUSED: ["Paused", "Paused"], DROPPED: ["Dropped", "Dropped"] };
+const RM_STATE = { RELEASING: "Airing", NOT_YET_RELEASED: "Soon", CANCELLED: "Cancelled", HIATUS: "Hiatus" };
 const rmTypeOf = t => RM_TYPES[t] || RM_TYPES.OTHER;
 
-const rm = { root: null, saved: [], graph: null, show: { core: true, related: true, character: false }, listView: false, z: 1, folded: new Set(), layout: null, token: 0, cache: new Map() };
-try{ const s = JSON.parse(localStorage.getItem("wn_rm") || "null"); if(s) Object.assign(rm.show, { core: s.core !== false, related: s.related !== false, character: !!s.character }); }catch(_){}
-const rmSave = () => { try{ localStorage.setItem("wn_rm", JSON.stringify(rm.show)); }catch(_){} };
+const rm = { root: null, saved: [], graph: null, show: { core: true, related: true, character: false }, mode: "map", touched: false, z: 1, folded: new Set(), layout: null, token: 0, cache: new Map() };
+try{ const s = JSON.parse(localStorage.getItem("wn_rm") || "null"); if(s){ Object.assign(rm.show, { core: s.core !== false, related: s.related !== false, character: !!s.character }); if(["map", "order", "list"].includes(s.mode)) rm.mode = s.mode; } }catch(_){}
+const rmSave = () => { try{ localStorage.setItem("wn_rm", JSON.stringify(Object.assign({ mode: rm.mode }, rm.show))); }catch(_){} };
 
 // ----- getting the data: a few requests of up to 50 titles each, following links outward -----
 function rmWanted(g, allowChar){   // ids that are linked from a loaded title but not loaded yet
@@ -28,8 +29,8 @@ function rmWanted(g, allowChar){   // ids that are linked from a loaded title bu
   }
   return [...out];
 }
-async function rmGrow(g, allowChar){
-  const cap = allowChar ? RM_MAX_CHAR : RM_MAX;
+async function rmGrow(g, allowChar, onRound){
+  const cap = (allowChar ? RM_MAX_CHAR : RM_MAX) + (g.extra || 0);
   for(let round = 0; round < 6 && g.nodes.size < cap; round++){
     const ids = rmWanted(g, allowChar).slice(0, Math.min(50, cap - g.nodes.size)); if(!ids.length) break;
     ids.forEach(id => g.tried.add(id));
@@ -37,6 +38,7 @@ async function rmGrow(g, allowChar){
     const list = json.data && json.data.Page && json.data.Page.media;
     if(!list) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "No data");
     for(const m of list) g.nodes.set(m.id, m);
+    if(onRound) onRound(g);   // the map is drawn after every batch, so it is usable while the rest loads
   }
   g.capped = rmWanted(g, allowChar).length > 0 && g.nodes.size >= cap;
 }
@@ -105,7 +107,7 @@ const rmStatusText = (m, st) => (RM_STATUS[st] || [st, st])[m.type === "MANGA" ?
 function rmNode(m, L, isRoot){
   const n = el("div", "rmnode" + (isRoot ? " root" : "")); n.style.left = L.x.get(m.id) + "px"; n.style.top = L.y.get(L.tree.row.get(m.id)) + "px"; n.dataset.id = m.id;
   const top = el("div", "rmtop2"), img = el("img"); img.src = (m.coverImage && m.coverImage.medium) || ""; img.alt = ""; img.loading = "lazy";
-  const meta = el("div", "rmmeta"); meta.append(el("span", null, [norm(m.format) || m.type, m.seasonYear || (m.startDate && m.startDate.year)].filter(Boolean).join(" · ")), el("b", null, "★ " + (m.averageScore || "–")));
+  const meta = el("div", "rmmeta"); meta.append(el("span", null, [norm(m.format) || m.type, m.seasonYear || (m.startDate && m.startDate.year), RM_STATE[m.status]].filter(Boolean).join(" · ")), el("b", null, "★ " + (m.averageScore || "–")));
   top.append(img, meta); n.append(top, el("div", "rmttl", tt(m)));
   const foot = el("div", "rmfoot"); rmFoot(foot, m); n.append(foot);
   n.onclick = ev => { if(ev.target.closest("button")) return; openMedia(m.id); };
@@ -114,12 +116,15 @@ function rmNode(m, L, isRoot){
 function rmFoot(foot, m){
   foot.replaceChildren();
   const st = m.mediaListEntry && m.mediaListEntry.status;
-  if(st){ foot.append(el("span", "rmst " + (st === "COMPLETED" ? "done" : "on"), "✓ " + rmStatusText(m, st))); return; }
+  if(st){
+    const le = m.mediaListEntry, total = (m.type === "MANGA" ? m.chapters : m.episodes) || 0, prog = le && le.progress ? " " + le.progress + (total ? "/" + total : "") : "";
+    foot.append(el("span", "rmst " + (st === "COMPLETED" ? "done" : "on"), "✓ " + rmStatusText(m, st) + (st === "COMPLETED" ? "" : prog))); return;
+  }
   const b = el("button", "rmadd", "+ Add to list");
   b.onclick = async ev => {
     ev.stopPropagation(); b.disabled = true; b.textContent = "Adding…";
     const r = await trackSave(m.id, m.type === "MANGA" ? "manga" : "anime", { status: "PLANNING" }, { quiet: true });
-    if(r.ok || r.queued){ m.mediaListEntry = { status: "PLANNING" }; rmFoot(foot, m); if(rm.listView) rmDrawList(); } else { b.disabled = false; b.textContent = "+ Add to list"; toast("Couldn't add: " + ((r.error && r.error.message) || "error")); }
+    if(r.ok || r.queued){ m.mediaListEntry = { status: "PLANNING", progress: 0 }; rmFoot(foot, m); if(rm.mode === "list") rmDrawList(); else if(rm.mode === "order") rmDrawOrder(); } else { b.disabled = false; b.textContent = "+ Add to list"; toast("Couldn't add: " + ((r.error && r.error.message) || "error")); }
   };
   foot.append(b);
 }
@@ -135,7 +140,7 @@ function rmDraw(){
     const folded = rm.folded.has(q.parent + "|" + q.type);
     for(const c of q.ids){
       const cx = L.x.get(c) + RM_CW / 2, cy = q.up ? L.y.get(L.tree.row.get(c)) + RM_CH : L.y.get(L.tree.row.get(c)), dir = q.up ? -1 : 1;
-      svg.append(rmSvgEl("path", { d: "M" + px + " " + y0 + " V" + bus + " H" + cx + " V" + (cy - 6 * dir), fill: "none", stroke: t.color, "stroke-width": 2, opacity: .9 }));
+      svg.append(rmSvgEl("path", { d: "M" + px + " " + y0 + " V" + bus + " H" + cx + " V" + (cy - 6 * dir), fill: "none", stroke: t.color, "stroke-width": q.type === "PREQUEL" || q.type === "SEQUEL" ? 3.5 : 2, opacity: .9 }));
       svg.append(rmSvgEl("path", { d: "M" + (cx - 5) + " " + (cy - 7 * dir) + " L" + cx + " " + cy + " L" + (cx + 5) + " " + (cy - 7 * dir) + " Z", fill: t.color }));
     }
     if(!q.ids.length) svg.append(rmSvgEl("path", { d: "M" + px + " " + y0 + " V" + bus, fill: "none", stroke: t.color, "stroke-width": 2, "stroke-dasharray": "4 4" }));
@@ -173,6 +178,36 @@ function rmCenterRoot(){
   v.scrollTop = Math.max(0, L.y.get(L.tree.row.get(rm.root)) * rm.z - 20);
 }
 
+// ----- watch or read order -----
+function rmDrawOrder(){
+  const g = rm.graph, box = $("#rmOrderView"); box.replaceChildren(); if(!g) return;
+  const O = rmoBuild(g, rm.root, rm.show), S = O.summary, manga = g.nodes.get(rm.root).type === "MANGA", verb = manga ? "Read" : "Watch";
+  const head = el("div", "rmosum");
+  head.append(el("b", null, verb + " order"), el("span", null, S.main ? S.done + " of " + S.main + " in the main story " + (manga ? "read" : "watched") + (O.items.length > S.main ? " · " + (O.items.length - S.main) + " side titles" : "") : "No prequel or sequel links, so this is the release order of everything linked."));
+  if(S.main && S.label) head.append(el("p", "rmolead", S.next ? S.label + tt(g.nodes.get(S.next)) : S.label));
+  if(S.main){ const tr = el("div", "rmotr"), f = el("i"); f.style.width = Math.round(S.done / S.main * 100) + "%"; tr.append(f); head.append(tr); }
+  box.append(head);
+  O.items.forEach((x, i) => box.append(rmOrderRow(x, i + 1)));
+  if(O.others.length){ box.append(el("div", "q", manga ? "Anime of this story" : "Source material and other formats")); O.others.forEach(x => box.append(rmOrderRow(x, 0))); }
+}
+function rmOrderRow(x, n){
+  const m = x.m, r = el("div", "rmrow rmorow" + (x.next ? " rmonext" : "") + (x.main ? " rmomain" : "")), img = el("img");
+  img.src = (m.coverImage && m.coverImage.medium) || ""; img.alt = ""; img.loading = "lazy";
+  const info = el("div", "rmrinfo"), t = rmTypeOf(x.rel || "OTHER");
+  const line1 = el("div", "rmotop"); if(n) line1.append(el("i", "rmon", String(n)));
+  line1.append(el("b", null, tt(m))); info.append(line1);
+  info.append(el("span", null, [norm(m.format) || m.type, (m.startDate && m.startDate.year) || "", RM_STATE[m.status] || "", m.averageScore ? "★ " + m.averageScore : ""].filter(Boolean).join(" · ")));
+  const tags = el("div", "rmotags");
+  if(x.isRoot) tags.append(el("em", "rmotag here", "This title")); else if(x.rel){ const e = el("em", "rmotag", t.label); e.style.color = t.color; e.style.borderColor = t.color; tags.append(e); }
+  if(x.next) tags.append(el("em", "rmotag go", x.first ? "Start here" : "Next up"));
+  if(x.upcoming) tags.append(el("em", "rmotag", "Not out yet"));
+  info.append(tags);
+  if(x.status && x.total && !RMO_DONE.includes(x.status) && x.progress){ const tr = el("div", "rmotr"), f = el("i"); f.style.width = Math.min(100, Math.round(x.progress / x.total * 100)) + "%"; tr.append(f); info.append(tr); }
+  const foot = el("div", "rmfoot"); rmFoot(foot, m); info.append(foot);
+  r.append(img, info); r.onclick = ev => { if(!ev.target.closest("button")) openMedia(m.id); };
+  return r;
+}
+
 // ----- list view -----
 function rmDrawList(){
   const g = rm.graph, L = rm.layout, box = $("#rmListView"); box.replaceChildren();
@@ -189,32 +224,52 @@ function rmRow(m){
 
 // ----- opening, closing and controls -----
 function rmShowMode(){
-  $("#rmView").hidden = rm.listView; $("#rmListView").hidden = !rm.listView; $("#rmBar").hidden = rm.listView;
-  $("#rmList").setAttribute("aria-pressed", String(rm.listView)); $("#rmList").textContent = rm.listView ? "✓ List view" : "List view";
+  const map = rm.mode === "map", rootM = rm.graph && rm.graph.nodes.get(rm.root), word = rootM && rootM.type === "MANGA" ? "Read order" : "Watch order";
+  $("#rmView").hidden = !map; $("#rmListView").hidden = rm.mode !== "list"; $("#rmOrderView").hidden = rm.mode !== "order"; $("#rmBar").hidden = !map;
+  $("#rmList").setAttribute("aria-pressed", String(rm.mode === "list")); $("#rmList").textContent = rm.mode === "list" ? "✓ List view" : "List view";
+  $("#rmOrder").setAttribute("aria-pressed", String(rm.mode === "order")); $("#rmOrder").textContent = (rm.mode === "order" ? "✓ " : "") + word;
   for(const [id, k, label] of [["#rmCore", "core", "Core"], ["#rmRel", "related", "Related"], ["#rmChar", "character", "Character"]]){ $(id).setAttribute("aria-pressed", String(rm.show[k])); $(id).textContent = (rm.show[k] ? "✓ " : "") + label; }
 }
+// Draws what is loaded so far. The first time there are linked titles, the view is fitted and centred on this title; later batches keep it centred until you touch the map.
+function rmPaint(){
+  rmDraw();
+  if(rm.mode === "list") rmDrawList(); else if(rm.mode === "order") rmDrawOrder();
+  if(rm.firstFit && rm.graph.nodes.size >= 2){ rm.firstFit = false; rm.z = Math.max(0.5, Math.min(1, ($("#rmView").clientWidth - 12) / rm.layout.W)); rmApplyZoom(); rmCenterRoot(); }
+  else if(!rm.touched && rm.mode === "map") rmCenterRoot();
+}
 async function rmLoad(force){
-  const token = ++rm.token, id = rm.root; rmShowMode();
-  $("#rmStatus").textContent = "Loading the relation map…"; $("#rmTitle").textContent = "Relation map"; $("#rmSub").textContent = "";
+  const token = ++rm.token, id = rm.root; rmShowMode(); rm.touched = false;
+  $("#rmStatus").textContent = "Loading the relation map…"; $("#rmTitle").textContent = "Relation map"; $("#rmSub").textContent = ""; $("#rmMore").hidden = true;
   try{
     let g = rm.cache.get(id);
-    if(!g || force){ g = { nodes: new Map(), tried: new Set([id]), capped: false, chars: false }; const { json } = await gql(RM_Q, { ids: [id] }); const first = json.data && json.data.Page && json.data.Page.media && json.data.Page.media[0]; if(!first) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "Title not found"); g.nodes.set(id, first); rm.cache.set(id, g); }
+    if(!g || force){ g = { nodes: new Map(), tried: new Set([id]), capped: false, chars: false, extra: 0 }; const { json } = await gql(RM_Q, { ids: [id] }); const first = json.data && json.data.Page && json.data.Page.media && json.data.Page.media[0]; if(!first) throw new Error((json.errors && json.errors[0] && json.errors[0].message) || "Title not found"); g.nodes.set(id, first); rm.cache.set(id, g); }
     if(token !== rm.token) return;
-    if(rm.show.character && !g.chars){ await rmGrow(g, true); g.chars = true; } else await rmGrow(g, false);
+    const round = gr => { if(token !== rm.token) return; rm.graph = gr; if(gr.nodes.size >= 2){ rmPaint(); $("#rmStatus").textContent = "Loading… " + gr.nodes.size + " titles so far"; } };
+    if(rm.show.character && !g.chars){ await rmGrow(g, true, round); g.chars = true; } else await rmGrow(g, false, round);
     if(token !== rm.token) return;
     rm.graph = g; $("#rmTitle").textContent = "Relation map";
-    if(g.nodes.size < 2 && !rm.show.character){ rm.layout = rmLayout(g, id); rmDraw(); $("#rmStatus").textContent = "This title has no related titles."; }
-    else { rmDraw(); }
-    if(rm.listView) rmDrawList(); else if(rm.firstFit){ rm.firstFit = false; rm.z = Math.max(0.5, Math.min(1, ($("#rmView").clientWidth - 12) / rm.layout.W)); rmApplyZoom(); rmCenterRoot(); }
+    rmPaint();
+    if(g.nodes.size < 2 && !rm.show.character) $("#rmStatus").textContent = "This title has no related titles.";
+    $("#rmMore").hidden = !g.capped;
   }catch(err){
     if(token !== rm.token) return;
-    $("#rmStatus").textContent = "Couldn't load the map: " + (isNetErr(err) ? "no connection." : err.message) + " Tap ⟳ to try again.";
+    const have = rm.graph && rm.graph.nodes.size >= 2;
+    $("#rmStatus").textContent = (have ? "Some titles could not be loaded: " : "Couldn't load the map: ") + (isNetErr(err) ? "no connection." : err.message) + " Tap ⟳ to try again.";
   }
+}
+// Past the limit: load another 60 titles.
+async function rmMoreTitles(){
+  const g = rm.graph, token = rm.token; if(!g) return;
+  g.extra = (g.extra || 0) + 60; g.capped = false; $("#rmMore").hidden = true; $("#rmStatus").textContent = "Loading more titles…";
+  try{
+    await rmGrow(g, rm.show.character, gr => { if(token === rm.token){ rm.graph = gr; rmPaint(); } });
+    if(token === rm.token){ rmPaint(); $("#rmMore").hidden = !g.capped; }
+  }catch(err){ if(token === rm.token) $("#rmStatus").textContent = "Couldn't load more: " + (isNetErr(err) ? "no connection." : err.message); }
 }
 function openRelMap(id){
   rm.saved = mstack.slice(); mstack.length = 0; $("#media").hidden = true;   // the media page comes back when you close the map
-  rm.root = id; rm.folded.clear(); rm.firstFit = true; rm.z = 1; rm.graph = null; rm.layout = null;
-  $("#relmap").hidden = false; $("#rmInner").querySelectorAll(".rmnode,.rmlabel").forEach(n => n.remove()); $("#rmSvg").replaceChildren(); $("#rmListView").replaceChildren();
+  rm.root = id; rm.folded.clear(); rm.firstFit = true; rm.touched = false; rm.z = 1; rm.graph = null; rm.layout = null;
+  $("#relmap").hidden = false; $("#rmInner").querySelectorAll(".rmnode,.rmlabel").forEach(n => n.remove()); $("#rmSvg").replaceChildren(); $("#rmListView").replaceChildren(); $("#rmOrderView").replaceChildren();
   rmLoad(false);
 }
 function closeRelMap(){
@@ -226,12 +281,16 @@ $("#rmRefresh").onclick = () => rmLoad(true);
 $("#rmCtlBtn").onclick = () => { const open = $("#rmCtl").hidden; $("#rmCtl").hidden = !open; $("#rmCtlBtn").setAttribute("aria-expanded", String(open)); $("#rmCtlBtn").textContent = "Map controls " + (open ? "▴" : "▾"); };
 for(const [id, k] of [["#rmCore", "core"], ["#rmRel", "related"], ["#rmChar", "character"]]) $(id).onclick = () => {
   rm.show[k] = !rm.show[k]; rmSave(); rmShowMode();
-  if(k === "character" && rm.show.character && rm.graph && !rm.graph.chars) rmLoad(false); else if(rm.graph){ rmDraw(); if(rm.listView) rmDrawList(); }
+  if(k === "character" && rm.show.character && rm.graph && !rm.graph.chars) rmLoad(false); else if(rm.graph){ rmDraw(); if(rm.mode === "list") rmDrawList(); else if(rm.mode === "order") rmDrawOrder(); }
 };
-$("#rmList").onclick = () => { rm.listView = !rm.listView; rmShowMode(); if(rm.listView && rm.graph) rmDrawList(); };
+const rmSetMode = m => { rm.mode = rm.mode === m ? "map" : m; rmSave(); rmShowMode(); if(rm.graph){ if(rm.mode === "list") rmDrawList(); else if(rm.mode === "order") rmDrawOrder(); else rmCenterRoot(); } };
+$("#rmList").onclick = () => rmSetMode("list");
+$("#rmOrder").onclick = () => rmSetMode("order");
+$("#rmMore").onclick = rmMoreTitles;
 $("#rmMinus").onclick = () => { const v = $("#rmView"); rmZoomAt(rm.z / 1.25, v.clientWidth / 2, v.clientHeight / 2); };
 $("#rmPlus").onclick = () => { const v = $("#rmView"); rmZoomAt(rm.z * 1.25, v.clientWidth / 2, v.clientHeight / 2); };
 $("#rmFit").onclick = rmFit;
+for(const ev of ["touchstart", "wheel", "mousedown"]) $("#rmView").addEventListener(ev, () => { rm.touched = true; }, { passive: true });
 // two-finger pinch on the map
 (() => {
   const v = $("#rmView"); let d0 = 0, z0 = 1;

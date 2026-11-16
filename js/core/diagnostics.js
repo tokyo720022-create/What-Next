@@ -4,8 +4,8 @@ const diagPush = t => { window.__wnErrors.push(diagRedact(t)); if(window.__wnErr
 window.addEventListener("error", e => diagPush((e.message || "error") + " @ " + String(e.filename || "").split("/").pop() + ":" + (e.lineno || 0)));
 window.addEventListener("unhandledrejection", e => diagPush("promise: " + (e.reason && e.reason.message || e.reason)));
 // The last steps before a problem: which screen was opened and how each AniList request ended (operation name and status number only, never the request itself).
-const diagRedact = s => String(s == null ? "" : s).replace(/https:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi, "[webhook]").replace(/Bearer\s+[\w.~+\/-]+=*/gi, "Bearer [hidden]");   // no key or link may reach the bug report
 const crumbs = [];
+const diagRedact = s => String(s == null ? "" : s).replace(/https:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi, "[webhook]").replace(/Bearer\s+[\w.~+\/-]+=*/gi, "Bearer [hidden]");   // no key or link may reach the bug report
 const crumbOp = q => { const m = /\{\s*([A-Za-z]+)/.exec(String(q || "")); return (/^\s*mutation/i.test(String(q || "")) ? "change " : "") + (m ? m[1] : "request"); };
 function crumb(s){ crumbs.push(new Date().toTimeString().slice(0, 8) + " " + diagRedact(s).slice(0, 80)); if(crumbs.length > 30) crumbs.shift(); }
 async function diagReport(){

@@ -35,6 +35,7 @@ jobs:
           node tests/unit/taste-extra.test.js
           node tests/unit/relmap.test.js
           node tests/unit/vault.test.js
+          node tests/unit/pickmem.test.js
       - name: TypeScript check (fails only on real mistakes, such as a name that does not exist)
         run: node tools/tsc-gate.js
       - name: ESLint (report only for now; read the list, it does not fail the run)

@@ -1,12 +1,13 @@
 /* js/core/diagnostics.js: records errors and builds a short report for bug reports */
 window.__wnErrors = [];
-const diagPush = t => { window.__wnErrors.push(t); if(window.__wnErrors.length > 20) window.__wnErrors.shift(); };
+const diagPush = t => { window.__wnErrors.push(diagRedact(t)); if(window.__wnErrors.length > 20) window.__wnErrors.shift(); };
 window.addEventListener("error", e => diagPush((e.message || "error") + " @ " + String(e.filename || "").split("/").pop() + ":" + (e.lineno || 0)));
 window.addEventListener("unhandledrejection", e => diagPush("promise: " + (e.reason && e.reason.message || e.reason)));
 // The last steps before a problem: which screen was opened and how each AniList request ended (operation name and status number only, never the request itself).
+const diagRedact = s => String(s == null ? "" : s).replace(/https:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi, "[webhook]").replace(/Bearer\s+[\w.~+\/-]+=*/gi, "Bearer [hidden]");   // no key or link may reach the bug report
 const crumbs = [];
 const crumbOp = q => { const m = /\{\s*([A-Za-z]+)/.exec(String(q || "")); return (/^\s*mutation/i.test(String(q || "")) ? "change " : "") + (m ? m[1] : "request"); };
-function crumb(s){ crumbs.push(new Date().toTimeString().slice(0, 8) + " " + String(s).slice(0, 80)); if(crumbs.length > 30) crumbs.shift(); }
+function crumb(s){ crumbs.push(new Date().toTimeString().slice(0, 8) + " " + diagRedact(s).slice(0, 80)); if(crumbs.length > 30) crumbs.shift(); }
 async function diagReport(){
   const box = (el, name) => {
     if(!el) return name + ": missing";
@@ -22,6 +23,7 @@ async function diagReport(){
     L ? "State: type=" + curType + " entries=" + (L.entries ? L.entries.length : "none") + " status=" + L.status + " shown=" + L.shown + " drawn=" + L.drawn + " stale=" + L.stale + " offline=" + L.offline : "",
     "Errors: " + (window.__wnErrors.length ? window.__wnErrors.join(" | ") : "none"),
     "Secure login storage: " + (typeof secureStore === "function" && secureStore() ? "on" : "off"),
+    "Triple Sync keys: " + (typeof vault !== "undefined" && vault.secure ? "encrypted" : "normal storage") + ", lock: " + (typeof lkCfg === "function" && lkCfg().pin ? "on" : "off"),
     "Background alerts: " + (typeof nativePlugin === "function" && nativePlugin("WnNotify") ? "on" : "off") + ", release reminders: " + (typeof nativePlugin === "function" && nativePlugin("LocalNotifications") ? "available" : "not available"),
     "Recent steps:" + (crumbs.length ? "\n  " + crumbs.join("\n  ") : " none")].join("\n");
 }

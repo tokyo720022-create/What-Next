@@ -174,6 +174,7 @@ if(isNative){
       const sheet = document.querySelector(".dsheet,.usheet");
       if(sheet) sheet.remove();
       else if(!$("#editor").hidden) editorBack();
+      else if(!$("#lockSheet").hidden) $("#lkCancel").click();
       else if(!$("#tzShare").hidden) $("#tzShare").hidden = true;
       else if(!$("#qv").hidden) $("#qv").hidden = true;
       else if(!$("#fsheet").hidden) $("#fsheet").hidden = true;

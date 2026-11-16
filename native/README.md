@@ -13,6 +13,8 @@ the alerts fails, so a mistake in the alert code can never cost you the secure l
 
 **WnImage** (`kotlin/WnImagePlugin.kt`) shares, copies or saves the taste report picture: share and copy write one PNG to the app's cache and hand out a `content://` address through Capacitor's own FileProvider (`<applicationId>.fileprovider`); save inserts the picture into MediaStore under Pictures/What Next.
 
+**WnLock** (`kotlin/WnLockPlugin.kt`) supports the Triple Sync lock: `available` and `unlock` show Android's own fingerprint, face or screen-lock prompt (androidx.biometric; screen lock is allowed from Android 11), and `secure` turns FLAG_SECURE on or off so the page is hidden from screenshots and the recent-apps view. The PIN itself is handled by the app.
+
 It is **optional**. The GitHub build runs `python3 native/apply-addon.py android` after `cap sync`. If that script, or the
 Gradle build that follows, fails, the workflow builds again **without** the add-on and says so in the release text
 ("Native add-on: no"). The app detects the plugin at start (`secureStore()` in `js/core/auth.js`); without it the login

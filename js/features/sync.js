@@ -17,12 +17,12 @@ const TS_NAMES = { al: "AniList", mal: "MyAnimeList" };
 const tsSleep = ms => new Promise(r => setTimeout(r, ms));
 const tsGap = ms => tsSleep(window.__tsGap != null ? window.__tsGap : ms);   // the pause between sends keeps AniList (90 a minute) and MyAnimeList happy; tests shorten it
 let tsBusy = false, tsStopFlag = false, tsWakeLock = null;
-const tsRaw = () => LS(TS_KEY, {}) || {};
+const tsRaw = () => { const p = LS(TS_KEY, {}) || {}; return typeof vault !== "undefined" && vault.secure ? vMerge(p, vault.cache) : p; };   // the secrets come from the vault when there is one (vault.js)
 const tsCfg = () => Object.assign({}, TS_DEF, tsRaw());
-const tsPatch = (group, o) => { const c = tsRaw(); c[group] = Object.assign({}, c[group], o); LSset(TS_KEY, c); };
+const tsPatch = (group, o) => { const c = tsRaw(); c[group] = Object.assign({}, c[group], o); tsWrite(c); };
 const tsMem = k => LS("wn_ts_state_" + k, {}) || {};
 const tsFails = k => { try{ const v = JSON.parse(localStorage.getItem("wn_ts_fail_" + k) || "[]"); return Array.isArray(v) ? v : []; }catch(_){ return []; } };   // LS() would turn the list into an object
-const tsLog = t => { const p = $("#syncLog"); p.hidden = false; p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; };
+const tsLog = t => { const p = $("#syncLog"); p.hidden = false; p.textContent += vRedact(t, typeof vault !== "undefined" ? vault.cache : null) + "\n"; p.scrollTop = p.scrollHeight; };
 const tsLogClear = () => { $("#syncLog").textContent = ""; };
 const tsNote = t => { $("#syncStatus").textContent = t; };
 const tsTargets = c => [c.sendAl && c.al && c.al.token ? "al" : "", c.sendMal && c.mal && c.mal.access ? "mal" : ""].filter(Boolean);
@@ -31,6 +31,15 @@ const tsSrcName = c => (c.source || state.user || "").trim();
 const tsActive = c => tsTargets(c).filter(t => !(t === "al" && (c.al.user || "").toLowerCase() === tsSrcName(c).toLowerCase()));
 // Who the memory should belong to: the source and the target accounts in use.
 const tsIdent = (c, targets) => ({ src: tsSrcName(c).toLowerCase(), al: targets.includes("al") ? c.al.userId : 0, mal: targets.includes("mal") ? (c.mal.userId || c.mal.user || "") : "" });
+
+// Thread ids used to be stored under the webhook link itself. Re-key them by a short fingerprint so no link is left in plain storage.
+(function tsMigrateThreads(){
+  let t = null; try{ t = JSON.parse(localStorage.getItem("wn_ts_threads") || "null"); }catch(_){}
+  if(!t || typeof t !== "object") return;
+  let changed = false; const out = {};
+  for(const k of Object.keys(t)){ const i = k.indexOf("|"), head = k.slice(0, i); if(/^https?:\/\//.test(head)){ out[vHash(head) + k.slice(i)] = t[k]; changed = true; } else out[k] = t[k]; }
+  if(changed) try{ localStorage.setItem("wn_ts_threads", JSON.stringify(out)); }catch(_){}
+})();
 
 // The old Discord Sync page kept its webhooks and memory under other names. Bring one webhook over, then remove the rest.
 (function tsMigrateOld(){   // runs while the scripts load, so it must not use helpers from scripts that load later (LS, LSset)
@@ -186,7 +195,7 @@ async function tsDiscordPost(url, payload, label){
 // Update cards go to forum threads such as "[ANIME] Iseki". A thread is made once per name and its id remembered. A plain channel (not a forum) just gets the cards.
 const tsPlain = {};
 const tsThreads = () => { try{ return JSON.parse(localStorage.getItem("wn_ts_threads") || "{}") || {}; }catch(_){ return {}; } };
-const tsThreadSave = (url, key, id) => { const t = tsThreads(), w = url.replace(/[?].*$/, ""); t[w + "|" + key] = id; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} };
+const tsThreadSave = (url, key, id) => { const t = tsThreads(), w = url.replace(/[?].*$/, ""); t[vHash(w) + "|" + key] = id; try{ localStorage.setItem("wn_ts_threads", JSON.stringify(t)); }catch(_){} };
 async function tsDcRequest(url, body){
   let r; try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tsNoPing(body)) }); }catch(_){ throw tsNetErr(); }
   if(r.status === 429){ let ra = 2; try{ ra = (await r.clone().json()).retry_after || 2; }catch(_){} await tsSleep(Math.min(10, ra) * 1000); try{ r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tsNoPing(body)) }); }catch(_){ throw tsNetErr(); } }
@@ -206,7 +215,7 @@ async function tsMakeThread(url, name, display, kindLabel, label){
 }
 async function tsPostCard(url, kind, cat, embed){
   const label = kind + " webhook", kindLabel = kind.toUpperCase(), name = tsThreadName(cat, kind), display = cat.own ? tsPyTitle(cat.name) : "General Updates";
-  const w = url.replace(/[?].*$/, ""), key = w + "|" + name, sep = url.includes("?") ? "&" : "?";
+  const w = url.replace(/[?].*$/, ""), key = vHash(w) + "|" + name, sep = url.includes("?") ? "&" : "?";
   for(let attempt = 0; attempt < 2; attempt++){
     let id = null;
     if(!tsPlain[w]){
@@ -381,6 +390,7 @@ function tsStart(kinds, preview){
 }
 async function maybeAutoSync(){
   if(!advancedOn()) return;
+  await vaultReady();   // the keys come from the encrypted store; wait until they are loaded
   const c = tsCfg(); if(!c.auto || !(tsActive(c).length || tsDcHook(c, "anime") || tsDcHook(c, "manga"))) return;
   for(const k of ["anime", "manga"]){
     const m = tsMem(k); if(!m.last_run) continue;   // the first run is always started by hand
@@ -409,6 +419,7 @@ function tsRenderStatus(){
   $("#syncStatus").textContent = "Source: " + (c.source || state.user || "not set") + "\nTargets: " + ([al ? "AniList (" + c.al.user + ")" : "", mal ? "MyAnimeList (" + (c.mal.user || "connected") + ")" : ""].filter(Boolean).join(", ") || "none connected yet") + "\n" + line("anime") + "\n" + line("manga");
   $("#tsAlState").textContent = al ? "Connected as " + c.al.user + "." : "Not connected."; $("#tsAlForget").hidden = !al;
   $("#tsMalState").textContent = mal ? "Connected as " + (c.mal.user || "your account") + "." : "Not connected."; $("#tsMalForget").hidden = !mal;
+  tsRenderChrome(c);
   // titles waiting for a decision
   const pb = $("#syncPending"); pb.replaceChildren();
   for(const k of ["anime", "manga"]){
@@ -426,7 +437,56 @@ function tsRenderStatus(){
   for(const p of all.slice(-30).reverse()){ const r = el("div", "tsfail"); r.append(el("b", null, p.title), el("span", null, TS_KINDS[p.k].label + " · " + TS_NAMES[p.t] + " · " + (p.kind === "rejected" ? "rejected, not retried until it changes" : "failed, will retry") + " · " + p.msg)); list.append(r); }
 }
 
+// ----- the look of the page: where the list goes, and a status pill on each section -----
+function tsRenderChrome(c){
+  const al = !!(c.al && c.al.token), mal = !!(c.mal && c.mal.access), hooks = [c.dcUrl, c.dcAnime, c.dcManga].filter(u => u && tsWebhookOk(u)).length;
+  const pill = (id, on, text) => { const e = $(id); if(e){ e.textContent = text; e.dataset.on = on ? "1" : "0"; } };
+  pill("#tsSrcPill", true, tsSrcName(c) || "not set"); $("#tsSrcPill").dataset.on = tsSrcName(c) ? "1" : "0";
+  pill("#tsAlPill", al, al ? "Connected" : "Not connected"); pill("#tsMalPill", mal, mal ? "Connected" : "Not connected");
+  pill("#tsDcPill", hooks > 0, hooks ? hooks + (hooks === 1 ? " link saved" : " links saved") : "Off");
+  pill("#tsSecPill", vault.secure, vault.secure ? "Encrypted" : "Not encrypted");
+  const flow = $("#tsFlow"); if(!flow) return; flow.replaceChildren();
+  const node = (name, sub, on) => { const n = el("div", "tsnode"); n.dataset.on = on ? "1" : "0"; n.append(el("b", null, name), el("span", null, sub)); return n; };
+  const arrow = () => el("i", "tsarrow", "→");
+  const mid = el("div", "tstargets");
+  mid.append(node("AniList", al ? (c.al.user || "connected") : "not connected", al), node("MyAnimeList", mal ? (c.mal.user || "connected") : "not connected", mal));
+  flow.append(node("Source", tsSrcName(c) || "not set", !!tsSrcName(c)), arrow(), mid);
+  if(hooks) flow.append(arrow(), node("Discord", hooks + (hooks === 1 ? " webhook" : " webhooks"), true));
+}
+
 // ----- the settings form -----
+// The fields that hold keys, secrets and webhook links. With the encrypted store they are never put back into the form: a saved one shows only its last characters, and typing replaces it.
+const TS_SECRET_INPUTS = [["#tsAlId", ["al", "clientId"]], ["#tsAlSecret", ["al", "clientSecret"]], ["#tsMalId", ["mal", "clientId"]], ["#tsMalSecret", ["mal", "clientSecret"]], ["#tsDcUrl", ["dcUrl"]], ["#tsDcAnime", ["dcAnime"]], ["#tsDcManga", ["dcManga"]]];
+// What the field holds now: what was typed, else the saved value (so a Connect right after Save still works).
+function tsNow(sel){
+  const t = $(sel).value.trim(); if(t) return t;
+  const e = TS_SECRET_INPUTS.find(x => x[0] === sel);
+  return vault.secure && e ? String(vGet(tsRaw(), e[1]) || "") : "";
+}
+function tsIn(sel, cur){
+  const inp = $(sel), t = inp.value.trim();
+  if(!vault.secure || t) return t;
+  return inp.dataset.clear === "1" ? "" : (cur == null ? "" : cur);
+}
+function tsSecretUi(c){
+  for(const [sel, path] of TS_SECRET_INPUTS){
+    const inp = $(sel); if(!inp.dataset.ph) inp.dataset.ph = inp.placeholder;
+    let rm = inp.parentNode.querySelector('.tsx[data-for="' + sel + '"]');
+    if(!rm){
+      rm = el("button", "tsx", "Remove saved value"); rm.type = "button"; rm.dataset.for = sel; inp.after(rm);
+      rm.onclick = () => {
+        if(rm.dataset.armed !== "1"){ rm.dataset.armed = "1"; rm.textContent = "Tap again to remove"; setTimeout(() => { rm.dataset.armed = ""; rm.textContent = "Remove saved value"; }, 4000); return; }
+        inp.dataset.clear = "1"; tsSaveForm(); tsFill(); tsRenderStatus();
+      };
+    }
+    const saved = vault.secure ? vGet(c, path) : null;
+    if(vault.secure){ inp.value = ""; inp.placeholder = saved ? "Saved · " + vMask(saved) + " · type to replace" : inp.dataset.ph; }
+    inp.classList.toggle("saved", !!saved); rm.hidden = !saved;
+  }
+  const s = $("#tsVaultState");
+  if(s) s.textContent = vault.secure ? "Keys, secrets and webhook links are encrypted on this phone." : (vaultStore() ? "The phone's encrypted store did not work, so keys are kept as normal text on this device." : "This build has no encrypted store, so keys are kept as normal text on this device (the Android app with its add-on encrypts them).");
+  if(s) s.dataset.on = vault.secure ? "1" : "0";
+}
 function tsFill(){
   const c = tsCfg(), al = c.al || {}, mal = c.mal || {};
   $("#tsSource").value = c.source || ""; $("#tsSource").placeholder = state.user || "your AniList username";
@@ -436,22 +496,28 @@ function tsFill(){
   $("#tsDcUrl").value = c.dcUrl || ""; $("#tsDcAnime").value = c.dcAnime || ""; $("#tsDcManga").value = c.dcManga || ""; $("#tsDcLists").value = c.dcLists; $("#tsDcOn").checked = !!c.dcOn; $("#tsDcQuiet").checked = !!c.dcQuiet; $("#tsDcTitles").checked = !!c.dcTitles; $("#tsDcThemes").checked = c.dcThemes !== false; $("#tsDcAdaptive").checked = c.dcAdaptive !== false;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) $(id).checked = !!c[key];
   $("#tsAutoHours").value = String(c.autoHours);
+  tsSecretUi(c);
 }
 // Saves what the form shows. Called whenever something changes and before every sync, so the screen and the engine never disagree.
 function tsSaveForm(){
   const c = tsRaw();
   c.source = $("#tsSource").value.trim();
-  c.al = Object.assign({}, c.al, { clientId: $("#tsAlId").value.trim(), clientSecret: $("#tsAlSecret").value.trim() });
-  c.mal = Object.assign({}, c.mal, { clientId: $("#tsMalId").value.trim(), clientSecret: $("#tsMalSecret").value.trim(), redirect: $("#tsMalRedirect").value.trim() || "http://localhost" });
+  const cur = p => vGet(c, p);
+  c.al = Object.assign({}, c.al, { clientId: tsIn("#tsAlId", cur(["al", "clientId"])), clientSecret: tsIn("#tsAlSecret", cur(["al", "clientSecret"])) });
+  c.mal = Object.assign({}, c.mal, { clientId: tsIn("#tsMalId", cur(["mal", "clientId"])), clientSecret: tsIn("#tsMalSecret", cur(["mal", "clientSecret"])), redirect: $("#tsMalRedirect").value.trim() || "http://localhost" });
   for(const [id, key, label] of [["#tsDcUrl", "dcUrl", "log report"], ["#tsDcAnime", "dcAnime", "anime"], ["#tsDcManga", "dcManga", "manga"]]){
-    const url = $(id).value.trim();
+    const url = tsIn(id, c[key]);
     if(!url || tsWebhookOk(url)) c[key] = url; else tsLog("That isn't a Discord webhook link, so the " + label + " webhook was not saved.");
   }
   c.dcLists = $("#tsDcLists").value.trim();
   c.dcOn = $("#tsDcOn").checked; c.dcQuiet = $("#tsDcQuiet").checked; c.dcTitles = $("#tsDcTitles").checked; c.dcThemes = $("#tsDcThemes").checked; c.dcAdaptive = $("#tsDcAdaptive").checked;
   for(const [id, key] of [["#tsSendAl", "sendAl"], ["#tsSendMal", "sendMal"], ["#tsAdd", "add"], ["#tsProtect", "protect"], ["#tsRemove", "remove"], ["#tsSkipAdultMal", "skipAdultMal"], ["#tsAuto", "auto"]]) c[key] = $(id).checked;
   c.autoHours = Number($("#tsAutoHours").value) || 3;
-  LSset(TS_KEY, c);
+  tsWrite(c);
+  if(vault.secure){   // what was typed is saved in the vault: clear it from the form
+    for(const [sel] of TS_SECRET_INPUTS){ const i = $(sel); if(i.value.trim() && !(sel.startsWith("#tsDc") && !tsWebhookOk(i.value.trim()))) i.value = ""; i.dataset.clear = ""; }
+    tsSecretUi(tsRaw());
+  }
 }
 function tsSetBusy(on){ tsBusy = on; for(const id of ["#syncNow", "#syncNowManga", "#syncBoth", "#syncPreview"]) $(id).disabled = on; $("#syncStop").hidden = !on; }
 document.querySelectorAll("#setSync input:not(.tscode), #setSync select").forEach(x => x.addEventListener("change", () => { tsSaveForm(); tsRenderStatus(); }));
@@ -460,14 +526,14 @@ document.querySelectorAll("#setSync input:not(.tscode), #setSync select").forEac
 function tsOpenUrl(u){ const B = isNative && nativePlugin("Browser"); if(B) B.open({ url: u }); else window.open(u, "_blank", "noopener"); }
 function tsRand(n){ const ch = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~", a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, x => ch[x % ch.length]).join(""); }
 $("#tsAlOpen").onclick = () => {
-  tsLogClear(); const id = $("#tsAlId").value.trim();
+  tsLogClear(); tsSaveForm(); const id = tsNow("#tsAlId");
   if(!id) return tsLog("Enter your AniList client ID first.");
-  tsSaveForm(); tsOpenUrl("https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&redirect_uri=" + encodeURIComponent(TS_AL_PIN) + "&response_type=code");
+  tsOpenUrl("https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&redirect_uri=" + encodeURIComponent(TS_AL_PIN) + "&response_type=code");
   tsLog("Log in with the account you want to copy TO, then paste the code AniList shows.");
 };
 $("#tsAlConnect").onclick = async () => {
   tsLogClear(); tsSaveForm();
-  const id = $("#tsAlId").value.trim(), secret = $("#tsAlSecret").value.trim(), { code } = tsParseCode($("#tsAlCode").value);
+  const id = tsNow("#tsAlId"), secret = tsNow("#tsAlSecret"), { code } = tsParseCode($("#tsAlCode").value);
   if(!id || !secret) return tsLog("Enter the client ID and the client secret.");
   if(!code) return tsLog("Paste the code AniList showed you.");
   try{
@@ -482,9 +548,9 @@ $("#tsAlConnect").onclick = async () => {
 };
 $("#tsAlForget").onclick = () => { tsPatch("al", { token: "", user: "", userId: 0 }); tsLogClear(); tsLog("Target AniList disconnected."); tsRenderStatus(); };
 $("#tsMalOpen").onclick = () => {
-  tsLogClear(); const id = $("#tsMalId").value.trim(), redirect = $("#tsMalRedirect").value.trim() || "http://localhost";
+  tsLogClear(); tsSaveForm(); const id = tsNow("#tsMalId"), redirect = $("#tsMalRedirect").value.trim() || "http://localhost";
   if(!id) return tsLog("Enter your MyAnimeList client ID first.");
-  tsSaveForm(); const verifier = tsRand(64), st = tsRand(16);
+  const verifier = tsRand(64), st = tsRand(16);
   tsPatch("mal", { pending: { verifier, state: st, redirect } });   // the redirect used here is the one used to finish the login, even if the box is edited in between
   tsOpenUrl("https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(id) + "&code_challenge=" + verifier + "&code_challenge_method=plain&state=" + st + "&redirect_uri=" + encodeURIComponent(redirect));
   tsLog("Approve the app. You'll land on your redirect URL; copy that whole address (or just the code in it) and paste it below.");

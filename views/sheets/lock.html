@@ -1,0 +1,14 @@
+<div class="lksheet" id="lockSheet" role="dialog" aria-modal="true" aria-labelledby="lkTitle" hidden>
+  <div class="lkbox">
+    <div class="lkicon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+    <h3 id="lkTitle">Triple Sync is locked</h3>
+    <p class="sub" id="lkMsg"></p>
+    <input id="lkPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" aria-label="PIN">
+    <input id="lkPin2" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Type it again" aria-label="Type the PIN again" hidden>
+    <p class="lkerr" id="lkErr" role="alert"></p>
+    <button class="go" id="lkGo">Unlock</button>
+    <button class="go alt" id="lkBio" hidden>Use fingerprint or phone lock</button>
+    <button class="lklink" id="lkForgot">Forgot the PIN?</button>
+    <button class="lklink" id="lkCancel">Cancel</button>
+  </div>
+</div>

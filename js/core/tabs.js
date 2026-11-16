@@ -5,6 +5,8 @@ const TAB_OF = { notifications: "", "set-notify": "profile", taste: "profile", s
 function showTab(t){
   if(typeof crumb === "function") crumb("screen " + t);
   if(t === "set-sync" && !advancedOn()) t = "settings";   // AniList Triple Sync only opens when Advanced features are on
+  if(t === "set-sync" && typeof lockNeeded === "function" && lockNeeded("sync")){ lockAsk("sync").then(ok => { if(ok) showTab("set-sync"); }); return; }   // locked: the page opens only after the PIN
+  if(typeof lockPage === "function") lockPage(t);
   const shown = SCREENS[t];
   new Set(Object.values(SCREENS)).forEach(id => { $(id).hidden = id !== shown; });
   document.querySelectorAll("#tabs .tab").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === (TAB_OF[t] || t))));
@@ -20,7 +22,7 @@ function showTab(t){
   if(t === "set-notify") nfFill();
   if(t === "profile") renderProfile();
   if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); }
-  if(t === "set-sync"){ tsFill(); tsRenderStatus(); }
+  if(t === "set-sync"){ tsFill(); tsRenderStatus(); lockFill(); }
   if(t === "set-anilist") loadAniSettings();
   if(t === "set-lists") lsLoad(false);
   if(t === "set-account") fillAccount();

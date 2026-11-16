@@ -20,9 +20,10 @@ PACKAGE = "app.whatnext.addon"
 KOTLIN = "1.9.25"
 CRYPTO = "androidx.security:security-crypto:1.1.0-alpha06"
 WORK = "androidx.work:work-runtime:2.9.1"
+BIOMETRIC = "androidx.biometric:biometric:1.1.0"
 KOTLIN_FILES = ["WnSecurePlugin.kt"]
-NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt"]
-EXTRA_PLUGINS = ["WnNotifyPlugin", "WnImagePlugin"]   # registered next to WnSecurePlugin unless --secure-only
+NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt", "WnLockPlugin.kt"]
+EXTRA_PLUGINS = ["WnNotifyPlugin", "WnImagePlugin", "WnLockPlugin"]   # registered next to WnSecurePlugin unless --secure-only
 MARK = "what-next-addon"
 
 
@@ -80,8 +81,11 @@ def main(android, here, notify=True):
         app = app.rstrip("\n") + '\n\ndependencies {\n    implementation "%s"   // %s\n}\n' % (CRYPTO, MARK)
         writes[app_gradle] = app
 
-    if notify and "androidx.work:work-runtime" not in app:
-        writes[app_gradle] = (writes.get(app_gradle, app)).rstrip("\n") + '\n\ndependencies {\n    implementation "%s"   // %s\n}\n' % (WORK, MARK)
+    if notify:
+        for lib in (WORK, BIOMETRIC):
+            cur = writes.get(app_gradle, app)
+            if lib.rsplit(":", 1)[0] not in cur:
+                writes[app_gradle] = cur.rstrip("\n") + '\n\ndependencies {\n    implementation "%s"   // %s\n}\n' % (lib, MARK)
 
     # MainActivity: register the plugins before the bridge starts.
     java_root = os.path.join(android, "app", "src", "main", "java")

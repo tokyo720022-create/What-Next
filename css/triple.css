@@ -8,3 +8,31 @@
 .tsfail span{color:var(--muted)}
 #syncProblems{margin-top:12px}
 #tsAutoHours{margin-top:8px}
+
+/* Page look: where the list goes, step headings with status pills, the security card, the lock sheet */
+.tsflow{display:flex;align-items:center;gap:8px;margin-top:16px;padding:14px;border-radius:20px;background:var(--card);box-shadow:var(--shadow);overflow-x:auto}
+.tsnode{flex:1 1 0;min-width:84px;padding:10px 12px;border-radius:14px;background:var(--chip);border:1.5px solid transparent;display:flex;flex-direction:column;gap:2px}
+.tsnode[data-on="1"]{border-color:#2fa866}
+.tsnode b{font-size:.9rem}
+.tsnode span{font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tstargets{flex:1 1 0;display:flex;flex-direction:column;gap:8px;min-width:96px}
+.tsarrow{flex:none;font-style:normal;color:var(--muted);font-weight:800}
+.tsq{display:flex;align-items:center;gap:10px}
+.tsq .tspill{margin-left:auto}
+.tsn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--grad);color:var(--sakura-ink);display:grid;place-items:center;font-style:normal;font-weight:800;font-size:.8rem}
+.tsn.tslock{background:var(--chip);font-size:.9rem}
+.tspill{padding:2px 10px;border-radius:999px;background:var(--chip);color:var(--muted);font-style:normal;font-weight:700;font-size:.74rem;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none;letter-spacing:0}
+.tspill[data-on="1"]{background:#2fa866;color:#fff}
+#tsVaultState[data-on="1"]{color:#2fa866;font-weight:700}
+#tsVaultState[data-on="0"]{color:var(--muted)}
+.tsx{display:block;margin:4px 0 0;padding:4px 0;border:0;background:none;color:var(--muted);font:inherit;font-size:.82rem;text-decoration:underline;cursor:pointer}
+input.saved{border-color:#2fa866}
+.lksheet{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg,#0b0b10)}
+.lksheet[hidden]{display:none}
+.lkbox{width:100%;max-width:360px;text-align:center}
+.lkicon{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:var(--chip);display:grid;place-items:center}
+.lkicon svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lkbox h3{margin:0 0 6px;font-size:1.4rem}
+.lkbox input{text-align:center;letter-spacing:.4em;font-size:1.3rem;margin-top:10px}
+.lkerr{min-height:1.3em;margin:8px 0;color:#ff6b6b;font-size:.9rem}
+.lklink{display:block;width:100%;margin-top:6px;padding:10px;border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;text-decoration:underline}

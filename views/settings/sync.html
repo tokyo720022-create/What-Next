@@ -2,6 +2,7 @@
   <button class="back" data-go="settings">← Settings</button>
   <h2 class="ph">AniList Triple Sync</h2>
   <p class="sub" style="margin:8px 0 0">Copies your list (the source) to a second AniList account and to MyAnimeList, for anime and manga. After the first run, only titles that changed are sent.</p>
+  <div class="tsflow" id="tsFlow" aria-label="Where your list is copied"></div>
   <div class="card" style="margin-top:16px">
     <p class="sub" id="syncStatus" style="white-space:pre-line">Never synced.</p>
     <div class="row" style="margin-top:12px">
@@ -22,16 +23,32 @@
     <div class="tsrow"><button class="chip" id="syncRetry">Try the rejected ones again</button><button class="chip" id="syncProblemsClear">Clear list</button></div>
   </div>
 
+  <div class="q tsq"><i class="tsn tslock" aria-hidden="true">🔒</i><span>Security</span><em class="tspill" id="tsSecPill"></em></div>
+  <div class="card tssec" style="margin-top:0">
+    <p class="sub" id="tsVaultState" style="margin-top:0"></p>
+    <label class="lsrow"><span>Lock this page with a PIN</span><input class="lssw" type="checkbox" id="lkOn"><i class="lsck"></i></label>
+    <p class="sub" id="lkState" style="margin:4px 0 0"></p>
+    <div id="lkOptions" hidden>
+      <label for="lkRelock">Ask for the PIN again</label>
+      <select id="lkRelock"><option value="0">Every time I open this page</option><option value="1">After 1 minute away</option><option value="5">After 5 minutes away</option><option value="15">After 15 minutes away</option></select>
+      <label class="lsrow"><span>Also lock the Import Lists button (Account Settings)</span><input class="lssw" type="checkbox" id="lkImport"><i class="lsck"></i></label>
+      <label class="lsrow" id="lkBioRow" hidden><span>Unlock with fingerprint, face or phone lock</span><input class="lssw" type="checkbox" id="lkBioOn"><i class="lsck"></i></label>
+      <div class="tsrow"><button class="chip" id="lkChange" type="button">Change PIN</button></div>
+    </div>
+    <label class="lsrow" id="lkScreenRow" hidden><span>Hide this page from screenshots and the recent-apps view</span><input class="lssw" type="checkbox" id="lkScreen"><i class="lsck"></i></label>
+    <p class="sub" style="margin:10px 0 0">The PIN is never saved, only a scrambled check of it. Five wrong tries start a pause that gets longer each time. If you forget it, the only way back in erases the Triple Sync keys, links and memory so you can set them up again.</p>
+  </div>
+
   <div class="q">Settings</div>
   <p class="sub" style="margin:0 0 6px">Everything below is saved on this device as you change it.</p>
 
-  <div class="q tsq">Source</div>
+  <div class="q tsq"><i class="tsn">1</i><span>Source</span><em class="tspill" id="tsSrcPill"></em></div>
   <div class="card" style="margin-top:0">
     <label for="tsSource" style="margin-top:0">Source AniList username</label>
     <input id="tsSource" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="defaults to your login">
   </div>
 
-  <div class="q tsq">Target AniList account</div>
+  <div class="q tsq"><i class="tsn">2</i><span>Target AniList account</span><em class="tspill" id="tsAlPill"></em></div>
   <div class="card" style="margin-top:0">
     <p class="sub" id="tsAlState" style="margin-top:0">Not connected.</p>
     <p class="sub">Make your own API client at anilist.co/settings/developer and set its Redirect URL to https://anilist.co/api/v2/oauth/pin. Log in with the account you want to copy to.</p>
@@ -46,7 +63,7 @@
     <button class="go alt" id="tsAlForget" type="button" hidden>Disconnect</button>
   </div>
 
-  <div class="q tsq">MyAnimeList account</div>
+  <div class="q tsq"><i class="tsn">3</i><span>MyAnimeList account</span><em class="tspill" id="tsMalPill"></em></div>
   <div class="card" style="margin-top:0">
     <p class="sub" id="tsMalState" style="margin-top:0">Not connected.</p>
     <p class="sub">Make your own API app at myanimelist.net/apiconfig and give it a Redirect URL (for example http://localhost). Type the same one below.</p>
@@ -63,7 +80,7 @@
     <button class="go alt" id="tsMalForget" type="button" hidden>Disconnect</button>
   </div>
 
-  <div class="q tsq">Discord (optional)</div>
+  <div class="q tsq"><i class="tsn">4</i><span>Discord (optional)</span><em class="tspill" id="tsDcPill"></em></div>
   <div class="card" style="margin-top:0">
     <p class="sub" style="margin-top:0">Three webhooks, each optional. They are links you make in Discord (channel settings > Integrations > Webhooks). Forum channels work: the cards are sorted into threads.</p>
     <b>Log report</b>
@@ -92,7 +109,7 @@
     <p class="sub" style="margin-top:8px">A list is themed when its name contains a theme name (for example Isekai, Iseki, Tensei, Rom Com, Fantasy, Movie, Fav, Planning, Plan to continue) and it has its own thread above: add new list names to that box. Lists without a theme use the standard card. Test cards go to General Updates, so your list threads stay clean.</p>
   </div>
 
-  <div class="q tsq">Options</div>
+  <div class="q tsq"><i class="tsn">5</i><span>Options</span></div>
   <div class="card" style="margin-top:0">
     <label class="chk"><input type="checkbox" id="tsSendAl"> Send to the target AniList account</label>
     <label class="chk"><input type="checkbox" id="tsSendMal"> Send to MyAnimeList</label>
@@ -106,6 +123,6 @@
     </select>
     <button class="go" id="tsSave">Save settings</button>
     <button class="go alt" id="tsReset">Reset sync memory</button>
-    <p class="sub" style="margin-top:12px">Your client secrets, login tokens and webhook link are stored only on this device. Resetting memory makes the next sync ask how to start again. A long sync only runs while the app is open, so the screen is kept awake during it.</p>
+    <p class="sub" style="margin-top:12px">Your client IDs, client secrets, login tokens and webhook links are stored only on this device (encrypted in the Android app, see Security above). Resetting memory makes the next sync ask how to start again. A long sync only runs while the app is open, so the screen is kept awake during it.</p>
   </div>
 </section>

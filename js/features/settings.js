@@ -96,7 +96,7 @@ function fillAccount(){
   const p = cacheGetAs("acct", "profile_" + acctUser(), CACHE_OK.object);
   $("#acName").textContent = state.user || savedName(); const av = safeUrl(p && p.v && p.v.avatar && p.v.avatar.large); $("#acAvatar").hidden = !av; if(av) $("#acAvatar").src = av;
 }
-document.querySelectorAll("#setAccount [data-url]").forEach(b => { b.onclick = () => openExternal(b.dataset.url); });
+document.querySelectorAll("#setAccount [data-url]").forEach(b => { b.onclick = async () => { if(b.dataset.lock && typeof lockAsk === "function" && !(await lockAsk(b.dataset.lock))) return; openExternal(b.dataset.url); }; });   // Import Lists asks for the Triple Sync PIN when a lock is set
 let delArmed = false;
 $("#acDelete").onclick = () => {
   const hint = $("#acDeleteHint");

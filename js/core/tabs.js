@@ -21,7 +21,7 @@ function showTab(t){
   if(t === "notifications") nfOpen();
   if(t === "set-notify") nfFill();
   if(t === "profile") renderProfile();
-  if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); }
+  if(t === "set-app"){ $("#hideCount").textContent = hide.size ? hide.size + " hidden title(s)." : "No hidden titles."; fillLook(); fillApp(); if(typeof pmFill === "function") pmFill(); }
   if(t === "set-sync"){ tsFill(); tsRenderStatus(); lockFill(); }
   if(t === "set-anilist") loadAniSettings();
   if(t === "set-lists") lsLoad(false);

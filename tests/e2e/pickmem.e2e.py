@@ -1,0 +1,38 @@
+# Pick Memory: the why chips, the three reactions, undo, set aside until tomorrow, and the settings. (The test harness turns it off by default so other tests stay predictable.)
+import sys
+from harness import *
+R = []
+def check(n, c, d=""): R.append(bool(c)); print(("PASS " if c else "FAIL ") + n + ((" :: " + str(d)) if d and not c else ""))
+def main(page, out):
+    page.evaluate("""() => { localStorage.setItem('wn_pickmem', JSON.stringify({ on: true, learn: true, boot: { anime: true, manga: true } })); pmCache = null; }""")
+    page.evaluate("showTab('pick')"); page.wait_for_selector("#result .hero"); page.wait_for_timeout(300)
+    check("under the card: why this pick, as chips", page.locator("#result .pmwhy .pmchip").count() >= 1 and "Why this pick" in page.inner_text("#result .pmwhy"), page.inner_text("#result"))
+    check("three reactions: Great pick, Not for me, Not today", page.inner_text("#result .pmbtns").replace("\n", " ").split() == ["👍", "Great", "pick", "👎", "Not", "for", "me", "⏭", "Not", "today"] or page.locator("#result .pmb").count() == 3)
+    check("the existing buttons are still there", page.locator("#result .btns .go").count() == 1 and page.locator("#result .btns .chip").count() == 2)
+    page.click("#result .pmb.up"); page.wait_for_timeout(200)
+    note = page.inner_text("#result .pmnote")
+    check("Great pick says what it learned and offers Undo", (note.startswith("Learned: more") or note.startswith("Nothing new")) and (page.locator("#result .pmundo").count() == 1 or note.startswith("Nothing new")), note)
+    saved = page.evaluate("JSON.parse(localStorage.getItem('wn_pickmem')).react")
+    if page.locator("#result .pmundo").count():
+        check("the reaction was counted", saved["anime"] + saved["manga"] == 1, saved)
+        page.click("#result .pmundo"); page.wait_for_timeout(150)
+        saved2 = page.evaluate("JSON.parse(localStorage.getItem('wn_pickmem')).react")
+        check("Undo takes it back", saved2["anime"] + saved2["manga"] == 0 and page.inner_text("#result .pmnote") == "Undone.", saved2)
+    first = page.inner_text("#result .hero h2")
+    page.click("#result .pmb.later"); page.wait_for_timeout(300)
+    snoozed = page.evaluate("Object.keys(JSON.parse(localStorage.getItem('wn_pm_snooze') || '{}')).length")
+    check("Not today sets the title aside until tomorrow and shows the next one", snoozed == 1 and page.locator("#result .hero").count() == 1, snoozed)
+    page.click("#result .pmb.no"); page.wait_for_timeout(300)
+    check("Not for me shows the next suggestion", page.locator("#result .hero").count() == 1)
+    # settings
+    page.evaluate("showTab('set-app')"); page.wait_for_selector("#pmOn"); page.wait_for_timeout(200)
+    check("App Settings has the Pick Memory switches and a summary", page.is_checked("#pmOn") and page.is_checked("#pmLearn") and "Learned from" in page.inner_text("#pmStat"), page.inner_text("#pmStat"))
+    page.click("label:has(#pmLearn)"); page.wait_for_timeout(100)
+    check("pausing learning is saved", page.evaluate("JSON.parse(localStorage.getItem('wn_pickmem')).learn") is False)
+    page.click("#pmReset"); check("Reset needs a second tap", "Tap again" in page.inner_text("#pmReset"))
+    page.click("#pmReset"); page.wait_for_timeout(150)
+    after = page.evaluate("JSON.parse(localStorage.getItem('wn_pickmem'))")
+    check("Reset erases what it learned and keeps the switches", after["react"] == {"anime": 0, "manga": 0} and not after["anime"] and not after["manga"] and after["on"] is True and after["boot"] == {"anime": False, "manga": False}, after)
+out = run(main, viewport=(390, 844))
+check("no page errors", not [e for e in out["errors"] if "favicon" not in e], out["errors"][:2])
+print("%d checks, %d failed" % (len(R), R.count(False))); sys.exit(1 if False in R else 0)

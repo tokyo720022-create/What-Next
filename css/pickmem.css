@@ -1,0 +1,15 @@
+/* css/pickmem.css: the "why" chips and the reaction buttons under a pick */
+.pmwhy{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 2px 0}
+.pmwl{font-size:.74rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pmchip{padding:4px 11px;border-radius:999px;background:var(--chip);font-weight:700;font-size:.82rem}
+.pmchip.learned{background:var(--grad);color:var(--sakura-ink)}
+.pmfb{margin-top:14px;padding:14px;border-radius:20px;background:var(--card);box-shadow:var(--shadow)}
+.pmq{font-weight:800;margin-bottom:10px}
+.pmbtns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pmb{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border:1.5px solid transparent;border-radius:16px;background:var(--chip);color:var(--ink);font:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
+.pmb:focus-visible{outline:3px solid var(--sakura);outline-offset:2px}
+.pmb[aria-pressed="true"]{border-color:#2fa866}
+.pmb:disabled{opacity:.7;cursor:default}
+.pmi{font-size:1.3rem;line-height:1}
+.pmnote{min-height:1.3em;margin:10px 0 0;color:var(--muted);font-size:.88rem}
+.pmundo{margin-left:6px;padding:0;border:0;background:none;color:var(--sakura);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}

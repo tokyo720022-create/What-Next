@@ -469,7 +469,7 @@ def run(fn, viewport=(390, 844), mobile=True, init="", anon=False):
         page.on("console", lambda m: out["console"].append((m.type, m.text)) if m.type in ("error", "warning") else None)
         page.on("pageerror", lambda e: out["errors"].append(str(e)))
         page.on("requestfailed", lambda r: out["failed"].append(r.url))
-        page.add_init_script(("" if anon else "if(!localStorage.getItem('wn_token')){localStorage.setItem('wn_token','tok'); localStorage.setItem('wn_name','Tester');}") + init)
+        page.add_init_script("if(!localStorage.getItem('wn_pickmem')){localStorage.setItem('wn_pickmem','{\"on\":false}');}" + ("" if anon else "if(!localStorage.getItem('wn_token')){localStorage.setItem('wn_token','tok'); localStorage.setItem('wn_name','Tester');}") + init)
         out["ctx"] = ctx
         page.goto("http://127.0.0.1:%d/index.html" % PORT)
         page.wait_for_selector("#boot", state="detached", timeout=15000)   # the loading screen goes away when the app is ready

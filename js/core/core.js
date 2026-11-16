@@ -2,7 +2,7 @@
 
 const $ = s => document.querySelector(s);
 const MIN_PER_CHAPTER = 6; // rough guess for reading speed
-const state = { user: "", kind: "BOTH", time: 30, genre: "ALL", adult: "ALL", items: [], skipped: new Set(), fromCache: false, shownId: 0 };   // fromCache: the saved pool is on screen while the fresh list loads
+const state = { user: "", kind: "BOTH", time: 30, genre: "ALL", adult: "ALL", items: [], skipped: new Set(), fromCache: false, shownId: 0, pmExplore: 0 };   // fromCache: the saved pool is on screen while the fresh list loads
 
 // Build genre chips from the genres that actually appear in the user's list.
 function buildGenres(keep){
@@ -101,6 +101,7 @@ function candidates(wild){
   const out = [];
   for(const e of state.items){
     if(hide.has(e.media.id)) continue;
+    if(!wild && typeof pmSnoozedNow === "function" && pmSnoozedNow(e.media.id)) continue;   // "Not today": back tomorrow
     if(!wild){
       if(state.kind !== "BOTH" && e.media.type !== state.kind) continue;
       if(state.genre !== "ALL" && !(e.media.genres || []).includes(state.genre)) continue;
@@ -109,7 +110,7 @@ function candidates(wild){
     }
     const p = plan(e); if(!p) continue;
     const base = e.status === "PLANNING" ? 50 : e.status === "REPEATING" ? 40 : 100;
-    out.push({e, p, score: wild ? Math.random() : base + (e.media.averageScore || 60) / 2 + Math.random() * 30});
+    out.push({e, p, score: wild ? Math.random() : base + (e.media.averageScore || 60) / 2 + Math.random() * 30 + (typeof pmScore === "function" ? pmScore(e) : 0)});   // Pick Memory adds a capped bonus (pickmem-math.js)
   }
   return out.sort((a,b) => b.score - a.score);
 }
@@ -120,7 +121,10 @@ function pick(wild){
   if(!cands.length) return msg("Nothing matches. Try a different time or genre, or open Filters.");
   let pool = cands.filter(c => !state.skipped.has(c.e.media.id));
   if(!pool.length){ state.skipped.clear(); pool = cands; }
-  show(pool[0]);
+  const i = !wildMode && typeof pmExplore === "function" ? pmExplore(pool.length) : 0;   // now and then, a change of pace
+  state.pmExplore = i ? pool[i].e.media.id : 0;
+  if(typeof pmEnsureBoot === "function") pmEnsureBoot();   // reads your list once in the background
+  show(pool[i]);
 }
 function lineup(){
   if(!state.items.length) return;
@@ -170,7 +174,8 @@ function show({e,p}){
   const again = el("button", "chip", "Another"); again.onclick = () => { state.skipped.add(m.id); next(); };
   const hideB = el("button", "chip", "Hide"); hideB.onclick = () => { hide.add(m.id); saveHide(); next(); };
   bar.append(again, hideB);
-  $("#result").replaceChildren(hero, bar);
+  const why = typeof pmWhyRow === "function" ? pmWhyRow(e, p, state.pmExplore === m.id) : null, fb = typeof pmFeedbackRow === "function" ? pmFeedbackRow(e, p, next) : null;
+  $("#result").replaceChildren(...[hero, why, bar, fb].filter(Boolean));
 }
 
 function wireChips(id, key){

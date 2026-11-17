@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/upd_root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/wn_widget_bg" android:orientation="vertical" android:padding="9dp">
+    <TextView android:id="@+id/upd_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:textColor="#FF9A9AA6" android:textSize="13sp" android:layout_margin="3dp" android:visibility="gone"/>
+    <LinearLayout android:id="@+id/upd_r1" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+        <ImageView android:id="@+id/upd_i1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/upd_r2" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+        <ImageView android:id="@+id/upd_i5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+        <ImageView android:id="@+id/upd_i8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="3dp" android:layout_weight="1" android:scaleType="centerCrop"/>
+    </LinearLayout>
+</LinearLayout>

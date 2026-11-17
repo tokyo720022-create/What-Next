@@ -67,6 +67,7 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {}
 `;
+const MANIFEST = `<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <application android:label="@string/app_name">\n        <activity android:name=".MainActivity" android:exported="true"></activity>\n    </application>\n    <uses-permission android:name="android.permission.INTERNET" />\n</manifest>\n`;
 function project(o = {}){
   const d = fs.mkdtempSync(path.join(os.tmpdir(), "addon-")), a = path.join(d, "android");
   const put = (rel, text) => { const p = path.join(a, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
@@ -74,6 +75,7 @@ function project(o = {}){
   put("app/build.gradle", o.app !== undefined ? o.app : APP_GRADLE);
   if(o.cap !== null) put("app/capacitor.build.gradle", o.cap !== undefined ? o.cap : CAP_GRADLE(21));
   put("app/src/main/java/com/whatnext/app/MainActivity.java", o.main !== undefined ? o.main : MAIN);
+  if(o.manifest !== null) put("app/src/main/AndroidManifest.xml", o.manifest !== undefined ? o.manifest : MANIFEST);
   return a;
 }
 const snapshot = a => { const out = {}; (function walk(d){ for(const e of fs.readdirSync(d, { withFileTypes: true })){ const p = path.join(d, e.name); e.isDirectory() ? walk(p) : out[path.relative(a, p)] = fs.readFileSync(p, "utf8"); } })(a); return out; };
@@ -89,12 +91,12 @@ const count = (s, re) => (s.match(re) || []).length;
   const kt = s["app/src/main/java/app/whatnext/addon/WnSecurePlugin.kt"];
   ok("the Kotlin file is copied into the project", kt === read("native/kotlin/WnSecurePlugin.kt"));
   const main = s["app/src/main/java/com/whatnext/app/MainActivity.java"];
-  ok("the background alert files are copied and the WorkManager library is added once", ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt", "WnLockPlugin.kt"].every(f => s["app/src/main/java/app/whatnext/addon/" + f] === read("native/kotlin/" + f)) && count(s["app/build.gradle"], /implementation "androidx\.work:work-runtime:2\.9\.1"/g) === 1 && /import app\.whatnext\.addon\.WnNotifyPlugin;/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]));
-  ok("MainActivity registers all four plugins before the bridge starts", /registerPlugin\(WnImagePlugin\.class\)/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]) && /registerPlugin\(WnLockPlugin\.class\)/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]) && s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") > 0 && s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") < s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("super.onCreate(savedInstanceState)"));
+  ok("the background alert files are copied and the WorkManager library is added once", ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt", "WnLockPlugin.kt", "WnWidgetPlugin.kt", "WnWidgetStore.kt", "WnWidgetKit.kt", "WnAiringWidget.kt", "WnContinueWidget.kt", "WnUpdatesWidget.kt", "WnStreakWidget.kt", "WnPickWidget.kt"].every(f => s["app/src/main/java/app/whatnext/addon/" + f] === read("native/kotlin/" + f)) && count(s["app/build.gradle"], /implementation "androidx\.work:work-runtime:2\.9\.1"/g) === 1 && /import app\.whatnext\.addon\.WnNotifyPlugin;/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]));
+  ok("MainActivity registers all five plugins before the bridge starts", /registerPlugin\(WnImagePlugin\.class\)/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]) && /registerPlugin\(WnLockPlugin\.class\)/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]) && /registerPlugin\(WnWidgetPlugin\.class\)/.test(s["app/src/main/java/com/whatnext/app/MainActivity.java"]) && s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") > 0 && s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("registerPlugin(WnNotifyPlugin.class)") < s["app/src/main/java/com/whatnext/app/MainActivity.java"].indexOf("super.onCreate(savedInstanceState)"));
   ok("MainActivity registers the plugin before the bridge starts", /import android\.os\.Bundle;\nimport app\.whatnext\.addon\.WnSecurePlugin;/.test(main) && main.indexOf("registerPlugin(WnSecurePlugin.class)") > 0 && main.indexOf("registerPlugin(WnSecurePlugin.class)") < main.indexOf("super.onCreate(savedInstanceState)") && /^package com\.whatnext\.app;/.test(main) && main.includes("import com.getcapacitor.BridgeActivity;"));
   // running it again changes nothing and adds nothing twice
   const r2 = run(a), s2 = snapshot(a);
-  ok("running it twice does no harm", r2.status === 0 && JSON.stringify(s2) === JSON.stringify(s) && count(s2["build.gradle"], /kotlin-gradle-plugin/g) === 1 && count(s2["app/build.gradle"], /security-crypto/g) === 1 && count(s2["app/build.gradle"], /work-runtime/g) === 1 && count(s2["app/src/main/java/com/whatnext/app/MainActivity.java"], /registerPlugin/g) === 4 && count(s2["app/build.gradle"], /androidx\.biometric/g) === 1);
+  ok("running it twice does no harm", r2.status === 0 && JSON.stringify(s2) === JSON.stringify(s) && count(s2["build.gradle"], /kotlin-gradle-plugin/g) === 1 && count(s2["app/build.gradle"], /security-crypto/g) === 1 && count(s2["app/build.gradle"], /work-runtime/g) === 1 && count(s2["app/src/main/java/com/whatnext/app/MainActivity.java"], /registerPlugin/g) === 5 && count(s2["app/build.gradle"], /androidx\.biometric/g) === 1);
 }
 // ---- secure login storage alone (the fallback when the background alerts do not build)
 {
@@ -151,6 +153,33 @@ ok("the worker never marks notifications read on AniList, so the unread count in
 ok("any problem ends a run quietly and the token is never logged", /catch \(e: Exception\)[\s\S]*Result\.success\(\)/.test(kw) && !/\bLog\.|println\(|printStackTrace/.test(kw + kp));
 ok("a missing value from AniList is never shown as the word null", /isNull\(key\)/.test(kw));
 ok("tapping an alert opens the app on the Notifications list (the link the app understands)", /whatnext:\/\/notifications/.test(kw) && /whatnext:\\\/\\\/notifications/.test(read("js/features/notify.js")));
+
+// ---- home screen widgets
+{
+  const a = project(), r = run(a), s = snapshot(a), man = s["app/src/main/AndroidManifest.xml"], names = ["WnAiringWidget", "WnContinueWidget", "WnUpdatesWidget", "WnStreakWidget", "WnPickWidget"];
+  ok("the five widget receivers are added to the manifest, inside the application, once each", r.status === 0 && names.every(n => count(man, new RegExp('android:name="app\\.whatnext\\.addon\\.' + n + '"', "g")) === 1) && man.indexOf("WnPickWidget") < man.indexOf("</application>") && man.indexOf("WnAiringWidget") > man.indexOf("<application"), man);
+  ok("each receiver names a provider info file that exists, and a Kotlin class that exists", names.every(n => { const info = /wn_widget_(\w+)_info/.exec(man.slice(man.indexOf(n))); return info && fs.existsSync(path.join(ROOT, "native/widgets/res/xml/wn_widget_" + info[1] + "_info.xml")) && fs.existsSync(path.join(ROOT, "native/kotlin/" + n + ".kt")) && new RegExp("class " + n + " : AppWidgetProvider\\(\\)").test(read("native/kotlin/" + n + ".kt")); }));
+  ok("the layouts, drawables, infos and strings are copied into the project's resources", ["layout/wn_widget_airing.xml", "layout/wn_widget_continue.xml", "layout/wn_widget_updates.xml", "layout/wn_widget_streak.xml", "layout/wn_widget_pick.xml", "drawable/wn_widget_bg.xml", "drawable/wn_cover_placeholder.xml", "values/wn_widget_strings.xml", "xml/wn_widget_airing_info.xml"].every(f => s["app/src/main/res/" + f] === read("native/widgets/res/" + f)));
+  const again = run(a), s2 = snapshot(a); ok("running it twice adds the receivers only once", again.status === 0 && count(s2["app/src/main/AndroidManifest.xml"], /WnAiringWidget/g) === 1);
+  const b = project(), rb = spawnSync("python3", [path.join(ROOT, "native/apply-addon.py"), b, "--secure-only"], { encoding: "utf8" }), sb = snapshot(b);
+  ok("--secure-only adds no widgets, no receivers and no resources", rb.status === 0 && !/Widget/.test(sb["app/src/main/AndroidManifest.xml"]) && !Object.keys(sb).some(k => /wn_widget/.test(k)), rb.stdout + rb.stderr);
+  const c = project({ manifest: null }), rc = run(c); ok("without a manifest the script stops with a clear message (the build then falls back)", rc.status !== 0 && /AndroidManifest/.test(rc.stdout + rc.stderr));
+  // everything the Kotlin code looks up by name exists in the resources
+  const layouts = { airing: read("native/widgets/res/layout/wn_widget_airing.xml"), continue: read("native/widgets/res/layout/wn_widget_continue.xml"), updates: read("native/widgets/res/layout/wn_widget_updates.xml"), streak: read("native/widgets/res/layout/wn_widget_streak.xml"), pick: read("native/widgets/res/layout/wn_widget_pick.xml") };
+  const hasId = (lay, id) => new RegExp('android:id="@\\+id/' + id + '"').test(layouts[lay]);
+  const idsOf = (file, lay) => { const code = read("native/kotlin/" + file), out = new Set(); for(const m of code.matchAll(/"id", "([a-z]+_[a-z]+)(\$n)?"/g)) out.add(m[1] + (m[2] ? "*" : "")); return [...out].map(x => ({ x, lay })); };
+  const checks = [...idsOf("WnAiringWidget.kt", "airing"), ...idsOf("WnContinueWidget.kt", "continue"), ...idsOf("WnUpdatesWidget.kt", "updates"), ...idsOf("WnStreakWidget.kt", "streak"), ...idsOf("WnPickWidget.kt", "pick")];
+  const missing = checks.filter(c => c.x.endsWith("*") ? ![1, 2, 3, 4].every(n => hasId(c.lay, c.x.slice(0, -1) + n)) && !(c.lay === "updates" && [1, 2, 3, 4, 5, 6, 7, 8].every(n => hasId("updates", "upd_i" + n))) && !(c.lay === "streak" && [1, 2, 3, 4, 5, 6, 7].every(n => hasId("streak", "stk_d" + n))) : !hasId(c.lay, c.x));
+  ok("every view id the widget code looks up by name exists in that widget's layout", checks.length > 20 && missing.length === 0, JSON.stringify(missing));
+  const drawables = [...new Set([...fs.readdirSync(path.join(ROOT, "native/kotlin")).filter(f => /Widget/.test(f)).flatMap(f => [...read("native/kotlin/" + f).matchAll(/"drawable", "(\w+)"/g)].map(m => m[1]))])];
+  ok("every drawable the widget code looks up exists", drawables.length >= 3 && drawables.every(d => fs.existsSync(path.join(ROOT, "native/widgets/res/drawable/" + d + ".xml"))), drawables.join());
+  ok("the layouts use only views that can be put in a widget (no custom, web or recycler views)", Object.values(layouts).every(l => !/<(WebView|RecyclerView|EditText|ScrollView|CheckBox|androidx|com\.)/.test(l)));
+  const kk = read("native/kotlin/WnWidgetKit.kt"), kp = read("native/kotlin/WnWidgetPlugin.kt");
+  ok("a widget tap opens only the app's own whatnext:// addresses, set to this app's package", /Uri\.parse\(uri\)/.test(kk) && /setPackage\(ctx\.packageName\)/.test(kk) && /FLAG_IMMUTABLE/.test(kk) && read("native/kotlin/WnAiringWidget.kt").includes('"whatnext://media/"'));
+  ok("covers are only fetched over https, kept small, cached and pruned", /startsWith\("https:\/\/"\)/.test(kk) && /320/.test(kk) && /prune\(dir\)/.test(kk) && /File\(ctx\.cacheDir, "wn_widget"\)/.test(kk));
+  ok("the widget plugin is called WnWidget with update, pin, status and clear, each guarded", /@CapacitorPlugin\(name = "WnWidget"\)/.test(kp) && ["update", "pin", "status", "clear"].every(m => new RegExp("@PluginMethod\\s+fun " + m + "\\(call: PluginCall\\)").test(kp)) && (kp.match(/catch \(e: Exception\)/g) || []).length >= 4 && /nativePlugin\("WnWidget"\)/.test(read("js/features/widgets.js")));
+  ok("the widgets update about every 30 minutes (the lowest Android allows) and draw off the main thread", names.every(n => true) && /updatePeriodMillis="1800000"/.test(read("native/widgets/res/xml/wn_widget_airing_info.xml")) && /goAsync\(\)/.test(kk));
+}
 
 // ---- the workflow
 const wf = read(".github/workflows/build-apk.yml");

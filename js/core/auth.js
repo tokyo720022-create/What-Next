@@ -168,7 +168,7 @@ async function tokenHydrate(){
 if(isNative){
   const A = nativePlugin("App");
   if(A && A.addListener){
-    A.addListener("appUrlOpen", ev => { if(!nfOpenUrl(ev.url)) handleAuthUrl(ev.url); });
+    A.addListener("appUrlOpen", ev => { if(!nfOpenUrl(ev.url) && !wgOpenUrl(ev.url)) handleAuthUrl(ev.url); });
     A.addListener("appStateChange", st => { if(st && st.isActive){ sessionResume(); if(typeof nfResume === "function") nfResume(); } else cacheFlushSoon(); });
     A.addListener("backButton", () => {
       const sheet = document.querySelector(".dsheet,.usheet");
@@ -190,7 +190,7 @@ if(isNative){
       else if($("#pickWrap").hidden) showTab("pick");
       else if(A.exitApp) A.exitApp();
     });
-    if(A.getLaunchUrl) A.getLaunchUrl().then(r => r && !nfOpenUrl(r.url) && handleAuthUrl(r.url)).catch(() => {});
+    if(A.getLaunchUrl) A.getLaunchUrl().then(r => r && !nfOpenUrl(r.url) && !wgOpenUrl(r.url) && handleAuthUrl(r.url)).catch(() => {});
   }
 }
 $("#appsLink").onclick = () => openExternal("https://anilist.co/settings/apps");

@@ -22,8 +22,9 @@ CRYPTO = "androidx.security:security-crypto:1.1.0-alpha06"
 WORK = "androidx.work:work-runtime:2.9.1"
 BIOMETRIC = "androidx.biometric:biometric:1.1.0"
 KOTLIN_FILES = ["WnSecurePlugin.kt"]
-NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt", "WnLockPlugin.kt"]
-EXTRA_PLUGINS = ["WnNotifyPlugin", "WnImagePlugin", "WnLockPlugin"]   # registered next to WnSecurePlugin unless --secure-only
+WIDGET_FILES = ["WnWidgetPlugin.kt", "WnWidgetStore.kt", "WnWidgetKit.kt", "WnAiringWidget.kt", "WnContinueWidget.kt", "WnUpdatesWidget.kt", "WnStreakWidget.kt", "WnPickWidget.kt"]
+NOTIFY_FILES = ["WnNotifyPlugin.kt", "WnPollWorker.kt", "WnImagePlugin.kt", "WnLockPlugin.kt"] + WIDGET_FILES
+EXTRA_PLUGINS = ["WnNotifyPlugin", "WnImagePlugin", "WnLockPlugin", "WnWidgetPlugin"]   # registered next to WnSecurePlugin unless --secure-only
 MARK = "what-next-addon"
 
 
@@ -132,6 +133,22 @@ def main(android, here, notify=True):
     if text != original:
         writes[main_activity] = text
 
+    # Home screen widgets: their receivers go into the manifest and their layouts and strings into the resources.
+    res_src = os.path.join(here, "widgets", "res")
+    if notify:
+        manifest = os.path.join(android, "app", "src", "main", "AndroidManifest.xml")
+        if not os.path.isfile(manifest):
+            fail("AndroidManifest.xml was not found, so the widgets cannot be registered")
+        mtext = read(manifest)
+        if "app.whatnext.addon.WnAiringWidget" not in mtext:
+            at = mtext.rfind("</application>")
+            if at < 0:
+                fail("the </application> line was not found in AndroidManifest.xml")
+            mtext = mtext[:at] + read(os.path.join(here, "widgets", "manifest-receivers.xml")) + "    " + mtext[at:]
+            writes[manifest] = mtext
+        if not os.path.isdir(res_src):
+            fail("native/widgets/res is missing")
+
     # Everything checked: now write.
     for path, content in writes.items():
         with open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -140,6 +157,13 @@ def main(android, here, notify=True):
     os.makedirs(dest_dir, exist_ok=True)
     for src, n in zip(sources, names):
         shutil.copyfile(src, os.path.join(dest_dir, n))
+    if notify:
+        res_dest = os.path.join(android, "app", "src", "main", "res")
+        for folder, _, files in os.walk(res_src):
+            target = os.path.join(res_dest, os.path.relpath(folder, res_src))
+            os.makedirs(target, exist_ok=True)
+            for f in files:
+                shutil.copyfile(os.path.join(folder, f), os.path.join(target, f))
     print("native add-on: added (Java %s, Kotlin %s, %d file(s) changed, background alerts: %s)" % (jvm, KOTLIN, len(writes), "yes" if notify else "no"))
 
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/stk_root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/wn_widget_bg" android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
+    <TextView android:id="@+id/stk_flame" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🔥" android:textSize="26sp"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/stk_t" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:textSize="15sp" android:textStyle="bold"/>
+        <TextView android:id="@+id/stk_s" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:textColor="#FF9A9AA6" android:textSize="11sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+        <ImageView android:id="@+id/stk_d1" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d2" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d3" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d4" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d5" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d6" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+        <ImageView android:id="@+id/stk_d7" android:layout_width="10dp" android:layout_height="10dp" android:layout_marginStart="4dp" android:src="@drawable/wn_dot_off"/>
+    </LinearLayout>
+</LinearLayout>

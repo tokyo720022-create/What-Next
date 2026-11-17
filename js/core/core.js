@@ -46,6 +46,7 @@ async function loadList(user){
     state.items = [...seen.values()];
     cacheSet("acct", poolName(user), state.items);
     if(typeof nfSoon === "function") nfSoon();
+    if(typeof wgSoon === "function") wgSoon();
     state.user = user;
     const painted = state.fromCache; state.fromCache = false;
     buildGenres(painted);
@@ -176,6 +177,7 @@ function show({e,p}){
   bar.append(again, hideB);
   const why = typeof pmWhyRow === "function" ? pmWhyRow(e, p, state.pmExplore === m.id) : null, fb = typeof pmFeedbackRow === "function" ? pmFeedbackRow(e, p, next) : null;
   $("#result").replaceChildren(...[hero, why, bar, fb].filter(Boolean));
+  if(typeof wgPicked === "function") wgPicked(e, p);   // the Today's pick widget shows the last pick you were shown
 }
 
 function wireChips(id, key){

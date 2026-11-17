@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wn_widget_airing_name">Airing soon</string>
+    <string name="wn_widget_airing_desc">The next episodes of the anime on your list, with the time they air.</string>
+    <string name="wn_widget_continue_name">Continue</string>
+    <string name="wn_widget_continue_desc">Jump back into what you are watching or reading, with your progress.</string>
+    <string name="wn_widget_updates_name">Updates</string>
+    <string name="wn_widget_updates_desc">The covers of the titles you updated most recently.</string>
+    <string name="wn_widget_streak_name">Daily streak</string>
+    <string name="wn_widget_streak_desc">How many days in a row you have updated your list.</string>
+    <string name="wn_widget_pick_name">Today\'s pick</string>
+    <string name="wn_widget_pick_desc">What Pick suggests right now, and why.</string>
+</resources>

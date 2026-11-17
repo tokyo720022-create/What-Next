@@ -33,6 +33,21 @@
     <button class="chip" id="pmReset" type="button">Reset what it learned</button>
   </div>
 
+  <div class="q">Home screen widgets</div>
+  <div class="card" style="margin-top:0">
+    <p class="sub" style="margin:0 0 6px">Widgets for your home screen: <b>Airing soon</b> (the next episodes of your list), <b>Continue</b> (what you are watching or reading), <b>Updates</b> (covers of what you changed last), <b>Daily streak</b> and <b>Today's pick</b>. Tapping a title opens it in the app.</p>
+    <p class="sub" id="wgState" style="margin:0 0 8px"></p>
+    <div class="tsrow">
+      <button class="chip" id="wgPinAiring" type="button" hidden>Airing soon</button>
+      <button class="chip" id="wgPinContinue" type="button" hidden>Continue</button>
+      <button class="chip" id="wgPinUpdates" type="button" hidden>Updates</button>
+      <button class="chip" id="wgPinStreak" type="button" hidden>Daily streak</button>
+      <button class="chip" id="wgPinPick" type="button" hidden>Today's pick</button>
+    </div>
+    <label class="lsrow" id="wgAdultRow" hidden><span>Show 18+ titles in widgets</span><input class="lssw" type="checkbox" id="wgAdult"><i class="lsck"></i></label>
+    <p class="sub" style="margin:8px 0 0">Widgets show titles and covers on your home screen, so anyone who sees your phone can see them. They update when you open the app and about every 30 minutes.</p>
+  </div>
+
   <div class="q">Titles</div>
   <div class="card" style="margin-top:0">
     <p class="sub" style="margin:0 0 4px">Pick how titles from each country are shown. “Follow AniList” uses your AniList title language.</p>

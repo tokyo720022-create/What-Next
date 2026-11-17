@@ -1,0 +1,30 @@
+        <receiver android:name="app.whatnext.addon.WnAiringWidget" android:exported="false" android:label="@string/wn_widget_airing_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wn_widget_airing_info" />
+        </receiver>
+        <receiver android:name="app.whatnext.addon.WnContinueWidget" android:exported="false" android:label="@string/wn_widget_continue_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wn_widget_continue_info" />
+        </receiver>
+        <receiver android:name="app.whatnext.addon.WnUpdatesWidget" android:exported="false" android:label="@string/wn_widget_updates_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wn_widget_updates_info" />
+        </receiver>
+        <receiver android:name="app.whatnext.addon.WnStreakWidget" android:exported="false" android:label="@string/wn_widget_streak_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wn_widget_streak_info" />
+        </receiver>
+        <receiver android:name="app.whatnext.addon.WnPickWidget" android:exported="false" android:label="@string/wn_widget_pick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/wn_widget_pick_info" />
+        </receiver>

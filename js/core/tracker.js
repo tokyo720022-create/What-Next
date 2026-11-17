@@ -73,11 +73,12 @@ function findEntry(id, type){
   return { cur: { status: src.status, progress: src.progress || 0, repeat: src.repeat || 0, startedAt: src.startedAt, completedAt: src.completedAt }, total: total || null };
 }
 const FIELDS = ["status", "progress", "repeat", "startedAt", "completedAt"];
-const savePool = () => { cacheSetSoon("acct", "pool_" + acctUser(), state.items, 600); if(typeof nfSoon === "function") nfSoon(); };   // saved a moment later, so a burst of taps writes once
+const savePool = () => { cacheSetSoon("acct", "pool_" + acctUser(), state.items, 600); if(typeof nfSoon === "function") nfSoon(); if(typeof wgSoon === "function") wgSoon(); };   // saved a moment later, so a burst of taps writes once
 
 // Update every on-screen copy at once.
 function applyLocal(id, type, patch){
   const now = Math.floor(Date.now() / 1000);
+  if(typeof wgNote === "function" && ("progress" in patch || "status" in patch)) wgNote();   // counts for the daily streak widget
   const L = lists[type] && lists[type].entries && lists[type].entries.find(x => x.id === id);
   if(L){ FIELDS.forEach(k => { if(k in patch) L[k] = patch[k]; }); if("score" in patch) L.score = patch.score; if("notes" in patch) L.notes = String(patch.notes || "").slice(0, 300); if("priority" in patch) L.priority = patch.priority || 0; L.updatedAt = now; lists[type].rev++; writeListCache(type, lists[type].entries); }
   const pi = state.items.findIndex(x => x.media.id === id);

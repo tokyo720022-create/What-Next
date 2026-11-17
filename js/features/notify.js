@@ -90,9 +90,9 @@ function nfOpenUrl(url){
   if(!/^whatnext:\/\/notifications\/?$/i.test(String(url || ""))) return false;
   nfWant = true; nfGo(); return true;
 }
-function nfStarted(){ nfReady = true; nfGo(); nfBadge(); nfBg(); nfSoon(4000); }
+function nfStarted(){ nfReady = true; nfGo(); nfBadge(); nfBg(); nfSoon(4000); if(typeof wgGo === "function"){ wgGo(); wgSoon(6000); } }
 let nfResumeAt = 0;
-function nfResume(){ if(!auth.token || Date.now() - nfResumeAt < 120000) return; nfResumeAt = Date.now(); nfBadge(); nfSoon(2000); }
+function nfResume(){ if(!auth.token || Date.now() - nfResumeAt < 120000) return; nfResumeAt = Date.now(); nfBadge(); nfSoon(2000); if(typeof wgSoon === "function") wgSoon(3000); }
 try{
   const LN0 = nfLocal();
   if(LN0 && LN0.addListener) LN0.addListener("localNotificationActionPerformed", ev => {

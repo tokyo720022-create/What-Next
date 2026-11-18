@@ -8,6 +8,7 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import org.json.JSONObject
 
 /**
  * The bridge between the app and its home screen widgets.
@@ -28,7 +29,10 @@ class WnWidgetPlugin : Plugin() {
                 return
             }
             WnWidgetStore.save(context, json)
-            WnWidgetKit.refreshAll(context)
+            WnWidgetKit.refreshAll(context)   // the text is drawn at once
+            // The covers are downloaded now, while the app is open and the phone lets it use the network, and the widgets draw again with them.
+            val snap = try { JSONObject(json) } catch (e: Exception) { null }
+            if (snap != null) WnWidgetKit.background(context) { if (WnWidgetKit.prefetch(context, snap) > 0) WnWidgetKit.refreshAll(context) }
             call.resolve()
         } catch (e: Exception) {
             call.reject("widget update failed")
@@ -58,6 +62,7 @@ class WnWidgetPlugin : Plugin() {
         try {
             val mgr = AppWidgetManager.getInstance(context)
             for ((name, cls) in kinds) result.put(name, mgr.getAppWidgetIds(ComponentName(context, cls)).size)
+            result.put("err", WnWidgetStore.lastNote(context))
         } catch (e: Exception) {
             // an empty answer means "unknown"
         }

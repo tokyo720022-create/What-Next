@@ -27,6 +27,7 @@ const E = (id, status, o, mo) => Object.assign({ status, progress: 3, media: M(i
   const c = g("wgContinue")(items, { 5: 900, 2: 800 }, name, false);
   eq("continue: what you are watching or reading, most recently changed first, then list order; Planning and 18+ left out; at most 4", c.map(x => x.id), [5, 2, 1, 4]);
   eq("progress and length: episodes for anime, chapters for manga", [c.find(x => x.id === 1).p, c.find(x => x.id === 1).total, c.find(x => x.id === 4).total, c.find(x => x.id === 4).ty], [5, 12, 40, "MANGA"]);
+  eq("each tile carries the episode length in minutes (anime only) for the widget", [g("wgContinue")([E(9, "CURRENT", {}, { duration: 24 })], {}, name, false)[0].du, g("wgContinue")([E(9, "CURRENT", {}, { type: "MANGA", duration: 24 })], {}, name, false)[0].du], [24, 0]);
 }
 // ---- updates
 {

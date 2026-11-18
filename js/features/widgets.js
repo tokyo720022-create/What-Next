@@ -72,8 +72,8 @@ async function wgFill(){
   $("#wgAdult").checked = !!wgCfg().adult; $("#wgAdultRow").hidden = !has;
   const st = $("#wgState");
   if(!has){ st.textContent = "Widgets are available in the Android app (the build with its add-on)."; return; }
-  let n = 0; try{ const s = await P.status(); n = Object.keys(WG_KINDS).reduce((a, id) => a + (Number(s[WG_KINDS[id]]) || 0), 0); }catch(_){}
-  st.textContent = n ? n + (n === 1 ? " widget is" : " widgets are") + " on your home screen." : "Tap one below, or long-press your home screen > Widgets > What Next?.";
+  let n = 0, err = ""; try{ const s = await P.status(); n = Object.keys(WG_KINDS).reduce((a, id) => a + (Number(s[WG_KINDS[id]]) || 0), 0); err = String(s.err || ""); }catch(_){}
+  st.textContent = (n ? n + (n === 1 ? " widget is" : " widgets are") + " on your home screen." : "Tap one below, or long-press your home screen > Widgets > What Next?.") + (err ? " Last problem: " + err : "");
 }
 for(const id in WG_KINDS) $("#" + id).onclick = async () => {
   const P = wgPlugin(); if(!P) return;

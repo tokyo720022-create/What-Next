@@ -9,7 +9,7 @@ import android.widget.RemoteViews
 class WnStreakWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        WnWidgetKit.run(this) { for (id in ids) manager.updateAppWidget(id, build(context)) }
+        WnWidgetKit.run(this) { for (id in ids) WnWidgetKit.safeUpdate(context, manager, id) { _ -> build(context) } }
     }
 
     private fun build(ctx: Context): RemoteViews {

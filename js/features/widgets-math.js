@@ -17,7 +17,7 @@ function wgContinue(items, upd, name, adult){
   const total = m => (m.type === "MANGA" ? m.chapters : m.episodes) || 0;
   return (items || []).filter(e => e && e.media && (e.status === "CURRENT" || e.status === "REPEATING") && wgShow(e.media, adult))
     .map((e, i) => ({ e, i, u: (upd && upd[e.media.id]) || 0 })).sort((a, b) => b.u - a.u || a.i - b.i).slice(0, 4)
-    .map(x => ({ id: x.e.media.id, t: name(x.e.media), c: wgCover(x.e.media), p: x.e.progress || 0, total: total(x.e.media), ty: x.e.media.type === "MANGA" ? "MANGA" : "ANIME" }));
+    .map(x => ({ id: x.e.media.id, t: name(x.e.media), c: wgCover(x.e.media), p: x.e.progress || 0, total: total(x.e.media), du: x.e.media.type === "MANGA" ? 0 : (x.e.media.duration || 0), ty: x.e.media.type === "MANGA" ? "MANGA" : "ANIME" }));
 }
 // The titles you changed last: entries are { updatedAt, media } from your loaded lists.
 function wgUpdates(entries, name, adult){

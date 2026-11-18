@@ -12,14 +12,17 @@ import org.json.JSONObject
 class WnAiringWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        WnWidgetKit.run(this) { for (id in ids) manager.updateAppWidget(id, build(context, manager, id)) }
+        WnWidgetKit.run(this) {
+            val until = System.currentTimeMillis() + 8000
+            for (id in ids) WnWidgetKit.safeUpdate(context, manager, id) { covers -> build(context, manager, id, covers, until) }
+        }
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, newOptions: Bundle) {
         onUpdate(context, manager, intArrayOf(id))
     }
 
-    private fun build(ctx: Context, mgr: AppWidgetManager, widgetId: Int): RemoteViews {
+    private fun build(ctx: Context, mgr: AppWidgetManager, widgetId: Int, covers: Boolean, until: Long): RemoteViews {
         val k = WnWidgetKit
         val rv = RemoteViews(ctx.packageName, k.id(ctx, "layout", "wn_widget_airing"))
         val rows = ((k.heightDp(mgr, widgetId) - 44) / 48).coerceIn(1, 4)
@@ -46,7 +49,7 @@ class WnAiringWidget : AppWidgetProvider() {
             rv.setTextViewText(k.id(ctx, "id", "air_t$n"), k.str(o, "t"))
             rv.setTextViewText(k.id(ctx, "id", "air_s$n"), "Ep " + o.optInt("ep", 0) + " · " + k.rel(o.optLong("at", 0L), now))
             val img = k.id(ctx, "id", "air_i$n")
-            val bmp = k.cover(ctx, k.str(o, "c"))
+            val bmp = if (covers) k.cover(ctx, k.str(o, "c"), 90, 126, until) else null
             if (bmp != null) rv.setImageViewBitmap(img, bmp) else rv.setImageViewResource(img, k.id(ctx, "drawable", "wn_cover_placeholder"))
             rv.setOnClickPendingIntent(row, k.tap(ctx, "whatnext://media/" + o.optLong("id", 0L)))
         }

@@ -9,10 +9,13 @@ import android.widget.RemoteViews
 class WnPickWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        WnWidgetKit.run(this) { for (id in ids) manager.updateAppWidget(id, build(context)) }
+        WnWidgetKit.run(this) {
+            val until = System.currentTimeMillis() + 8000
+            for (id in ids) WnWidgetKit.safeUpdate(context, manager, id) { covers -> build(context, covers, until) }
+        }
     }
 
-    private fun build(ctx: Context): RemoteViews {
+    private fun build(ctx: Context, covers: Boolean, until: Long): RemoteViews {
         val k = WnWidgetKit
         val rv = RemoteViews(ctx.packageName, k.id(ctx, "layout", "wn_widget_pick"))
         val p = WnWidgetStore.load(ctx).optJSONObject("pick")
@@ -26,7 +29,7 @@ class WnPickWidget : AppWidgetProvider() {
         }
         rv.setTextViewText(k.id(ctx, "id", "pck_t"), k.str(p, "t"))
         rv.setTextViewText(k.id(ctx, "id", "pck_s"), k.str(p, "why"))
-        val bmp = k.cover(ctx, k.str(p, "c"))
+        val bmp = if (covers) k.cover(ctx, k.str(p, "c"), 190, 275, until) else null
         if (bmp != null) rv.setImageViewBitmap(k.id(ctx, "id", "pck_i"), bmp) else rv.setImageViewResource(k.id(ctx, "id", "pck_i"), k.id(ctx, "drawable", "wn_cover_placeholder"))
         rv.setOnClickPendingIntent(k.id(ctx, "id", "pck_root"), k.tap(ctx, "whatnext://media/" + p.optLong("id", 0L)))
         return rv

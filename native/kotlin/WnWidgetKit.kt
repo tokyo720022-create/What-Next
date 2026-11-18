@@ -44,18 +44,34 @@ object WnWidgetKit {
         return PendingIntent.getActivity(ctx, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    // Covers are downloaded, so the widget does its work on a background thread while the system waits for it.
+    // A widget does its work on a background thread while the system waits for it. Nothing that goes wrong in that thread may ever stop the app:
+    // every error is caught, kept as a note (shown in App Settings) and the broadcast is always finished.
     fun run(receiver: BroadcastReceiver, work: () -> Unit) {
-        val pending = receiver.goAsync()
-        Thread {
+        val pending: BroadcastReceiver.PendingResult? = try { receiver.goAsync() } catch (e: Throwable) { null }
+        val thread = Thread {
             try {
                 work()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // a widget that cannot draw keeps showing what it showed
             } finally {
-                pending.finish()
+                try { pending?.finish() } catch (e: Throwable) { }
             }
-        }.start()
+        }
+        thread.setUncaughtExceptionHandler { _, _ -> }
+        thread.start()
+    }
+
+    // The same for work that is not tied to a broadcast (downloading covers right after the app saved a snapshot).
+    fun background(ctx: Context, work: () -> Unit) {
+        val thread = Thread {
+            try {
+                work()
+            } catch (e: Throwable) {
+                WnWidgetStore.note(ctx, "background: " + e.javaClass.simpleName)
+            }
+        }
+        thread.setUncaughtExceptionHandler { _, _ -> }
+        thread.start()
     }
 
     fun widthDp(mgr: AppWidgetManager, id: Int): Int = mgr.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
@@ -63,14 +79,18 @@ object WnWidgetKit {
 
     // Tell every widget on the home screen to draw again.
     fun refreshAll(ctx: Context) {
-        val mgr = AppWidgetManager.getInstance(ctx)
-        for (cls in PROVIDERS) {
-            val ids = mgr.getAppWidgetIds(ComponentName(ctx, cls))
-            if (ids.isEmpty()) continue
-            val intent = Intent(ctx, cls)
-            intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-            ctx.sendBroadcast(intent)
+        try {
+            val mgr = AppWidgetManager.getInstance(ctx)
+            for (cls in PROVIDERS) {
+                val ids = mgr.getAppWidgetIds(ComponentName(ctx, cls))
+                if (ids.isEmpty()) continue
+                val intent = Intent(ctx, cls)
+                intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                ctx.sendBroadcast(intent)
+            }
+        } catch (e: Throwable) {
+            WnWidgetStore.note(ctx, "refresh: " + e.javaClass.simpleName)
         }
     }
 
@@ -83,38 +103,94 @@ object WnWidgetKit {
         return SimpleDateFormat("EEE HH:mm", Locale.getDefault()).format(Date(at * 1000))
     }
 
-    // A cover as a small bitmap with rounded corners. It is downloaded once and kept in the cache folder.
-    fun cover(ctx: Context, url: String): Bitmap? {
+    // Covers: the app downloads them while it is open (prefetch), the widgets only read the small copies in the cache folder.
+    // A widget update crosses a process boundary and Android refuses large pictures, so every cover is cut down to the size it is shown at.
+    private fun coverFile(ctx: Context, url: String): File {
+        val dir = File(ctx.cacheDir, "wn_widget")
+        dir.mkdirs()
+        return File(dir, Integer.toHexString(url.hashCode()) + ".jpg")
+    }
+
+    // Downloads one cover (at most 240 pixels wide, kept as a JPEG). Returns true when it is in the cache.
+    fun fetchCover(ctx: Context, url: String, timeoutMs: Int): Boolean {
+        if (!url.startsWith("https://")) return false
+        try {
+            val file = coverFile(ctx, url)
+            if (file.exists() && file.length() > 0) return true
+            val bytes = download(url, timeoutMs) ?: return false
+            val bounds = BitmapFactory.Options()
+            bounds.inJustDecodeBounds = true
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0) {
+                WnWidgetStore.note(ctx, "a cover could not be decoded")
+                return false
+            }
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= 240) sample *= 2
+            val opts = BitmapFactory.Options()
+            opts.inSampleSize = sample
+            val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) ?: return false
+            FileOutputStream(file).use { decoded.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            decoded.recycle()
+            prune(file.parentFile)
+            return true
+        } catch (e: Exception) {
+            WnWidgetStore.note(ctx, "cover: " + e.javaClass.simpleName)
+            return false
+        }
+    }
+
+    // Every cover address in a snapshot.
+    fun coverUrls(snap: JSONObject): List<String> {
+        val out = LinkedHashSet<String>()
+        for (key in listOf("airing", "continue", "updates")) {
+            val arr = snap.optJSONArray(key) ?: continue
+            for (i in 0 until arr.length()) {
+                val u = str(arr.optJSONObject(i), "c")
+                if (u.isNotEmpty()) out.add(u)
+            }
+        }
+        val pick = str(snap.optJSONObject("pick"), "c")
+        if (pick.isNotEmpty()) out.add(pick)
+        return out.toList()
+    }
+
+    // The app calls this on a background thread after it saves a snapshot. Returns how many covers are new in the cache.
+    fun prefetch(ctx: Context, snap: JSONObject): Int {
+        val end = System.currentTimeMillis() + 25000
+        var added = 0
+        for (u in coverUrls(snap).take(40)) {
+            if (System.currentTimeMillis() > end) break
+            val had = coverFile(ctx, u).exists()
+            if (fetchCover(ctx, u, 8000) && !had) added++
+        }
+        return added
+    }
+
+    // A cover as a small bitmap with rounded corners, at most maxW x maxH pixels. Only the cache is read unless there is still time (until) to download it.
+    fun cover(ctx: Context, url: String, maxW: Int, maxH: Int, until: Long): Bitmap? {
         if (!url.startsWith("https://")) return null
         try {
-            val dir = File(ctx.cacheDir, "wn_widget")
-            dir.mkdirs()
-            val file = File(dir, Integer.toHexString(url.hashCode()) + ".jpg")
-            if (!file.exists()) {
-                val bytes = download(url) ?: return null
-                val bounds = BitmapFactory.Options()
-                bounds.inJustDecodeBounds = true
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                var sample = 1
-                while (bounds.outWidth / sample > 320) sample *= 2
-                val opts = BitmapFactory.Options()
-                opts.inSampleSize = sample
-                val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) ?: return null
-                FileOutputStream(file).use { decoded.compress(Bitmap.CompressFormat.JPEG, 85, it) }
-                prune(dir)
-            }
+            val file = coverFile(ctx, url)
+            if (!file.exists() && System.currentTimeMillis() < until - 1500) fetchCover(ctx, url, 4000)
+            if (!file.exists()) return null
             val plain = BitmapFactory.decodeFile(file.path) ?: return null
-            return rounded(plain, minOf(plain.width, plain.height) * 0.08f)
+            val scale = minOf(1f, minOf(maxW.toFloat() / plain.width, maxH.toFloat() / plain.height))
+            val small = if (scale < 1f) Bitmap.createScaledBitmap(plain, maxOf(1, (plain.width * scale).toInt()), maxOf(1, (plain.height * scale).toInt()), true) else plain
+            return rounded(small, minOf(small.width, small.height) * 0.1f)
         } catch (e: Exception) {
             return null
         }
     }
 
-    private fun download(url: String): ByteArray? {
+    private fun download(url: String, timeoutMs: Int): ByteArray? {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
-            conn.connectTimeout = 10000
-            conn.readTimeout = 15000
+            conn.connectTimeout = timeoutMs
+            conn.readTimeout = timeoutMs
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("User-Agent", "WhatNext-Widget/1.0 (Android)")
+            conn.setRequestProperty("Accept", "image/*")
             if (conn.responseCode != 200) return null
             return conn.inputStream.use { it.readBytes() }
         } finally {
@@ -123,10 +199,25 @@ object WnWidgetKit {
     }
 
     // Keeps the cache small: the oldest covers go first.
-    private fun prune(dir: File) {
-        val files = dir.listFiles() ?: return
+    private fun prune(dir: File?) {
+        val files = dir?.listFiles() ?: return
         if (files.size <= 120) return
         files.sortedBy { it.lastModified() }.take(files.size - 100).forEach { it.delete() }
+    }
+
+    // Draws a widget with its covers; if Android refuses the update (too much picture data, for example), it is drawn again without them
+    // and the reason is kept so the app can show it.
+    fun safeUpdate(ctx: Context, mgr: AppWidgetManager, id: Int, build: (Boolean) -> android.widget.RemoteViews) {
+        try {
+            mgr.updateAppWidget(id, build(true))
+        } catch (e: Exception) {
+            WnWidgetStore.note(ctx, "update: " + e.javaClass.simpleName + " " + (e.message ?: "").take(80))
+            mgr.updateAppWidget(id, build(false))
+        }
+    }
+
+    fun toast(ctx: Context, text: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { android.widget.Toast.makeText(ctx, text, android.widget.Toast.LENGTH_SHORT).show() }
     }
 
     private fun rounded(src: Bitmap, radius: Float): Bitmap {

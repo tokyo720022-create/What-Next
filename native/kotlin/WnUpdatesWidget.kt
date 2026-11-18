@@ -11,14 +11,17 @@ import android.widget.RemoteViews
 class WnUpdatesWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        WnWidgetKit.run(this) { for (id in ids) manager.updateAppWidget(id, build(context, manager, id)) }
+        WnWidgetKit.run(this) {
+            val until = System.currentTimeMillis() + 8000
+            for (id in ids) WnWidgetKit.safeUpdate(context, manager, id) { covers -> build(context, manager, id, covers, until) }
+        }
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, newOptions: Bundle) {
         onUpdate(context, manager, intArrayOf(id))
     }
 
-    private fun build(ctx: Context, mgr: AppWidgetManager, widgetId: Int): RemoteViews {
+    private fun build(ctx: Context, mgr: AppWidgetManager, widgetId: Int, covers: Boolean, until: Long): RemoteViews {
         val k = WnWidgetKit
         val rv = RemoteViews(ctx.packageName, k.id(ctx, "layout", "wn_widget_updates"))
         val rowsWanted = if (k.heightDp(mgr, widgetId) >= 130) 2 else 1
@@ -36,7 +39,7 @@ class WnUpdatesWidget : AppWidgetProvider() {
             }
             val o = list!!.optJSONObject(n - 1) ?: continue
             rv.setViewVisibility(img, View.VISIBLE)
-            val bmp = k.cover(ctx, k.str(o, "c"))
+            val bmp = if (covers) k.cover(ctx, k.str(o, "c"), 110, 156, until) else null
             if (bmp != null) rv.setImageViewBitmap(img, bmp) else rv.setImageViewResource(img, k.id(ctx, "drawable", "wn_cover_placeholder"))
             rv.setOnClickPendingIntent(img, k.tap(ctx, "whatnext://media/" + o.optLong("id", 0L)))
         }

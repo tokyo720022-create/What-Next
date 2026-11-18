@@ -154,6 +154,15 @@ ok("any problem ends a run quietly and the token is never logged", /catch \(e: E
 ok("a missing value from AniList is never shown as the word null", /isNull\(key\)/.test(kw));
 ok("tapping an alert opens the app on the Notifications list (the link the app understands)", /whatnext:\/\/notifications/.test(kw) && /whatnext:\\\/\\\/notifications/.test(read("js/features/notify.js")));
 
+// ---- every Kotlin file in native/kotlin is copied into the project (a file left out of the lists makes the whole add-on fail to compile, and the build falls back to one without it)
+{
+  const a = project(), r = run(a), s = snapshot(a), files = fs.readdirSync(path.join(ROOT, "native/kotlin")).filter(f => f.endsWith(".kt"));
+  ok("every Kotlin file of the add-on is copied into the Android project", r.status === 0 && files.length >= 14 && files.every(f => s["app/src/main/java/app/whatnext/addon/" + f] === read("native/kotlin/" + f)), files.filter(f => s["app/src/main/java/app/whatnext/addon/" + f] === undefined).join());
+  const all = files.map(f => read("native/kotlin/" + f)).join("\n").replace(/@CapacitorPlugin\(name = "\w+"\)/g, ""), declared = new Set([...all.matchAll(/^(?:class|object) (\w+)/gm)].map(m => m[1]));
+  const used = [...new Set([...all.replace(/"[^"\n]*"/g, '""').matchAll(/\b(Wn[A-Z]\w+)\b/g)].map(m => m[1]))];
+  ok("every Wn class the Kotlin code uses is declared in one of the files", used.every(u => declared.has(u)), used.filter(u => !declared.has(u)).join());
+}
+
 // ---- home screen widgets
 {
   const a = project(), r = run(a), s = snapshot(a), man = s["app/src/main/AndroidManifest.xml"], names = ["WnAiringWidget", "WnContinueWidget", "WnUpdatesWidget", "WnStreakWidget", "WnPickWidget"];

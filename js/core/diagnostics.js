@@ -24,6 +24,7 @@ async function diagReport(){
     "Errors: " + (window.__wnErrors.length ? window.__wnErrors.join(" | ") : "none"),
     "Secure login storage: " + (typeof secureStore === "function" && secureStore() ? "on" : "off"),
     "Triple Sync keys: " + (typeof vault !== "undefined" && vault.secure ? "encrypted" : "normal storage") + ", lock: " + (typeof lkCfg === "function" && lkCfg().pin ? "on" : "off"),
+    "Native add-ons: widgets " + (typeof nativePlugin === "function" && nativePlugin("WnWidget") ? "yes" : "no") + ", share picture " + (typeof nativePlugin === "function" && nativePlugin("WnImage") ? "yes" : "no") + ", lock " + (typeof nativePlugin === "function" && nativePlugin("WnLock") ? "yes" : "no"),
     "Background alerts: " + (typeof nativePlugin === "function" && nativePlugin("WnNotify") ? "on" : "off") + ", release reminders: " + (typeof nativePlugin === "function" && nativePlugin("LocalNotifications") ? "available" : "not available"),
     "Recent steps:" + (crumbs.length ? "\n  " + crumbs.join("\n  ") : " none")].join("\n");
 }

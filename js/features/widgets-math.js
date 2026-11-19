@@ -2,6 +2,7 @@
    The app turns your data into one small snapshot (titles, cover addresses, times, progress); the Android widgets only draw it. */
 const WG_AIR_DAYS = 7;
 const WG_LIST = ["CURRENT", "REPEATING", "PLANNING"];
+const wgBanner = m => (m && /^https:\/\//.test(m.bannerImage || "") ? m.bannerImage : "");
 const wgCover = m => { const u = m && m.coverImage && m.coverImage.large; return /^https:\/\//.test(u || "") ? u : ""; };
 const wgDay = now => { const d = new Date(now * 1000); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 const wgShow = (m, adult) => !!m && (adult || !m.isAdult);   // 18+ titles stay out of the widgets unless you allow them
@@ -17,7 +18,7 @@ function wgContinue(items, upd, name, adult){
   const total = m => (m.type === "MANGA" ? m.chapters : m.episodes) || 0;
   return (items || []).filter(e => e && e.media && (e.status === "CURRENT" || e.status === "REPEATING") && wgShow(e.media, adult))
     .map((e, i) => ({ e, i, u: (upd && upd[e.media.id]) || 0 })).sort((a, b) => b.u - a.u || a.i - b.i).slice(0, 4)
-    .map(x => ({ id: x.e.media.id, t: name(x.e.media), c: wgCover(x.e.media), p: x.e.progress || 0, total: total(x.e.media), du: x.e.media.type === "MANGA" ? 0 : (x.e.media.duration || 0), ty: x.e.media.type === "MANGA" ? "MANGA" : "ANIME" }));
+    .map(x => ({ id: x.e.media.id, t: name(x.e.media), c: wgCover(x.e.media), b: wgBanner(x.e.media), p: x.e.progress || 0, total: total(x.e.media), du: x.e.media.type === "MANGA" ? 0 : (x.e.media.duration || 0), ty: x.e.media.type === "MANGA" ? "MANGA" : "ANIME" }));
 }
 // The titles you changed last: entries are { updatedAt, media } from your loaded lists.
 function wgUpdates(entries, name, adult){

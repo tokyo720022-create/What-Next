@@ -10,6 +10,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
@@ -111,7 +114,7 @@ object WnWidgetKit {
         return File(dir, Integer.toHexString(url.hashCode()) + ".jpg")
     }
 
-    // Downloads one cover (at most 240 pixels wide, kept as a JPEG). Returns true when it is in the cache.
+    // Downloads one picture (the short side kept at about 200 pixels, saved as a JPEG). Returns true when it is in the cache.
     fun fetchCover(ctx: Context, url: String, timeoutMs: Int): Boolean {
         if (!url.startsWith("https://")) return false
         try {
@@ -126,7 +129,7 @@ object WnWidgetKit {
                 return false
             }
             var sample = 1
-            while (bounds.outWidth / (sample * 2) >= 240) sample *= 2
+            while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 200) sample *= 2   // keep the short side at 200 pixels or more (a wide banner stays 200 tall)
             val opts = BitmapFactory.Options()
             opts.inSampleSize = sample
             val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) ?: return false
@@ -147,7 +150,9 @@ object WnWidgetKit {
             val arr = snap.optJSONArray(key) ?: continue
             for (i in 0 until arr.length()) {
                 val u = str(arr.optJSONObject(i), "c")
+                val b = str(arr.optJSONObject(i), "b")
                 if (u.isNotEmpty()) out.add(u)
+                if (b.isNotEmpty()) out.add(b)
             }
         }
         val pick = str(snap.optJSONObject("pick"), "c")
@@ -165,6 +170,69 @@ object WnWidgetKit {
             if (fetchCover(ctx, u, 8000) && !had) added++
         }
         return added
+    }
+
+    // The saved picture for an address, downloaded now if there is still time (until).
+    private fun plain(ctx: Context, url: String, until: Long): Bitmap? {
+        if (!url.startsWith("https://")) return null
+        val file = coverFile(ctx, url)
+        if (!file.exists() && System.currentTimeMillis() < until - 1500) fetchCover(ctx, url, 4000)
+        if (!file.exists()) return null
+        return BitmapFactory.decodeFile(file.path)
+    }
+
+    // The Continue tile, like Trakt's: a wide picture (the title's banner, else its cover cut to a wide shape) with the episode length and
+    // "N left" as chips on it, a thin progress line along the bottom, and rounded corners. Drawn here so the widget only has to show one picture.
+    fun tile(ctx: Context, bannerUrl: String, coverUrl: String, minutes: Int, left: Int, fraction: Float, until: Long): Bitmap? {
+        try {
+            val src = plain(ctx, bannerUrl, until) ?: plain(ctx, coverUrl, until) ?: return null
+            val w = 270
+            val h = 152
+            val wide = 16f / 9f
+            val cw: Int
+            val ch: Int
+            if (src.width.toFloat() / src.height > wide) {
+                ch = src.height
+                cw = (src.height * wide).toInt()
+            } else {
+                cw = src.width
+                ch = (src.width / wide).toInt()
+            }
+            val cx = (src.width - cw) / 2
+            val cy = ((src.height - ch) * 0.3f).toInt()   // from a tall cover, the upper part (faces) rather than the exact middle
+            val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(out)
+            canvas.drawBitmap(src, Rect(cx, cy, cx + cw, cy + ch), Rect(0, 0, w, h), Paint(Paint.FILTER_BITMAP_FLAG))
+            val shade = Paint(Paint.ANTI_ALIAS_FLAG)
+            shade.color = 0xB3000000.toInt()
+            val ink = Paint(Paint.ANTI_ALIAS_FLAG)
+            ink.color = Color.WHITE
+            ink.textSize = 18f
+            ink.typeface = Typeface.DEFAULT_BOLD
+            val top = h - 14f - 28f
+            if (minutes > 0) chip(canvas, "" + minutes + "m", 10f, top, shade, ink)
+            if (left > 0) {
+                val text = "" + left + " left"
+                chip(canvas, text, w - 10f - (ink.measureText(text) + 20f), top, shade, ink)
+            }
+            if (fraction > 0f) {
+                val track = Paint()
+                track.color = 0x66FFFFFF
+                canvas.drawRect(0f, h - 5f, w.toFloat(), h.toFloat(), track)
+                val fill = Paint()
+                fill.color = 0xFF8B7CFF.toInt()
+                canvas.drawRect(0f, h - 5f, w * minOf(1f, fraction), h.toFloat(), fill)
+            }
+            return rounded(out, 16f)
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    private fun chip(canvas: Canvas, text: String, x: Float, y: Float, shade: Paint, ink: Paint) {
+        val width = ink.measureText(text) + 20f
+        canvas.drawRoundRect(RectF(x, y, x + width, y + 28f), 14f, 14f, shade)
+        canvas.drawText(text, x + 10f, y + 20f, ink)
     }
 
     // A cover as a small bitmap with rounded corners, at most maxW x maxH pixels. Only the cache is read unless there is still time (until) to download it.

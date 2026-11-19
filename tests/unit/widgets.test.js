@@ -27,6 +27,7 @@ const E = (id, status, o, mo) => Object.assign({ status, progress: 3, media: M(i
   const c = g("wgContinue")(items, { 5: 900, 2: 800 }, name, false);
   eq("continue: what you are watching or reading, most recently changed first, then list order; Planning and 18+ left out; at most 4", c.map(x => x.id), [5, 2, 1, 4]);
   eq("progress and length: episodes for anime, chapters for manga", [c.find(x => x.id === 1).p, c.find(x => x.id === 1).total, c.find(x => x.id === 4).total, c.find(x => x.id === 4).ty], [5, 12, 40, "MANGA"]);
+  eq("each tile carries the banner when the title has one, and never an address that is not https", [g("wgContinue")([E(9, "CURRENT", {}, { bannerImage: "https://s4.anilist.co/b9.jpg" })], {}, name, false)[0].b, g("wgContinue")([E(9, "CURRENT", {}, { bannerImage: "http://x/b.jpg" })], {}, name, false)[0].b, g("wgContinue")([E(9, "CURRENT")], {}, name, false)[0].b], ["https://s4.anilist.co/b9.jpg", "", ""]);
   eq("each tile carries the episode length in minutes (anime only) for the widget", [g("wgContinue")([E(9, "CURRENT", {}, { duration: 24 })], {}, name, false)[0].du, g("wgContinue")([E(9, "CURRENT", {}, { type: "MANGA", duration: 24 })], {}, name, false)[0].du], [24, 0]);
 }
 // ---- updates
@@ -102,6 +103,7 @@ function world(opts){
   }
   // ---- wiring
   const boot = read("boot.js"), tabs = read("js/core/tabs.js"), core = read("js/core/core.js"), trk = read("js/core/tracker.js"), ses = read("js/core/session.js"), app = read("views/settings/app.html");
+  yes("the list query asks for the banner of each title", /bannerImage/.test(read("js/features/lists.js")));
   yes("the files load in order: maths, then the app side, before start", boot.indexOf("widgets-math.js") > 0 && boot.indexOf("widgets-math.js") < boot.indexOf("js/features/widgets.js") && boot.indexOf("js/features/widgets.js") < boot.indexOf("js/core/start.js"));
   yes("the snapshot is refreshed after a list load, a list change, and when the app returns", /wgSoon\(\)/.test(core) && /wgSoon\(\)/.test(trk) && /wgSoon\(3000\)/.test(read("js/features/notify.js")) && /wgSoon\(6000\)/.test(read("js/features/notify.js")));
   yes("changes made in the app count for the streak, and the shown pick is remembered for the widget", /wgNote\(\)/.test(trk) && /wgPicked\(e, p\)/.test(core));

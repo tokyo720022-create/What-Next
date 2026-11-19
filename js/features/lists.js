@@ -1,6 +1,6 @@
 /* js/features/lists.js: Anime and Manga lists, filter and customise sheets */
 // ---------- AniList collection reader (handles AniList's 500-entry chunks) ----------
-const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} episodes chapters duration averageScore genres status startDate{year month day} nextAiringEpisode{episode airingAt}}";
+const ENTRY_F = "status progress repeat startedAt{year month day} completedAt{year month day} media{id type isAdult siteUrl title{romaji english native} countryOfOrigin coverImage{large} bannerImage episodes chapters duration averageScore genres status startDate{year month day} nextAiringEpisode{episode airingAt}}";
 async function collection(user, type, filter, fields){
   const out = []; let chunk = 1, more = true;
   while(more){

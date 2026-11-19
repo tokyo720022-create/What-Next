@@ -13,7 +13,7 @@ import org.json.JSONObject
 
 /**
  * "Continue": what you are watching or reading, two tiles across and two down when there is room.
- * Each tile has the cover, the title, which episode or chapter is next with how many are left, a progress bar and a tick button
+ * Each tile has a wide picture with the episode length and how many are left as chips on it, the title, which episode or chapter is next and a tick button
  * that marks the next one as done on AniList without opening the app.
  */
 class WnContinueWidget : AppWidgetProvider() {
@@ -72,11 +72,11 @@ class WnContinueWidget : AppWidgetProvider() {
     private fun build(ctx: Context, mgr: AppWidgetManager, widgetId: Int, covers: Boolean, until: Long): RemoteViews {
         val k = WnWidgetKit
         val rv = RemoteViews(ctx.packageName, k.id(ctx, "layout", "wn_widget_continue"))
-        val cols = if (k.widthDp(mgr, widgetId) >= 290) 2 else 1
-        val rows = if (k.heightDp(mgr, widgetId) >= 120) 2 else 1
+        val cols = if (k.widthDp(mgr, widgetId) >= 250) 2 else 1
+        val rows = if (k.heightDp(mgr, widgetId) >= 200) 2 else 1
         val list = WnWidgetStore.load(ctx).optJSONArray("continue")
         val have = list?.length() ?: 0
-        rv.setTextViewText(k.id(ctx, "id", "con_head"), "Continue")
+        rv.setTextViewText(k.id(ctx, "id", "con_head"), "Continue Watching")
         rv.setTextViewText(k.id(ctx, "id", "con_empty"), "Nothing in progress. Start something from Pick.")
         rv.setViewVisibility(k.id(ctx, "id", "con_empty"), if (have == 0) View.VISIBLE else View.GONE)
         var next = 0
@@ -97,19 +97,21 @@ class WnContinueWidget : AppWidgetProvider() {
                 val duration = o.optInt("du", 0)
                 rv.setViewVisibility(tile, View.VISIBLE)
                 rv.setTextViewText(k.id(ctx, "id", "con_t$n"), k.str(o, "t"))
-                val left = if (total > progress) " · " + (total - progress) + " left" else ""
-                rv.setTextViewText(k.id(ctx, "id", "con_s$n"), "Next " + (if (manga) "Ch " else "Ep ") + (progress + 1) + left + (if (duration > 0) " · " + duration + "m" else ""))
-                rv.setProgressBar(k.id(ctx, "id", "con_p$n"), if (total > 0) total else 100, if (total > 0) minOf(progress, total) else 0, false)
+                rv.setTextViewText(k.id(ctx, "id", "con_s$n"), (if (manga) "Chapter " else "Episode ") + (progress + 1))
                 val img = k.id(ctx, "id", "con_i$n")
-                val bmp = if (covers) k.cover(ctx, k.str(o, "c"), 140, 200, until) else null
-                if (bmp != null) rv.setImageViewBitmap(img, bmp) else rv.setImageViewResource(img, k.id(ctx, "drawable", "wn_cover_placeholder"))
-                rv.setOnClickPendingIntent(k.id(ctx, "id", "con_b$n"), k.tap(ctx, "whatnext://media/" + o.optLong("id", 0L)))
+                val left = if (total > progress) total - progress else 0
+                val bmp = if (covers) k.tile(ctx, k.str(o, "b"), k.str(o, "c"), duration, left, if (total > 0) progress.toFloat() / total else 0f, until) else null
+                if (bmp != null) rv.setImageViewBitmap(img, bmp) else rv.setImageViewResource(img, k.id(ctx, "drawable", "wn_tile_placeholder"))
+                val open = k.tap(ctx, "whatnext://media/" + o.optLong("id", 0L))
+                rv.setOnClickPendingIntent(img, open)
+                rv.setOnClickPendingIntent(k.id(ctx, "id", "con_b$n"), open)
                 rv.setOnClickPendingIntent(k.id(ctx, "id", "con_k$n"), plusIntent(ctx, o))
                 rv.setContentDescription(k.id(ctx, "id", "con_k$n"), "Mark the next " + (if (manga) "chapter" else "episode") + " as done")
             }
             rv.setViewVisibility(k.id(ctx, "id", "con_r$row"), if (any) View.VISIBLE else View.GONE)
         }
         rv.setOnClickPendingIntent(k.id(ctx, "id", "con_head"), k.tap(ctx, "whatnext://pick"))
+        rv.setOnClickPendingIntent(k.id(ctx, "id", "con_hi"), k.tap(ctx, "whatnext://pick"))
         return rv
     }
 }

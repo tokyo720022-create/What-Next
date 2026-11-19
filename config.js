@@ -3,5 +3,5 @@
 window.WN_CONFIG = {
   clientApp: "54060",
   // Icons on the About screen. An icon only shows when its link is filled in (https only).
-  links: { website: "https://tokyo720022-create.github.io/tokyo-brotherhood-lab-site/index.html#home", discord: "", x: "", facebook: "", reddit: "", github: "https://github.com/tokyo720022-create/What-Next" }
+  links: { website: "https://tokyo720022-create.github.io/tokyo-brotherhood-lab-site/index.html#home", discord: "", x: "", facebook: "", reddit: "https://www.reddit.com/user/Orewatokyo/?utm_source=share&utm_medium=mweb3x&utm_name=mweb3xcss&utm_term=1&utm_content=share_button", github: "https://github.com/tokyo720022-create/What-Next" }
 };

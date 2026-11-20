@@ -1,5 +1,5 @@
 # Signing keys must never be committed: the repo is public, so anyone could sign APKs as this app.
-# The key lives in GitHub Secrets (see README, "Builds and releases").
+# The key lives in GitHub Secrets (see README, "Builds and releases", and docs/DETAILS.md).
 *.keystore
 *.jks
 *.p12

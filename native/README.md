@@ -9,7 +9,7 @@ likes, replies and follows). It reads the login from the same encrypted store, o
 remembers the time, so old notifications never flood the phone. Tapping an alert opens `whatnext://notifications`, which the app turns into its
 Notifications screen. `python3 native/apply-addon.py android --secure-only` applies only the login storage: the workflow uses that when the build with
 the alerts fails, so a mistake in the alert code can never cost you the secure login. **Release reminders do not use this add-on**: they use the official
-`@capacitor/local-notifications` plugin (see the main README), so they keep working even when the add-on is missing.
+`@capacitor/local-notifications` plugin (see docs/DETAILS.md), so they keep working even when the add-on is missing.
 
 **WnImage** (`kotlin/WnImagePlugin.kt`) shares, copies or saves the taste report picture: share and copy write one PNG to the app's cache and hand out a `content://` address through Capacitor's own FileProvider (`<applicationId>.fileprovider`); save inserts the picture into MediaStore under Pictures/What Next.
 
